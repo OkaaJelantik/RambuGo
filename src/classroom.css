@@ -1,0 +1,473 @@
+/* ============================================================
+   Scene: ruang kelas — halaman pembuka "Petualangan Rambu Lalu Lintas"
+   Semua nama kelas berawalan cr- agar tidak bentrok dengan CSS lain.
+   ============================================================ */
+
+.cr-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: #f3e2c7;
+  color: var(--ink);
+  font-family: 'Nunito', system-ui, -apple-system, sans-serif;
+  text-align: center;
+  isolation: isolate;
+}
+
+/* ---------- ruang kelas ---------- */
+
+.cr-room {
+  position: relative;
+  flex: 1 0 auto;
+  min-height: clamp(260px, 44vh, 720px);
+  overflow: hidden;
+  container-type: size;
+  background:
+    radial-gradient(90% 70% at 50% -10%, #fffaf0 0%, rgba(255, 250, 240, 0) 62%),
+    linear-gradient(180deg, #fbf1de 0%, #f7e8cf 58%, #f2dfc0 100%);
+}
+
+.cr-floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(112, 68, 30, 0.16) 0 2px,
+      rgba(112, 68, 30, 0) 2px 128px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.09) 0 1px,
+      rgba(255, 255, 255, 0) 1px 64px
+    ),
+    linear-gradient(180deg, #e7bb8b 0%, #dfaf7c 46%, #d7a26c 100%);
+  z-index: 0;
+}
+
+.cr-floor::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.cr-baseboard {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 34%;
+  height: clamp(10px, 2.4cqh, 20px);
+  background: linear-gradient(180deg, #f8ecd8 0%, #efdcc0 70%, #e2caa6 100%);
+  border-top: 2px solid rgba(42, 35, 32, 0.12);
+  box-shadow:
+    0 5px 0 rgba(42, 35, 32, 0.07),
+    0 9px 16px rgba(42, 35, 32, 0.12);
+  z-index: 1;
+}
+
+.cr-sunbeam {
+  position: absolute;
+  left: -6%;
+  top: -4%;
+  width: 52%;
+  height: 72%;
+  background: radial-gradient(
+    55% 55% at 34% 32%,
+    rgba(255, 240, 190, 0.62),
+    rgba(255, 240, 190, 0) 72%
+  );
+  filter: blur(4px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cr-window,
+.cr-board,
+.cr-clock,
+.cr-shelf,
+.cr-kid,
+.cr-desk,
+.cr-map {
+  position: absolute;
+  z-index: 3;
+  filter: drop-shadow(0 12px 10px rgba(42, 35, 32, 0.14));
+}
+
+.cr-window {
+  top: 5%;
+  left: 3%;
+  width: min(19cqw, 47cqh);
+}
+
+.cr-board {
+  top: 4.5%;
+  left: 50%;
+  width: min(38cqw, 101cqh);
+  transform: translateX(-50%);
+  filter: drop-shadow(0 14px 12px rgba(42, 35, 32, 0.17));
+}
+
+.cr-clock {
+  top: 6%;
+  right: 7.5%;
+  width: min(7.5cqw, 19cqh);
+  filter: drop-shadow(0 8px 8px rgba(42, 35, 32, 0.15));
+}
+
+.cr-map {
+  display: none;
+}
+
+.cr-shelf {
+  right: 4%;
+  bottom: 3%;
+  width: min(13cqw, 40cqh);
+}
+
+.cr-kid {
+  left: 65%;
+  bottom: 1%;
+  height: min(43cqh, 27cqw);
+  aspect-ratio: 140 / 260;
+  z-index: 4;
+}
+
+.cr-desk {
+  width: min(15cqw, 42cqh);
+  z-index: 5;
+  filter: drop-shadow(0 10px 8px rgba(42, 35, 32, 0.16));
+}
+
+.cr-desk--a {
+  left: 1.5%;
+  bottom: -3%;
+}
+
+.cr-desk--b {
+  left: 25%;
+  bottom: -5%;
+}
+
+.cr-desk--c {
+  left: 48.5%;
+  bottom: -4%;
+}
+
+.cr-window svg,
+.cr-board svg,
+.cr-clock svg,
+.cr-shelf svg,
+.cr-kid svg,
+.cr-desk svg,
+.cr-map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- kartu ajakan di atas meja depan ---------- */
+
+.cr-foreground {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: clamp(16px, 2.6vh, 34px) clamp(14px, 3vw, 30px) clamp(18px, 3.2vh, 40px);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(80, 46, 18, 0.16) 0 2px,
+      rgba(80, 46, 18, 0) 2px 240px
+    ),
+    linear-gradient(180deg, #c98c53 0%, #bd8048 44%, #b3763c 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.28),
+    inset 0 18px 34px rgba(96, 54, 14, 0.16),
+    0 -16px 34px rgba(42, 35, 32, 0.18);
+  z-index: 6;
+}
+
+.cr-foreground::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: linear-gradient(180deg, #e2b07c, #cf9660);
+}
+
+.cr-prop {
+  position: absolute;
+  bottom: clamp(14px, 3.2vh, 44px);
+  z-index: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 7px 6px rgba(42, 35, 32, 0.2));
+}
+
+.cr-prop--books {
+  left: clamp(16px, 6vw, 104px);
+  width: clamp(92px, 9vw, 138px);
+}
+
+.cr-prop--apple {
+  right: clamp(20px, 7vw, 126px);
+  width: clamp(52px, 5vw, 76px);
+}
+
+.cr-prop svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.cr-card {
+  position: relative;
+  z-index: 2;
+  width: min(720px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 1.1vh, 12px);
+  padding: clamp(16px, 2.4vh, 30px) clamp(18px, 3.2vw, 40px) clamp(18px, 2.8vh, 32px);
+  border: 3px solid #fff;
+  border-radius: clamp(20px, 2.2vw, 30px);
+  background: linear-gradient(180deg, #fffdf7 0%, var(--paper) 100%);
+  box-shadow:
+    0 6px 0 rgba(80, 44, 14, 0.26),
+    0 24px 48px rgba(42, 35, 32, 0.28);
+}
+
+.cr-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.32rem 0.82rem;
+  border-radius: 999px;
+  background: #ffe9b8;
+  color: #8a5a12;
+  font-weight: 800;
+  font-size: clamp(0.66rem, 0.5vw + 0.45vh, 0.78rem);
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.cr-dot {
+  width: 0.42em;
+  height: 0.42em;
+  border-radius: 50%;
+  background: var(--orange);
+}
+
+.cr-title {
+  margin: 0;
+  max-width: 23ch;
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: clamp(1.5rem, 1.6vw + 1.1vh, 2.5rem);
+  line-height: 1.06;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.cr-mark {
+  background-image: linear-gradient(
+    180deg,
+    transparent 60%,
+    #ffe49a 60%,
+    #ffe49a 92%,
+    transparent 92%
+  );
+  padding: 0 0.06em;
+}
+
+.cr-lead {
+  margin: 0;
+  max-width: 48ch;
+  color: #5f5046;
+  font-size: clamp(0.9rem, 0.5vw + 0.7vh, 1.06rem);
+  font-weight: 600;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.cr-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: clamp(48px, 6.2vh, 60px);
+  min-width: clamp(200px, 18vw, 260px);
+  margin-top: clamp(3px, 0.8vh, 8px);
+  padding: 0 clamp(1.4rem, 2.6vw, 2.2rem);
+  border-radius: 999px;
+  background: var(--yellow);
+  color: var(--ink);
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: clamp(1.1rem, 0.7vw + 0.7vh, 1.3rem);
+  line-height: 1;
+  box-shadow:
+    0 6px 0 #d99a12,
+    0 14px 24px rgba(96, 54, 14, 0.32);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.15s ease;
+}
+
+.cr-cta-arrow {
+  display: inline-block;
+  font-size: 1.12em;
+  line-height: 0;
+  transition: transform 0.16s ease;
+}
+
+.cr-cta:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.cr-cta:hover .cr-cta-arrow {
+  transform: translateX(3px);
+}
+
+.cr-cta:active {
+  transform: translateY(4px);
+  box-shadow:
+    0 2px 0 #d99a12,
+    0 6px 12px rgba(96, 54, 14, 0.3);
+}
+
+.cr-cta:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 4px;
+}
+
+/* ---------- layar sempit / tegak (ponsel & tablet portrait) ---------- */
+
+@media (max-width: 760px), (max-aspect-ratio: 1 / 1) {
+  .cr-room {
+    min-height: 300px;
+  }
+
+  .cr-floor {
+    height: 38%;
+  }
+
+  .cr-baseboard {
+    bottom: 38%;
+  }
+
+  .cr-window {
+    top: 4%;
+    left: 2.5%;
+    width: min(25cqw, 32cqh);
+  }
+
+  .cr-board {
+    top: 4%;
+    left: 64%;
+    width: min(62cqw, 52cqh);
+  }
+
+  .cr-clock {
+    top: 44%;
+    right: 5%;
+    width: min(15cqw, 12cqh);
+  }
+
+  .cr-map {
+    display: block;
+    bottom: calc(38% + 14px);
+    left: 50%;
+    width: min(26cqw, 18cqh);
+    transform: translateX(-50%);
+  }
+
+  .cr-shelf {
+    right: 3%;
+    bottom: 2%;
+    width: min(24cqw, 30cqh);
+  }
+
+  .cr-kid {
+    left: 20%;
+    bottom: 1%;
+    height: min(40cqh, 56cqw);
+  }
+
+  .cr-desk {
+    width: min(30cqw, 24cqh);
+  }
+
+  .cr-desk--a {
+    left: -8%;
+    bottom: -4%;
+  }
+
+  .cr-desk--b {
+    left: 44%;
+    bottom: -6%;
+  }
+
+  .cr-desk--c {
+    display: none;
+  }
+
+  .cr-card {
+    width: min(560px, 100%);
+  }
+}
+
+/* ---------- layar pendek: rapatkan, tombol tetap utuh ---------- */
+
+@media (max-height: 700px) {
+  .cr-room {
+    min-height: 210px;
+  }
+
+  .cr-card {
+    border-width: 2px;
+  }
+
+  .cr-title {
+    line-height: 1.04;
+  }
+
+  .cr-prop {
+    bottom: 8px;
+  }
+}
+
+@media (max-height: 560px) and (min-width: 761px) {
+  .cr-room {
+    min-height: 180px;
+  }
+
+  .cr-eyebrow {
+    display: none;
+  }
+}
+
+/* properti meja hanya kalau memang ada ruang di kiri-kanan kartu */
+@media (max-width: 1199px) {
+  .cr-prop {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cr-cta,
+  .cr-cta-arrow {
+    transition: none;
+  }
+}

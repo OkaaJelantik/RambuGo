@@ -1,0 +1,398 @@
+/* ===================================================================
+   Perjalanan dengan perspektif menyusuri jalan (vanishing point).
+   Jalan mengerucut ke titik di cakrawala; rambu & pohon mengecil
+   saat menjauh. Semua kelas berprefix .pv-
+   =================================================================== */
+
+.pv-scene {
+  --pv-horizon: 38%;
+  --pv-ease: cubic-bezier(0.42, 0, 0.28, 1);
+
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #cfeaff;
+  font-family: 'Nunito', system-ui, sans-serif;
+}
+
+/* ---------- langit & awan ---------- */
+
+.pv-sky {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--pv-horizon) + 2%);
+  background: linear-gradient(180deg, #8fd8ff 0%, #b6e6ff 55%, #e4f5ff 100%);
+}
+
+.pv-sun {
+  position: absolute;
+  top: 7%;
+  right: 12%;
+  width: clamp(46px, 6vw, 82px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff6c9, #ffd75e 62%, #ffc02e);
+  box-shadow: 0 0 0 11px rgba(255, 222, 120, 0.26);
+}
+
+.pv-cloud {
+  position: absolute;
+  background: #fff;
+  border-radius: 999px;
+  opacity: 0.95;
+}
+
+.pv-cloud::before,
+.pv-cloud::after {
+  content: '';
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.pv-cloud::before {
+  width: 60%;
+  padding-top: 60%;
+  top: -42%;
+  left: 15%;
+}
+
+.pv-cloud::after {
+  width: 42%;
+  padding-top: 42%;
+  top: -24%;
+  right: 15%;
+}
+
+.pv-cloud.c1 {
+  width: 120px;
+  height: 34px;
+  top: 11%;
+  left: 12%;
+}
+
+.pv-cloud.c2 {
+  width: 88px;
+  height: 26px;
+  top: 19%;
+  left: 62%;
+}
+
+/* ---------- bukit di cakrawala ---------- */
+
+.pv-town {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% - var(--pv-horizon) + 1%);
+  height: 0;
+}
+
+.pv-town span {
+  position: absolute;
+  bottom: 0;
+  border-radius: 3px 3px 0 0;
+  box-shadow: inset 0 -6px 0 rgba(90, 110, 100, 0.14);
+}
+
+.pv-town span::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  translate: -50% 0;
+  border-left: 16px solid transparent;
+  border-right: 16px solid transparent;
+  border-bottom: 10px solid rgba(122, 96, 88, 0.62);
+}
+
+.pv-hills {
+  position: absolute;
+  left: -5%;
+  right: -5%;
+  top: calc(var(--pv-horizon) - 6%);
+  height: 9%;
+  background:
+    radial-gradient(60% 100% at 18% 100%, #86cf72 0 70%, transparent 71%),
+    radial-gradient(52% 100% at 46% 100%, #79c866 0 70%, transparent 71%),
+    radial-gradient(70% 100% at 82% 100%, #8bd077 0 70%, transparent 71%);
+  opacity: 0.9;
+}
+
+/* ---------- tanah ---------- */
+
+.pv-ground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--pv-horizon);
+  bottom: 0;
+  background: linear-gradient(180deg, #7ecb5b 0%, #69c64a 42%, #55b238 100%);
+}
+
+/* ---------- jalan & trotoar (mengerucut ke titik hilang) ---------- */
+
+.pv-road {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #7b818c 0%, #6a6f7a 55%, #555a65 100%);
+  clip-path: polygon(50% 38%, 72% 100%, 14% 100%);
+}
+
+.pv-walk {
+  position: absolute;
+  inset: 0;
+}
+
+.pv-walk.right {
+  background: linear-gradient(180deg, #cdc6b6 0%, #bdb5a3 100%);
+  clip-path: polygon(50% 38%, 100% 100%, 72% 100%);
+}
+
+.pv-walk.left {
+  background: linear-gradient(180deg, #c9c2b2 0%, #b8b09e 100%);
+  clip-path: polygon(50% 38%, 14% 100%, 0% 100%);
+}
+
+/* ---------- marka jalan & pohon ---------- */
+
+.pv-road::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 38%;
+  height: 9%;
+  background: linear-gradient(180deg, rgba(233, 246, 255, 0.85) 0%, rgba(233, 246, 255, 0) 100%);
+  pointer-events: none;
+}
+
+.pv-dashes,
+.pv-trees {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pv-dashes i {
+  position: absolute;
+  width: 34px;
+  height: 11px;
+  margin: -5px 0 0 -17px;
+  border-radius: 4px;
+  background: #f7f3e8;
+  translate: 0 -50%;
+  transition:
+    left 1.2s var(--pv-ease),
+    top 1.2s var(--pv-ease),
+    scale 1.2s var(--pv-ease);
+}
+
+.pv-trees .tree {
+  position: absolute;
+  width: 74px;
+  height: 96px;
+  margin: -96px 0 0 -37px;
+  border-radius: 50% 50% 46% 46%;
+  background: radial-gradient(circle at 36% 30%, #74c24d, #3f8329 74%);
+  box-shadow: 0 0 0 3px rgba(63, 131, 41, 0.22);
+  translate: 0 0;
+  transform-origin: 50% 100%;
+  transition:
+    left 1.2s var(--pv-ease),
+    top 1.2s var(--pv-ease),
+    scale 1.2s var(--pv-ease);
+}
+
+.pv-trees .tree::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  translate: -50% 0;
+  width: 11px;
+  height: 24px;
+  border-radius: 3px;
+  background: #7c5230;
+}
+
+/* ---------- rambu ---------- */
+
+.pv-sign {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  transform-origin: 50% 100%;
+  transition:
+    left 1.2s var(--pv-ease),
+    top 1.2s var(--pv-ease),
+    transform 1.2s var(--pv-ease),
+    opacity 0.4s ease;
+  cursor: default;
+  z-index: 4;
+}
+
+.pv-plate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(56px, 8vw, 96px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff;
+  padding: 7px;
+  box-shadow: 0 6px 0 rgba(42, 35, 32, 0.16), 0 12px 20px rgba(42, 35, 32, 0.2);
+}
+
+.pv-pole {
+  width: 11px;
+  height: clamp(58px, 8vh, 84px);
+  border-radius: 5px;
+  background: linear-gradient(90deg, #c3c8d0, #8d939d);
+}
+
+.pv-sign.done {
+  opacity: 0.5;
+  filter: grayscale(0.6);
+}
+
+.pv-sign.next {
+  opacity: 0.9;
+}
+
+.pv-sign.active {
+  cursor: pointer;
+}
+
+.pv-sign.active .pv-plate {
+  animation: pv-pulse 1.7s ease-in-out infinite;
+}
+
+.pv-sign.active .pv-plate::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  border: 4px dashed #ffb03d;
+  animation: pv-spin 9s linear infinite;
+}
+
+@keyframes pv-pulse {
+  0%,
+  100% {
+    box-shadow: 0 6px 0 rgba(42, 35, 32, 0.16), 0 12px 20px rgba(42, 35, 32, 0.2);
+  }
+  50% {
+    box-shadow: 0 8px 0 rgba(42, 35, 32, 0.12), 0 18px 26px rgba(42, 35, 32, 0.24);
+  }
+}
+
+@keyframes pv-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* ---------- anak + balon ---------- */
+
+.pv-girl {
+  position: absolute;
+  bottom: 2%;
+  width: clamp(70px, 11vw, 132px);
+  translate: -50% 0;
+  z-index: 6;
+}
+
+.pv-girl > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 14px 10px rgba(42, 35, 32, 0.28));
+}
+
+.pv-bubble {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  width: max-content;
+  max-width: min(52vw, 240px);
+  padding: 0.6rem 0.9rem;
+  border-radius: 18px 18px 6px 18px;
+  background: #fffdf7;
+  border: 3px solid #fff;
+  box-shadow: 0 6px 0 rgba(42, 35, 32, 0.1), 0 12px 22px rgba(42, 35, 32, 0.16);
+  font-size: clamp(0.76rem, 1.9vw, 0.92rem);
+  font-weight: 800;
+  color: #3b332c;
+  line-height: 1.35;
+  text-align: left;
+  animation: pv-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.pv-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -13px;
+  right: 22px;
+  width: 14px;
+  height: 14px;
+  background: #fffdf7;
+  border-right: 3px solid #fff;
+  border-bottom: 3px solid #fff;
+  border-radius: 0 0 4px 0;
+  rotate: 45deg;
+}
+
+@keyframes pv-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---------- HUD ---------- */
+
+.pv-hud {
+  position: absolute;
+  top: clamp(12px, 2.4vh, 24px);
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 5px 16px rgba(42, 35, 32, 0.14);
+  font-size: clamp(0.7rem, 1.7vw, 0.86rem);
+  font-weight: 800;
+  color: #4a4038;
+  white-space: nowrap;
+  z-index: 8;
+}
+
+.pv-pips {
+  display: flex;
+  gap: 5px;
+}
+
+.pv-pips i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d6cdbd;
+}
+
+.pv-pips i.on {
+  background: var(--orange);
+}
