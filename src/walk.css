@@ -95,3 +95,117 @@
 .wk-edge-r polygon {
   fill: var(--road-line);
 }
+
+/* ============================================================
+   Art kit v1 — hero berjalan + rumah, pohon, lampu.
+   Bagian ini hanya MENAMBAH aturan baru; aturan di atas tidak
+   diubah. Semua SVG art diletakkan lewat pembungkus sendiri,
+   bukan langsung di bawah `.wk-ground`.
+   ============================================================ */
+
+/* ---------- rumah, pohon, lampu ---------- */
+
+.wk-house,
+.wk-tree,
+.wk-lamp {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- hero berjalan ---------- */
+
+/* Satu siklus langkah. Scene boleh memperlambat atau menghentikan
+   seluruh dunia dengan menimpa --cycle di ancestor .hw. */
+:root {
+  --cycle: 1.1s;
+}
+
+.hw {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  /* --cycle sengaja tidak diisi di sini: default-nya ada di :root,
+     jadi scene bisa memperlambat/menghentikan seluruh dunia dengan
+     menimpa --cycle di ancestor .hw mana pun. */
+}
+
+/* Rotasi kaki memakai sumbu di pangkal paha masing-masing. */
+.hw-leg {
+  transform-box: view-box;
+}
+
+.hw-leg--a {
+  transform-origin: 56px 150px;
+}
+
+.hw-leg--b {
+  transform-origin: 84px 150px;
+}
+
+/* Dua langkah per siklus: kaki kiri keluar pada setengah pertama,
+   kaki kanan pada setengah kedua, jadi kaki tidak pernah menyilang.
+   Delay negatif membuat hero sudah dalam langkah saat pertama tampil,
+   sehingga pose walk langsung berbeda dari pose idle yang statis. */
+.hw-walk .hw-leg--a {
+  animation: hw-step-a var(--cycle, 1.1s) ease-in-out infinite;
+}
+
+.hw-walk .hw-leg--b {
+  animation: hw-step-b var(--cycle, 1.1s) ease-in-out infinite;
+}
+
+.hw-walk .hw-torso {
+  animation: hw-bob var(--cycle, 1.1s) ease-in-out infinite;
+}
+
+.hw-walk .hw-leg--a,
+.hw-walk .hw-leg--b,
+.hw-walk .hw-torso {
+  animation-delay: calc(var(--cycle, 1.1s) * -0.25);
+}
+
+@keyframes hw-step-a {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(18deg);
+  }
+}
+
+@keyframes hw-step-b {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(-18deg);
+  }
+}
+
+/* Dua pantulan 2 px per siklus, seirama dengan langkah. */
+@keyframes hw-bob {
+  0%,
+  50%,
+  100% {
+    transform: translateY(0);
+  }
+  25%,
+  75% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Gerak dimatikan total; pose tetap netral dan hero tetap terlihat. */
+@media (prefers-reduced-motion: reduce) {
+  .hw-walk .hw-torso,
+  .hw-walk .hw-leg--a,
+  .hw-walk .hw-leg--b {
+    animation: none;
+  }
+}
