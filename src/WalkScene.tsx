@@ -2,7 +2,17 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties } from 'react'
 import GroundScene from './scene/GroundScene'
 import HeroWalk from './art/HeroWalk'
-import { House, StreetLamp, Tree } from './art/scenery'
+import {
+  Bench,
+  Bin,
+  BusStop,
+  Fence,
+  House,
+  PowerPole,
+  Shop,
+  StreetLamp,
+  Tree,
+} from './art/scenery'
 import { Car, Motorcycle } from './art/vehicles'
 import { Pedestrian } from './art/people'
 import { SignArt } from './SignArt'
@@ -67,31 +77,59 @@ const LINES = [
   'Satu rambu lagi sebelum sampai jalan raya 👆',
 ]
 
-type PropKind = 'house' | 'tree' | 'lamp'
-
 /**
- * One kind of background object. Heights are fractions of the viewport
- * height at depth 0; `ratio` is the art's width / height.
+ * One kind of background art. Heights are fractions of the viewport height
+ * at depth 0; `ratio` is the art's width / height.
  */
 const PROP_ART = {
   house: { Art: House, height: 0.85, ratio: 200 / 180 },
+  shop: { Art: Shop, height: 0.78, ratio: 220 / 190 },
   tree: { Art: Tree, height: 0.55, ratio: 120 / 160 },
   lamp: { Art: StreetLamp, height: 0.62, ratio: 60 / 200 },
+  fence: { Art: Fence, height: 0.26, ratio: 180 / 70 },
+  bin: { Art: Bin, height: 0.18, ratio: 60 / 90 },
+  bench: { Art: Bench, height: 0.18, ratio: 120 / 70 },
+  busstop: { Art: BusStop, height: 0.58, ratio: 160 / 150 },
+  powerpole: { Art: PowerPole, height: 0.95, ratio: 50 / 230 },
 } as const
 
+type PropKind = keyof typeof PROP_ART
+
+type PropSpec = {
+  /** Art key into `PROP_ART`. */
+  art: PropKind
+  /** Horizontal offset in screen widths at depth 0; negative is the left verge. */
+  lane: number
+  /** Depth at scroll 0, in [0, 1). */
+  base: number
+  /** Optional height multiplier, for a second size of the same art. */
+  size?: number
+}
+
 /**
- * The belt's six objects, each reused from the Task 3 art kit. `base` is the
- * depth the object sits at when `scroll` is 0. Objects fade out before they
- * reach the camera (`nearFadeAt`) and reappear at the horizon under the haze
- * (`fadeAt`), so they never pop in mid-screen.
+ * The belt, ordered from near to far. One entry per art kind, so every
+ * screen holds all nine pieces and a walk shows each of them once per lap.
+ * Placement is a static table — never random — so two playthroughs of the
+ * same leg show the same street. Objects are recycled by wrapping `base`
+ * around `PROP_CYCLE`; the near end of the wrap is faded to opacity 0 by
+ * `nearFadeAt`, and the far end lands at depth 1 below the horizon line
+ * where `fadeAt` is 0, so no object pops in mid-screen or out of the sky.
+ *
+ * Near depths hold the thin or small pieces (bench, lamp, tree, fence);
+ * the wide buildings sit further back so they never fill the frame, and
+ * lanes alternate sides so the verge and the sidewalk are both populated.
+ * `size` adds a little variation without ever moving an object's feet.
  */
-const PROPS: ReadonlyArray<{ kind: PropKind; lane: number; base: number }> = [
-  { kind: 'house', lane: -0.62, base: 0.18 },
-  { kind: 'tree', lane: 0.55, base: 0.33 },
-  { kind: 'lamp', lane: -0.46, base: 0.48 },
-  { kind: 'house', lane: 0.62, base: 0.63 },
-  { kind: 'tree', lane: -0.55, base: 0.78 },
-  { kind: 'lamp', lane: 0.46, base: 0.93 },
+const LAYOUT: ReadonlyArray<PropSpec> = [
+  { art: 'bench', lane: 0.48, base: 0.16 },
+  { art: 'lamp', lane: -0.44, base: 0.25 },
+  { art: 'tree', lane: 0.54, base: 0.34, size: 1.1 },
+  { art: 'fence', lane: -0.60, base: 0.43 },
+  { art: 'shop', lane: 0.64, base: 0.52 },
+  { art: 'bin', lane: -0.42, base: 0.61 },
+  { art: 'busstop', lane: 0.50, base: 0.70 },
+  { art: 'powerpole', lane: -0.52, base: 0.79 },
+  { art: 'house', lane: 0.62, base: 0.88, size: 0.9 },
 ]
 
 type Box = { w: number; h: number }
@@ -103,9 +141,9 @@ function heroBox(viewportH: number): Box {
 }
 
 /** Nominal (depth 0) size of a background object at a given viewport height. */
-function propBox(kind: PropKind, viewportH: number): Box {
+function propBox(kind: PropKind, viewportH: number, size = 1): Box {
   const { height, ratio } = PROP_ART[kind]
-  const h = height * viewportH
+  const h = height * size * viewportH
   return { w: h * ratio, h }
 }
 
@@ -242,7 +280,8 @@ export default function WalkScene({ step, onOpen }: Props) {
 
     propRefs.current.forEach((el, i) => {
       if (!el) return
-      const box = propBox(PROPS[i].kind, h)
+      const spec = LAYOUT[i]
+      const box = propBox(spec.art, h, spec.size)
       el.style.width = `${box.w}px`
       el.style.height = `${box.h}px`
     })
@@ -269,9 +308,9 @@ export default function WalkScene({ step, onOpen }: Props) {
     // Scenery: bottom-centred on its point on the verge/sidewalk.
     propRefs.current.forEach((el, i) => {
       if (!el) return
-      const spec = PROPS[i]
+      const spec = LAYOUT[i]
       const depth = wrap(spec.base - world.scroll, PROP_CYCLE)
-      const box = propBox(spec.kind, h)
+      const box = propBox(spec.art, h, spec.size)
       const scale = Math.round(scaleAt(depth) * 1000) / 1000
       const x = xAt(spec.lane, depth) * w
       const y = yAt(depth) * h
@@ -521,12 +560,12 @@ export default function WalkScene({ step, onOpen }: Props) {
       </div>
 
       <div className="wk-props" aria-hidden="true">
-        {PROPS.map((spec, i) => {
-          const Art = PROP_ART[spec.kind].Art
+        {LAYOUT.map((spec, i) => {
+          const Art = PROP_ART[spec.art].Art
           return (
             <div
-              key={i}
-              className={`wk-prop wk-prop--${spec.kind}`}
+              key={`${spec.art}-${i}`}
+              className={`wk-prop wk-prop--${spec.art}`}
               ref={(el) => {
                 propRefs.current[i] = el
               }}
