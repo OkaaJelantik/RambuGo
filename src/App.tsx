@@ -372,7 +372,7 @@ export default function App() {
       )}
 
       {stage === 'crossroad' && (
-        <section className="screen" key="crossroad">
+        <section className="screen dlg-space" key="crossroad">
           <Crossroad
             onMateri={() => {
               pendingFocusRef.current = 'materi'
@@ -516,6 +516,14 @@ function Quiz({
       ? ''
       : `${picked === q.answer ? 'Tepat sekali! ' : 'Belum tepat. '}${q.why}`
 
+  // The same polite region carries the feedback and, when an answer adds a
+  // point, the new score. `score` is already updated in this render, so the
+  // announcement names the score the child can see.
+  const liveText =
+    picked === null
+      ? ''
+      : `${feedbackText}${picked === q.answer ? ` Skor ${score} dari ${QUESTIONS.length}.` : ''}`
+
   // Memilih opsi menonaktifkan tombol yang sedang fokus, jadi fokus jatuh ke
   // <body>. Pindahkan ke "Soal berikutnya" yang tetap ada, dan gulirkan ke
   // dalam layar: pada 360×640 tombol ini lahir di bawah lipatan.
@@ -554,6 +562,8 @@ function Quiz({
 
   return (
     <div className="quiz-wrap">
+      <h2 className="quiz-title">Kuis Rambu Lalu Lintas</h2>
+
       {/* Wilayah live tetap terpasang; teksnya yang berganti saat menjawab. */}
       <p
         className="quiz-live sr-only"
@@ -561,7 +571,7 @@ function Quiz({
         aria-live="polite"
         aria-atomic="true"
       >
-        {feedbackText}
+        {liveText}
       </p>
 
       <div className="quiz-progress">

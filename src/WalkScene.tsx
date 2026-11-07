@@ -496,8 +496,14 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
   const waitsRef = useRef({ trafficSince: 0, trafficWait: 0, pedSince: 0, pedWait: 0 })
 
   const measure = useCallback(() => {
-    const w = window.innerWidth
-    const h = window.innerHeight
+    // The layout is `100dvh`, not `window.innerHeight`. On a phone those
+    // differ while the address bar animates, and measuring the window would
+    // size every object from one height while laying it out in another.
+    // Measure the scene box itself (the 100dvh element); the window is only
+    // the fallback for a first paint where the ref is not laid out yet.
+    const el = sceneEl.current
+    const w = el?.clientWidth || window.innerWidth
+    const h = el?.clientHeight || window.innerHeight
     const hero = heroBox(h)
     const heroScale = depthScale(HERO_DEPTH)
 
@@ -747,8 +753,15 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
       measure()
       draw(worldRef.current)
     }
+    // `100dvh` follows the dynamic viewport even when the window's own
+    // resize event and the visual viewport do not land on the same tick.
+    const visualViewport = window.visualViewport
     window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    visualViewport?.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      visualViewport?.removeEventListener('resize', onResize)
+    }
   }, [measure, draw])
 
   // Each leg starts a fresh walk; reduced motion jumps straight to "stopped".

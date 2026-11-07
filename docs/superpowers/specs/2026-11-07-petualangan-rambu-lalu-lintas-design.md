@@ -372,8 +372,8 @@ Yang sudah terbukti enak di prototipe ini dan layak dipertahankan:
    jalan cukup satu poligon lurus antara kedalaman 0 dan 1.
 4. **Tanpa `filter`/`blur` di scene.** Tidak ada `filter`, `backdrop-filter`, atau
    `blur()` di `walk.css` maupun art kit; bayangan digambar sebagai `<ellipse>`
-   SVG atau `box-shadow`. Jumlah objek beranimasi dijaga: 8 marka + 10 prop +
-   3 kendaraan + 2 pejalan (≤ 30).
+   SVG atau `box-shadow`. Jumlah objek beranimasi dijaga: 8 marka + 10 penempatan
+   prop (7–9 jenis per frame) + 3 kendaraan + 2 pejalan (≤ 30).
 5. **Mobile-first.** Baseline layout adalah potret 360×640; `walk.css` dan
    `dialog.css` tidak memakai media query lebar sama sekali (hanya
    `prefers-reduced-motion`, plus satu `max-height: 700px` untuk kartu rumah di
@@ -417,7 +417,7 @@ Yang sudah terbukti enak di prototipe ini dan layak dipertahankan:
 
 ### 9.2 Guard skala: kenapa angka geometri bisa dipercaya
 
-`src/scene/scale.test.ts` (43 test) bukan test yang membandingkan tabel dengan
+`src/scene/scale.test.ts` (67 test) bukan test yang membandingkan tabel dengan
 dirinya sendiri. Setiap harapan berupa piksel konkret atau bacaan DOM, dan setiap
 jalur lewat fungsi produksi yang dipakai loop gambar: `heroBox`, `propBox`,
 `vehicleBox`, `pedBox`, `signPlatePx`, `placeDash`, `placeProp`, `placeVehicle`,
@@ -433,6 +433,15 @@ ke clamp viewport, `PROP_ART` kembali ke fraksi viewport, lebar mobil 3×, tiang
 0,5 m, dan `SIDEWALK_CENTRE` digeser ke jalan — masing-masing menggagalkan minimal
 satu assertion bernama. Tabel mutasinya ada di laporan Task 14 (`d6a1dc1`); tanpa
 guard ini, mutasi yang sama lolos dan §7.1 kembali menjadi klaim tanpa bukti.
+
+Batas yang harus disebut terang-terangan: kelima mutasi itu membuktikan **jalur
+sizing produksi** (`heroBox`/`propBox`/`placeProp`/`placeVehicle`/`signPlatePx`),
+bukan seluruh scene. Guard **tidak** membaca penempatan hero/rambu di JSX
+(`WalkScene.tsx` menulis `left`/`top` dari `offsetX`/`yAt`) dan **tidak** membaca
+z-index stacking di CSS: `scale.test.ts` memakai konstanta `SIGN_Z`/`HERO_Z`/`HUD_Z`
+dari `walk.css`, jadi menukar urutan lapisan di CSS tidak otomatis menggagalkan test.
+Perubahan yang hanya menggeser `left`/`top` di JSX atau menukar z-index belum
+tertangkap guard dan harus diperiksa dengan tangkapan/rect di peramban.
 
 ---
 
@@ -526,10 +535,10 @@ pejalan `:601` (`9d0a9e4`) — dan panel di `dialog.css:154` (`0634832`).
 (`0634832`) dan Task 15; DoD §14.5 terpenuhi.
 
 **✅ T6 — Tidak ada test sama sekali.** Dulu tidak ada runner maupun smoke test.
-Selesai: vitest + jsdom (`aac63b4`), sekarang **8 suite / 134 test** — flow
+Selesai: vitest + jsdom (`aac63b4`), sekarang **8 suite / 164 test** — flow
 (`21b78a1`, 9 test), projection (`aac63b4`, 40), GroundScene (`2397d0c`, 7),
 HeroWalk (`ac5c4ae`, 6), world (`c30af0a`, 7), spawner (`9d0a9e4`, 12), story
-(`76ed157`/`0634832`, 10), dan scale (`d6a1dc1`, 43). `pnpm test` hijau.
+(`76ed157`/`0634832`, 10), dan scale (`d6a1dc1`, 67). `pnpm test` hijau.
 
 **✅ T7 — Parameter dev ikut ke produksi.** `?s=`, `?step=`, `?still` dulu selalu
 dibaca. Selesai di `4a873ad`: ketiganya hanya aktif bila `import.meta.env.DEV`
