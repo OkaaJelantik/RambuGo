@@ -7,11 +7,14 @@
  * makes the motion unit-testable without a browser.
  */
 
-/** World depth scrolled per second while walking. */
-export const SCROLL_PER_SEC = 0.55
+/**
+ * World depth scrolled per second while walking. Halved for Task 11: 0,30 is
+ * a seven-year-old's amble, not the old 0,55 rush.
+ */
+export const SCROLL_PER_SEC = 0.3
 
-/** Seconds spent walking between two signs. */
-export const LEG_SECONDS = 3.6
+/** Seconds spent walking between two signs. One leg is six calm seconds. */
+export const LEG_SECONDS = 6.0
 
 /** Tolerance used to treat a frame that lands just short of the leg's end as the end. */
 const EPSILON = 1e-9

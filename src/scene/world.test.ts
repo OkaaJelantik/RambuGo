@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createWorld, LEG_SECONDS, SCROLL_PER_SEC, stepWorld } from './world'
 
-/** The scroll a full leg should accumulate: 0.55 depth units per second. */
+/** The scroll a full leg should accumulate: 0,30 depth units per second. */
 const LEG_SCROLL = SCROLL_PER_SEC * LEG_SECONDS
 
 describe('createWorld', () => {
@@ -57,7 +57,7 @@ describe('stepWorld', () => {
   })
 
   it('stops without overshooting when dt is much larger than the leg', () => {
-    const world = stepWorld(createWorld(0), 5)
+    const world = stepWorld(createWorld(0), LEG_SECONDS * 2)
 
     expect(world.mode).toBe('stopped')
     expect(world.travel).toBe(LEG_SECONDS)

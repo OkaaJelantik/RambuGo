@@ -1,10 +1,19 @@
 /**
  * Projection helpers for the 2.5D walk scene.
  *
- * `depth` is 0 at the camera's feet and 1 at the horizon. Position and size
- * functions return a fraction of the viewport, so callers multiply by 100 for
- * `%`. Depths outside 0..1 are clamped.
+ * `depth` is 0 at the camera's feet and 1 at the horizon. The camera walks on
+ * the **left sidewalk**, so lateral positions are metres measured from the
+ * camera's own line: negative is further left (the verge, houses), positive is
+ * towards the road, and the kerb sits at `KERB_X`.
+ *
+ * One projector for every object: a metre at depth `d` is `pxPerM(vh) *
+ * depthScale(d)` pixels on screen, both horizontally and vertically. That is a
+ * plain pinhole camera whose focal plane is the hero's depth (`CAMERA_DEPTH`),
+ * which is why `pxAt(METERS.child, CAMERA_DEPTH)` is exactly the hero's
+ * on-screen height at every viewport.
  */
+
+import { METERS } from './meters'
 
 /** Viewport height fraction where the horizon sits. */
 export const HORIZON = 0.38
@@ -12,14 +21,44 @@ export const HORIZON = 0.38
 /** Perspective strength: larger values shrink distant objects faster. */
 export const DEPTH_K = 9
 
-/** Half-width of the road at the camera's feet. */
-export const ROAD_HALF = 0.3
+/**
+ * Depth the camera focuses on: the hero walks here. `pxPerM` is defined at
+ * this plane, so a metre at `CAMERA_DEPTH` is `pxPerM(vh)` pixels.
+ */
+export const CAMERA_DEPTH = 0.12
 
-/** Width of the sidewalk on each side of the road at the camera's feet. */
-export const WALK_W = 0.1
+/** Lateral metre 0 is the camera's line; the kerb is this far to the right. */
+export const SIDEWALK_LEFT = -1.2
+export const SIDEWALK_M = METERS.sidewalk
+export const KERB_X = SIDEWALK_LEFT + SIDEWALK_M
+/**
+ * Lateral metre of the sidewalk's centre line. The hero walks here, not on the
+ * camera's own line: the camera sits 0.2 m towards the kerb, so the child is
+ * drawn slightly left of screen centre on every viewport.
+ */
+export const SIDEWALK_CENTRE = SIDEWALK_LEFT + SIDEWALK_M / 2
 
-/** Horizontal offsets, in screen widths at depth 0, for the scene lanes. */
-export const LANES = { sidewalkL: -0.4, laneL: -0.2, laneR: 0.2, sidewalkR: 0.4 }
+/** Road geometry, all in metres. The far side is never drawn. */
+export const LANE_M = METERS.lane
+export const ROAD_M = LANE_M * 2
+export const LANE_SPLIT_X = KERB_X + LANE_M
+/** The road is painted well past the frame edge so the opposite side never shows. */
+export const ROAD_FAR_X = 200
+
+/** Width of the painted kerb line, in metres. */
+export const KERB_LINE_M = 0.12
+
+/**
+ * Lateral metres for each lane name the spawner uses. Sidewalks keep people
+ * walking both ways on the one sidewalk in frame; the road's near lane carries
+ * same-direction traffic (away) and the far lane oncoming traffic.
+ */
+export const LANES = {
+  sidewalkL: -1.0,
+  sidewalkR: -0.2,
+  laneL: KERB_X + LANE_M / 2,
+  laneR: KERB_X + LANE_M * 1.5,
+} as const
 
 /** Depth where objects start to disappear. */
 const FADE_FAR = 0.92
@@ -42,14 +81,38 @@ export function scaleAt(depth: number): number {
   return 1 / (1 + DEPTH_K * clampDepth(depth))
 }
 
+/** Screen scale of a metre at `depth`, relative to the camera's focal plane. */
+export function depthScale(depth: number): number {
+  return scaleAt(depth) / scaleAt(CAMERA_DEPTH)
+}
+
+/**
+ * Pixels per metre at the camera's focal plane, for a viewport height.
+ * `clamp(vh, 640, 1000) * 0.185` → 148 px/m at 800 px, so the 1,35 m child is
+ * 200 px tall (a quarter of a phone screen).
+ */
+export function pxPerM(viewportH: number): number {
+  return Math.min(1000, Math.max(640, viewportH)) * 0.185
+}
+
+/** Pixels per metre at an arbitrary depth. */
+export function pxPerMAt(depth: number, viewportH: number): number {
+  return pxPerM(viewportH) * depthScale(depth)
+}
+
+/** On-screen size in px of `m` metres at `depth`. */
+export function pxAt(m: number, depth: number, viewportH: number): number {
+  return m * pxPerMAt(depth, viewportH)
+}
+
+/** Screen x in px of lateral metre `m` at `depth`. */
+export function offsetX(m: number, depth: number, viewportW: number, viewportH: number): number {
+  return viewportW / 2 + m * pxPerMAt(depth, viewportH)
+}
+
 /** Viewport height fraction of the ground at `depth`. */
 export function yAt(depth: number): number {
   return HORIZON + (1 - HORIZON) * scaleAt(depth)
-}
-
-/** Viewport width fraction of a point `offset` screen-widths left/right of centre, at `depth`. */
-export function xAt(offset: number, depth: number): number {
-  return 0.5 + offset * scaleAt(depth)
 }
 
 /** Opacity at `depth`: 1 near the camera, 0 past 0.92, linear in between. */
@@ -66,14 +129,4 @@ export function nearFadeAt(depth: number): number {
   if (d <= FADE_NEAR_START) return 0
   if (d >= FADE_NEAR_END) return 1
   return (d - FADE_NEAR_START) / (FADE_NEAR_END - FADE_NEAR_START)
-}
-
-/** Half-width of the road at `depth`. */
-export function roadHalfAt(depth: number): number {
-  return ROAD_HALF * scaleAt(depth)
-}
-
-/** Half-width of road plus sidewalk at `depth`. */
-export function walkHalfAt(depth: number): number {
-  return (ROAD_HALF + WALK_W) * scaleAt(depth)
 }

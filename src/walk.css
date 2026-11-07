@@ -78,11 +78,12 @@
   background: linear-gradient(180deg, var(--grass) 0%, var(--grass) 52%, var(--grass-dark) 100%);
 }
 
-/* ---------- trotoar, jalan, garis tepi ---------- */
+/* ---------- trotoar kiri, jalan, garis kerb ---------- */
 
-.wk-walk-left polygon,
-.wk-walk-right polygon {
-  /* Beton: turunan --road-line yang digelapkan sedikit, supaya garis tepi
+/* Task 11: hanya trotoar kiri yang digambar. Jalan mulai di kerb dan
+   dipotong tepi kanan frame, jadi tidak ada trotoar atau garis sisi seberang. */
+.wk-walk-left polygon {
+  /* Beton: turunan --road-line yang digelapkan sedikit, supaya garis kerb
      putih tetap terbaca di sebelahnya. */
   fill: color-mix(in srgb, var(--road-line) 80%, var(--ink));
 }
@@ -91,8 +92,7 @@
   fill: var(--road);
 }
 
-.wk-edge-l polygon,
-.wk-edge-r polygon {
+.wk-kerb polygon {
   fill: var(--road-line);
 }
 
@@ -347,7 +347,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: clamp(72px, 19vw, 96px);
+  /* Pelat 0,60 m pada kedalaman berhenti 0,26; --wk-sign-scale = depthScale(0,26). */
+  width: calc(var(--wk-px-per-m, 148px) * 0.6 * var(--wk-sign-scale, 0.6228));
+  /* Di ponsel pendek (360×640) pelat 0,60 m hanya ~49 px, jadi tombolnya
+     dijaga ≥56 px sesuai target sentuh plan; pelat tetap 0,60×0,60. */
+  min-width: 56px;
   padding: 0;
   border: 0;
   background: none;
@@ -386,8 +390,9 @@
 }
 
 .wk-sign-pole {
-  width: 11px;
-  height: clamp(58px, 9vh, 84px);
+  /* Tiang 9 cm × 2,0 m pada kedalaman berhenti yang sama. */
+  width: calc(var(--wk-px-per-m, 148px) * 0.09 * var(--wk-sign-scale, 0.6228));
+  height: calc(var(--wk-px-per-m, 148px) * 2 * var(--wk-sign-scale, 0.6228));
   border-radius: 5px;
   background: linear-gradient(
     90deg,
@@ -513,7 +518,9 @@
   will-change: transform, opacity;
 }
 
-/* Ukuran seni dari tinggi viewport; --wk-vh diisi measure() di WalkScene. */
+/* Ukuran seni dari meter yang sama dengan seluruh scene. --wk-px-per-m
+   diisi measure() di WalkScene dari pxPerM(vh); setiap ukuran di bawah ini
+   adalah meter (dikali rasio gambar seni), bukan fraksi viewport. */
 .wk-veh,
 .wk-ped {
   position: absolute;
@@ -524,23 +531,27 @@
 }
 
 .wk-veh--car {
-  width: calc(var(--wk-vh, 640px) * 0.213);
-  height: calc(var(--wk-vh, 640px) * 0.12);
+  /* METERS.car.width 1,8 m; art 160 × 90. */
+  width: calc(var(--wk-px-per-m, 148px) * 1.8);
+  height: calc(var(--wk-px-per-m, 148px) * 1.8 * 0.5625);
 }
 
 .wk-veh--bike {
-  width: calc(var(--wk-vh, 640px) * 0.1125);
-  height: calc(var(--wk-vh, 640px) * 0.1);
+  /* METERS.motorcycle.width 0,7 m; art 90 × 80. */
+  width: calc(var(--wk-px-per-m, 148px) * 0.7);
+  height: calc(var(--wk-px-per-m, 148px) * 0.7 * 0.8889);
 }
 
 .wk-ped--adult {
-  width: calc(var(--wk-vh, 640px) * 0.153);
-  height: calc(var(--wk-vh, 640px) * 0.34);
+  /* METERS.adult 1,7 m; art 90 × 200. */
+  width: calc(var(--wk-px-per-m, 148px) * 1.7 * 0.45);
+  height: calc(var(--wk-px-per-m, 148px) * 1.7);
 }
 
 .wk-ped--child {
-  width: calc(var(--wk-vh, 640px) * 0.126);
-  height: calc(var(--wk-vh, 640px) * 0.28);
+  /* METERS.pedestrianChild 1,2 m; art 90 × 200. */
+  width: calc(var(--wk-px-per-m, 148px) * 1.2 * 0.45);
+  height: calc(var(--wk-px-per-m, 148px) * 1.2);
 }
 
 /* Satu slot membawa empat varian seni: dua jenis × dua sisi. data-kind dan
