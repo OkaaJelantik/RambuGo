@@ -477,3 +477,164 @@
     animation: none;
   }
 }
+
+/* ============================================================
+   Trafik & pejalan (Task 5). Bagian ini hanya MENAMBAH aturan
+   baru di bawah file; aturan di atas tidak diubah.
+   ============================================================ */
+
+/* ---------- lapisan ambience ---------- */
+
+/* Di atas jalan dan pita latar, di bawah rambu (z-index 160). Tidak
+   menangkap pointer sama sekali, jadi tap rambu selalu tembus. */
+.wk-traffic {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Satu slot adalah titik jangkar di tanah. Anak seni digantung di atas
+   titik itu dan ditengahkan, jadi loop cukup menulis translate + scale. */
+.wk-traffic-item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* Ukuran seni dari tinggi viewport; --wk-vh diisi measure() di WalkScene. */
+.wk-veh,
+.wk-ped {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: none;
+  transform: translateX(-50%);
+}
+
+.wk-veh--car {
+  width: calc(var(--wk-vh, 640px) * 0.213);
+  height: calc(var(--wk-vh, 640px) * 0.12);
+}
+
+.wk-veh--bike {
+  width: calc(var(--wk-vh, 640px) * 0.1125);
+  height: calc(var(--wk-vh, 640px) * 0.1);
+}
+
+.wk-ped--adult {
+  width: calc(var(--wk-vh, 640px) * 0.153);
+  height: calc(var(--wk-vh, 640px) * 0.34);
+}
+
+.wk-ped--child {
+  width: calc(var(--wk-vh, 640px) * 0.126);
+  height: calc(var(--wk-vh, 640px) * 0.28);
+}
+
+/* Satu slot membawa dua varian seni; data-kind memilih yang tampil.
+   Slot sendiri tetap display:none sampai loop menampilkannya. */
+.wk-veh-slot[data-kind='car'] .wk-veh--car,
+.wk-veh-slot[data-kind='bike'] .wk-veh--bike,
+.wk-ped-slot[data-kind='adult'] .wk-ped--adult,
+.wk-ped-slot[data-kind='child'] .wk-ped--child {
+  display: block;
+}
+
+/* ---------- langkah pejalan ---------- */
+
+/* Pola sama dengan hero: dua langkah per siklus, kaki bergantian.
+   Sumbu putar di pangkal paha masing-masing. */
+.wk-ped-leg {
+  transform-box: view-box;
+}
+
+.wk-ped--adult .wk-ped-leg--a {
+  transform-origin: 38px 126px;
+}
+
+.wk-ped--adult .wk-ped-leg--b {
+  transform-origin: 52px 126px;
+}
+
+.wk-ped--child .wk-ped-leg--a {
+  transform-origin: 38px 142px;
+}
+
+.wk-ped--child .wk-ped-leg--b {
+  transform-origin: 52px 142px;
+}
+
+.wk-ped-walk .wk-ped-leg--a {
+  animation: wk-ped-step-a var(--ped-cycle, 1.15s) ease-in-out infinite;
+}
+
+.wk-ped-walk .wk-ped-leg--b {
+  animation: wk-ped-step-b var(--ped-cycle, 1.15s) ease-in-out infinite;
+}
+
+.wk-ped-walk .wk-ped-torso {
+  animation: wk-ped-bob var(--ped-cycle, 1.15s) ease-in-out infinite;
+}
+
+.wk-ped-walk .wk-ped-leg--a,
+.wk-ped-walk .wk-ped-leg--b,
+.wk-ped-walk .wk-ped-torso {
+  animation-delay: calc(var(--ped-cycle, 1.15s) * -0.25);
+}
+
+/* Saat anak berhenti di rambu seluruh dunia berhenti; kaki pejalan ikut
+   berhenti, bukan jalan di tempat di belakang rambu. */
+.wk-traffic--paused .wk-ped-walk .wk-ped-leg--a,
+.wk-traffic--paused .wk-ped-walk .wk-ped-leg--b,
+.wk-traffic--paused .wk-ped-walk .wk-ped-torso {
+  animation-play-state: paused;
+}
+
+@keyframes wk-ped-step-a {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(16deg);
+  }
+}
+
+@keyframes wk-ped-step-b {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(-16deg);
+  }
+}
+
+@keyframes wk-ped-bob {
+  0%,
+  50%,
+  100% {
+    transform: translateY(0);
+  }
+  25%,
+  75% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Gerak dimatikan; pejalan tetap terlihat dengan pose netral. */
+@media (prefers-reduced-motion: reduce) {
+  .wk-ped-walk .wk-ped-torso,
+  .wk-ped-walk .wk-ped-leg--a,
+  .wk-ped-walk .wk-ped-leg--b {
+    animation: none;
+  }
+}

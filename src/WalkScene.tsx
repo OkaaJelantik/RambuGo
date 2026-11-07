@@ -3,10 +3,22 @@ import type { CSSProperties } from 'react'
 import GroundScene from './scene/GroundScene'
 import HeroWalk from './art/HeroWalk'
 import { House, StreetLamp, Tree } from './art/scenery'
+import { Car, Motorcycle } from './art/vehicles'
+import { Pedestrian } from './art/people'
 import { SignArt } from './SignArt'
 import { WALK_SIGNS, type Sign } from './data'
-import { fadeAt, nearFadeAt, scaleAt, xAt, yAt } from './scene/projection'
+import { LANES, fadeAt, nearFadeAt, scaleAt, xAt, yAt } from './scene/projection'
 import { createWorld, stepWorld, type Mode, type WorldState } from './scene/world'
+import {
+  LANE_DIR,
+  SPAWN_SEED,
+  createRng,
+  spawnPed,
+  spawnTraffic,
+  shouldSpawn,
+  type Ped,
+  type Traffic,
+} from './scene/spawner'
 import './walk.css'
 
 type Props = {
@@ -30,6 +42,23 @@ const PROP_CYCLE = 1
 
 /** Longest jump the loop will advance the world by, so a stalled frame cannot skip a leg. */
 const MAX_FRAME_SECONDS = 0.1
+
+/** Hard caps for ambience: three vehicles and two pedestrians on screen. */
+const VEHICLE_SLOTS = 3
+const PED_SLOTS = 2
+
+/** Random spawn waits in seconds, `[min, max]`. */
+const TRAFFIC_WAIT = { min: 1, max: 2.5 } as const
+const PED_WAIT = { min: 2, max: 4 } as const
+
+/**
+ * Depth range objects live in. Oncoming traffic (and the left sidewalk)
+ * enters at `SPAWN_DEPTH` = 1 and leaves past the camera; away-bound objects
+ * enter just behind the camera and leave at the horizon, so both bounds of
+ * the range are used and nothing pops in mid-screen.
+ */
+const NEAR_EDGE = -0.05
+const FAR_EDGE = 1.05
 
 /** The three prompts the hero says on the way to the signs. */
 const LINES = [
@@ -121,6 +150,31 @@ function setZ(el: HTMLElement, z: number): void {
   if (el.style.zIndex !== value) el.style.zIndex = value
 }
 
+/** Show or hide a traffic slot. `display` is never owned by React's style prop. */
+function setDisplay(el: HTMLElement, visible: boolean): void {
+  const value = visible ? 'block' : 'none'
+  if (el.style.display !== value) el.style.display = value
+}
+
+/** Perspective scale rounded to three decimals, to cut redundant style writes. */
+function roundScale(depth: number): number {
+  return Math.round(scaleAt(depth) * 1000) / 1000
+}
+
+/**
+ * Stacking index for an NPC: the same depth formula as the scenery belt, so
+ * near vehicles overlap far ones. The sign sits at 160 and always wins.
+ */
+function npcZ(depth: number): number {
+  const d = Math.min(1, Math.max(0, depth))
+  return 20 + Math.round((1 - d) * 80)
+}
+
+/** A random wait in `[min, max)`, used to schedule the next spawn. */
+function randomWait(rng: () => number, min: number, max: number): number {
+  return min + rng() * (max - min)
+}
+
 /**
  * The 2.5D walk: a static ground layer, a belt of road dashes and scenery
  * that scrolls towards the camera, the hero walking away from us, and one
@@ -141,6 +195,19 @@ export default function WalkScene({ step, onOpen }: Props) {
   const heroRef = useRef<HTMLDivElement | null>(null)
   const heroZoneRef = useRef<HTMLDivElement | null>(null)
   const sizeRef = useRef({ w: 0, h: 0, heroW: 0, heroH: 0, heroNomW: 0, heroNomH: 0 })
+
+  // Ambience state lives in refs: the loop mutates it and writes the DOM
+  // directly, so spawning never re-renders React.
+  const trafficLayerRef = useRef<HTMLDivElement | null>(null)
+  const vehicleRefs = useRef<Array<HTMLDivElement | null>>([])
+  const pedRefs = useRef<Array<HTMLDivElement | null>>([])
+  const vehiclesRef = useRef<Array<Traffic | null>>([null, null, null])
+  const pedsRef = useRef<Array<Ped | null>>([null, null])
+  const trafficRngRef = useRef(createRng(SPAWN_SEED))
+  const pedRngRef = useRef(createRng(SPAWN_SEED + 1))
+  const nextVehicleIdRef = useRef(1)
+  const nextPedIdRef = useRef(1)
+  const waitsRef = useRef({ trafficSince: 0, trafficWait: 0, pedSince: 0, pedWait: 0 })
 
   const measure = useCallback(() => {
     const w = window.innerWidth
@@ -164,6 +231,7 @@ export default function WalkScene({ step, onOpen }: Props) {
     }
 
     heroZoneRef.current?.style.setProperty('--wk-hero-h', `${hero.h}px`)
+    trafficLayerRef.current?.style.setProperty('--wk-vh', `${h}px`)
 
     const dash = dashBox(w)
     for (const el of dashRefs.current) {
@@ -217,7 +285,125 @@ export default function WalkScene({ step, onOpen }: Props) {
     if (heroRef.current) {
       setTransform(heroRef.current, roundHalf(-heroW / 2), roundHalf(-heroH), heroScale)
     }
+
+    // Ambience. A slot is a zero-sized anchor on its lane; the art hangs
+    // above it, so the loop only needs the ground point and the scale.
+    vehiclesRef.current.forEach((vehicle, i) => {
+      const el = vehicleRefs.current[i]
+      if (!el) return
+      if (!vehicle) {
+        setDisplay(el, false)
+        return
+      }
+      const x = xAt(LANES[vehicle.lane], vehicle.depth) * w
+      const y = yAt(vehicle.depth) * h
+      setTransform(el, roundHalf(x), roundHalf(y), roundScale(vehicle.depth))
+      setOpacity(el, fadeAt(vehicle.depth) * nearFadeAt(vehicle.depth))
+      setZ(el, npcZ(vehicle.depth))
+    })
+
+    pedsRef.current.forEach((ped, i) => {
+      const el = pedRefs.current[i]
+      if (!el) return
+      if (!ped) {
+        setDisplay(el, false)
+        return
+      }
+      const x = xAt(LANES[ped.lane], ped.depth) * w
+      const y = yAt(ped.depth) * h
+      setTransform(el, roundHalf(x), roundHalf(y), roundScale(ped.depth))
+      setOpacity(el, fadeAt(ped.depth) * nearFadeAt(ped.depth))
+      setZ(el, npcZ(ped.depth))
+    })
   }, [])
+
+  /** Birth a vehicle at the entry edge for its direction. */
+  const spawnVehicle = useCallback(() => {
+    const slot = vehiclesRef.current.indexOf(null)
+    if (slot < 0) return
+
+    const traffic = spawnTraffic(trafficRngRef.current, nextVehicleIdRef.current)
+    nextVehicleIdRef.current += 1
+
+    // The spawner always names the horizon. Away-bound traffic enters from
+    // the near edge instead: the camera is walking, so it overtakes us.
+    vehiclesRef.current[slot] =
+      traffic.dir === 1 ? { ...traffic, depth: NEAR_EDGE } : traffic
+
+    const el = vehicleRefs.current[slot]
+    if (!el) return
+    el.dataset.kind = traffic.kind
+    el.dataset.lane = traffic.lane
+    setDisplay(el, true)
+  }, [])
+
+  /** Birth a pedestrian at the entry edge for their sidewalk. */
+  const spawnPedestrian = useCallback(() => {
+    const slot = pedsRef.current.indexOf(null)
+    if (slot < 0) return
+
+    const ped = spawnPed(pedRngRef.current, nextPedIdRef.current)
+    nextPedIdRef.current += 1
+
+    pedsRef.current[slot] = LANE_DIR[ped.lane] === 1 ? { ...ped, depth: NEAR_EDGE } : ped
+
+    const el = pedRefs.current[slot]
+    if (!el) return
+    el.dataset.kind = ped.kind
+    el.dataset.lane = ped.lane
+    setDisplay(el, true)
+  }, [])
+
+  /**
+   * Move ambience and spawn replacements. Called once per frame by the same
+   * loop that scrolls the world; mutates the slot refs and never touches
+   * React state. Spawn waits are drawn from the seeded RNG, so the cast of a
+   * demo is reproducible.
+   */
+  const stepAmbience = useCallback(
+    (dt: number) => {
+      const waits = waitsRef.current
+
+      vehiclesRef.current.forEach((vehicle, i) => {
+        if (!vehicle) return
+        vehicle.depth += vehicle.dir * vehicle.speed * dt
+        if (vehicle.depth < NEAR_EDGE || vehicle.depth > FAR_EDGE) {
+          vehiclesRef.current[i] = null
+        }
+      })
+
+      pedsRef.current.forEach((ped, i) => {
+        if (!ped) return
+        ped.depth += LANE_DIR[ped.lane] * ped.speed * dt
+        if (ped.depth < NEAR_EDGE || ped.depth > FAR_EDGE) {
+          pedsRef.current[i] = null
+        }
+      })
+
+      if (waits.trafficWait <= 0) {
+        waits.trafficWait = randomWait(trafficRngRef.current, TRAFFIC_WAIT.min, TRAFFIC_WAIT.max)
+      }
+      if (shouldSpawn(dt, waits.trafficSince, TRAFFIC_WAIT.min, waits.trafficWait)) {
+        spawnVehicle()
+        waits.trafficSince = 0
+        waits.trafficWait = randomWait(trafficRngRef.current, TRAFFIC_WAIT.min, TRAFFIC_WAIT.max)
+      } else {
+        waits.trafficSince += dt
+      }
+
+      if (waits.pedWait <= 0) {
+        waits.pedWait = randomWait(pedRngRef.current, PED_WAIT.min, PED_WAIT.max)
+      }
+      if (shouldSpawn(dt, waits.pedSince, PED_WAIT.min, waits.pedWait)) {
+        spawnPedestrian()
+        waits.pedSince = 0
+        waits.pedWait = randomWait(pedRngRef.current, PED_WAIT.min, PED_WAIT.max)
+      } else {
+        waits.pedSince += dt
+      }
+    },
+    [spawnVehicle, spawnPedestrian],
+  )
 
   // Measure once before first paint, then again on resize (never in the loop).
   useLayoutEffect(() => {
@@ -257,6 +443,7 @@ export default function WalkScene({ step, onOpen }: Props) {
 
       const next = stepWorld(worldRef.current, dt)
       worldRef.current = next
+      stepAmbience(dt)
       draw(next)
 
       if (next.mode !== 'walking') {
@@ -293,7 +480,7 @@ export default function WalkScene({ step, onOpen }: Props) {
       stop()
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [mode, reduced, draw])
+  }, [mode, reduced, draw, stepAmbience])
 
   const sign = WALK_SIGNS[signStep]
   const line = LINES[Math.min(step, LINES.length - 1)]
@@ -337,6 +524,44 @@ export default function WalkScene({ step, onOpen }: Props) {
             </div>
           )
         })}
+      </div>
+
+      {/*
+        Ambience lives in its own layer, above the road and below the sign
+        (z-index 160). Slots start hidden; the loop picks the artwork by
+        setting `data-kind` and positions the anchor. Per-slot z follows the
+        same depth formula as the scenery belt. The whole layer is
+        pointer-events: none, so it can never eat the sign's tap.
+      */}
+      <div
+        className={mode === 'stopped' ? 'wk-traffic wk-traffic--paused' : 'wk-traffic'}
+        aria-hidden="true"
+        ref={trafficLayerRef}
+      >
+        {Array.from({ length: VEHICLE_SLOTS }, (_, i) => (
+          <div
+            key={`vehicle-${i}`}
+            className="wk-traffic-item wk-veh-slot"
+            ref={(el) => {
+              vehicleRefs.current[i] = el
+            }}
+          >
+            <Car />
+            <Motorcycle />
+          </div>
+        ))}
+        {Array.from({ length: PED_SLOTS }, (_, i) => (
+          <div
+            key={`ped-${i}`}
+            className="wk-traffic-item wk-ped-slot"
+            ref={(el) => {
+              pedRefs.current[i] = el
+            }}
+          >
+            <Pedestrian kind="adult" />
+            <Pedestrian kind="child" />
+          </div>
+        ))}
       </div>
 
       <button
