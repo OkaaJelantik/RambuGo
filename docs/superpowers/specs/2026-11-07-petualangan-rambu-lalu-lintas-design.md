@@ -25,8 +25,10 @@ ditekan satu per satu), **titik keputusan** (memilih jalur di persimpangan), dan
 
 - **Pengguna utama:** siswa kelas II SD (7–8 tahun), kemampuan membaca masih awal —
   teks harus pendek, kalimat sederhana, satu ide per kalimat.
-- **Konteks pakai:** lab komputer sekolah / Chromebook / laptop dengan proyektor,
-  guru mendampingi; kadang dibuka di ponsel guru sebagai contoh. Sesi 10–15 menit.
+- **Konteks pakai:** perangkat utama adalah **ponsel yang dipegang satu anak**
+  (1 anak : 1 ponsel, potret 360×640, sesi 10–15 menit). Konteks sekunder adalah
+  kelas dengan guru mendampingi dan mengawasi; lab komputer/Chromebook masih
+  didukung, tetapi proyektor bukan target desain — keputusannya ada di §16.3.
 - **Masalah yang diserang:** rambu lalu lintas biasanya diajarkan sebagai daftar
   hafalan (gambar + nama). Anak mengingat labelnya tapi tidak tahu *kenapa* rambu
   itu ada dan *apa yang harus dia lakukan* saat melihatnya.
@@ -102,7 +104,7 @@ intro ──"Keluar kelas"──▶ walk ──rambu ke-3──▶ crossroad ─
 
 **Catatan penting:** jalur materi **wajib** berujung ke kuis (jalan satu arah menuju
 rumah), sedangkan jalur kuis menyelesaikan perjalanan langsung. Perbedaan ini
-seharusnya tercermin di layar rumah (lihat §11, T1).
+sudah tercermin di layar rumah (lihat §11, T1).
 
 ### 7.1 Scene berjalan 2.5D (`WalkScene`)
 
@@ -159,8 +161,12 @@ berbicara, bukan kotak info teknis.
 ## 8. Baseline: apa yang sudah ada
 
 Prototipe berjalan dan mencakup keenam stage. Scene berjalan sudah diganti versi 2.5D
-lewat Task 1–8 plan `2026-11-07-walk-scene-2.5d.md`. Verifikasi 2026-11-07:
-`pnpm test` **6 file / 53 test hijau**, `tsc -b` exit 0, dan `vite build` sukses —
+lewat Task 1–8 plan `2026-11-07-walk-scene-2.5d.md`. Teks Task 5 plan
+(`2026-11-07-walk-scene-2.5d.md:275-276`) menyebut arah lajur yang **berlawanan**
+dengan kode terkirim: `src/scene/spawner.ts:27-32` adalah otoritasnya (`laneL`
+menjauh, `laneR` mendatangi kamera), dan plan sudah tersuperseded di titik itu.
+Verifikasi 2026-11-07:
+`pnpm test` **6 file / 54 test hijau**, `tsc -b` exit 0, dan `vite build` sukses —
 **33 modul**, JS 289,96 kB / **gzip 84,79 kB**, CSS 30,40 kB / gzip 7,72 kB,
 HTML 0,79 kB / gzip 0,43 kB. Gzip JS masih di bawah batas G5 (< 120 kB).
 
@@ -185,7 +191,7 @@ HTML 0,79 kB / gzip 0,43 kB. Gzip JS masih di bawah batas G5 (< 120 kB).
 | `src/SignArt.tsx` | 6 gambar rambu sebagai SVG, satu `Record<Art, ReactNode>` | 115 baris |
 | `src/index.css` | token warna + tombol + shell + materi + kuis + home + overlay | 915 baris |
 
-Test (vitest + jsdom, 6 file / 53 test): `src/flow.test.tsx` (173 baris),
+Test (vitest + jsdom, 6 file / 54 test): `src/flow.test.tsx` (184 baris),
 `src/scene/projection.test.ts` (151), `src/scene/spawner.test.ts` (140),
 `src/scene/GroundScene.test.tsx` (86), `src/art/HeroWalk.test.tsx` (79),
 `src/scene/world.test.ts` (74), plus `src/test/setup.ts` (7).
@@ -327,9 +333,9 @@ restore `document.activeElement`, dan Tab dikurung (`src/App.tsx:26-72`).
 seluruhnya terpenuhi.
 
 **✅ T6 — Tidak ada test sama sekali.** Dulu tidak ada runner maupun smoke test.
-Selesai: vitest + jsdom (`aac63b4`), lalu 6 suite / 53 test — flow (`21b78a1`),
-projection (`aac63b4`), GroundScene (`2397d0c`), HeroWalk (`ac5c4ae`), world
-(`c30af0a`), spawner (`9d0a9e4`). `pnpm test` hijau.
+Selesai: vitest + jsdom (`aac63b4`), lalu 6 suite / 54 test (53 test + test batas
+4/5) — flow (`21b78a1`), projection (`aac63b4`), GroundScene (`2397d0c`), HeroWalk
+(`ac5c4ae`), world (`c30af0a`), spawner (`9d0a9e4`). `pnpm test` hijau.
 
 **✅ T7 — Parameter dev ikut ke produksi.** `?s=`, `?step=`, `?still` dulu selalu
 dibaca. Selesai di `4a873ad`: ketiganya hanya aktif bila `import.meta.env.DEV`
@@ -342,8 +348,9 @@ berubah bentuk karena dua font ini yang membentuk karakter visualnya. Opsi: self
 relevan sebelum dipakai di kelas offline.
 
 **✅ T9 — Skor bintang tidak teruji.** Ambang `score >= 4` / `>= 2` dipertahankan
-(keputusan pedagogis, §13/§16) dan sekarang dikunci test: 5/5 → Bintang 3, 3/5 →
-Bintang 2, 0/5 → Bintang 1 (`src/flow.test.tsx:143-171`, commit `21b78a1`).
+(keputusan pedagogis, §13/§16) dan sekarang dikunci test: 5/5 → Bintang 3, 4/5 →
+Bintang 3 (tepat di ambang), 3/5 → Bintang 2, 0/5 → Bintang 1
+(`src/flow.test.tsx:134-183`, commit `21b78a1`; test batas 4/5 menyusul).
 
 **✅ T10 — `WALK_X` tidak terpakai.** Konstanta sisa tata letak lama dihapus di
 `4a873ad`; tidak ada lagi referensi di `src/`.
@@ -491,11 +498,13 @@ ulang.
    utama. Tidak ada penyesuaian khusus proyektor.
 4. **Uji anak di luar cakupan fase ini.** DoD §14.10 dibaca "siap diuji": tidak ada
    protokol uji, izin orang tua, atau putaran perbaikan setelah uji dalam tugas ini.
-   Verifikasi yang dikerjakan adalah test otomatis, `tsc -b`, `vite build`, dan review
-   visual.
+   Verifikasi yang sudah dikerjakan adalah test otomatis, `tsc -b`, `vite build`,
+   dan pengecekan geometri headless. Review visual di ponsel sungguhan **belum**
+   dikerjakan; itu tetap bagian dari DoD §14.1 dan tercatat sebagai utang di T12.
 5. **Ambang bintang 4/2 dipertahankan.** Bintang 3 untuk 4–5 benar, Bintang 2 untuk
-   2–3, Bintang 1 untuk 0–1. Dikunci `src/flow.test.tsx` (5/5 → 3 bintang,
-   3/5 → 2, 0/5 → 1) supaya perubahan ambang muncul sebagai test yang gagal.
+   2–3, Bintang 1 untuk 0–1. Batasnya dikunci `src/flow.test.tsx`: 5/5 → 3 bintang,
+   4/5 → 3 bintang (tepat di ambang), 3/5 → 2 bintang, dan 0/5 → 1 bintang.
+   Menaikkan ambang Bintang 3 menjadi `>= 5` sekarang menggagalkan test 4/5.
 
 **Masih terbuka (pekerjaan, bukan pertanyaan produk):** T5 (guard
 `prefers-reduced-motion` di `index.css`/`crossroad.css`), T8 (font CDN — wajib kalau

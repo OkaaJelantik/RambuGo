@@ -161,6 +161,17 @@ describe('alur aplikasi', () => {
     expect(screen.queryByText('Kamu belajar dulu, lalu mengerjakan kuis.')).toBeNull()
   })
 
+  it('jalur kuis: tepat 4 dari 5 benar dapat Bintang 3', () => {
+    reachCrossroad()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jalur kuis: uji pemahaman rambu' }))
+    answerQuiz((_, index) => index < 4)
+
+    // The 4/2 rule lives exactly on this boundary: 4 is three stars, 3 is not.
+    expect(screen.getByText('Benar 4/5')).toBeTruthy()
+    expect(screen.getByText('Bintang 3 ⭐')).toBeTruthy()
+  })
+
   it('skor 0 tetap pulang dengan Bintang 1', () => {
     reachCrossroad()
 
