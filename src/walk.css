@@ -537,12 +537,17 @@
   height: calc(var(--wk-vh, 640px) * 0.28);
 }
 
-/* Satu slot membawa dua varian seni; data-kind memilih yang tampil.
-   Slot sendiri tetap display:none sampai loop menampilkannya. */
-.wk-veh-slot[data-kind='car'] .wk-veh--car,
-.wk-veh-slot[data-kind='bike'] .wk-veh--bike,
-.wk-ped-slot[data-kind='adult'] .wk-ped--adult,
-.wk-ped-slot[data-kind='child'] .wk-ped--child {
+/* Satu slot membawa empat varian seni: dua jenis × dua sisi. data-kind dan
+   data-face memilih yang tampil. Slot sendiri tetap display:none sampai
+   loop menampilkannya. */
+.wk-veh-slot[data-kind='car'][data-face='rear'] .wk-veh--car.wk-veh--rear,
+.wk-veh-slot[data-kind='car'][data-face='front'] .wk-veh--car.wk-veh--front,
+.wk-veh-slot[data-kind='bike'][data-face='rear'] .wk-veh--bike.wk-veh--rear,
+.wk-veh-slot[data-kind='bike'][data-face='front'] .wk-veh--bike.wk-veh--front,
+.wk-ped-slot[data-kind='adult'][data-face='rear'] .wk-ped--adult.wk-ped--rear,
+.wk-ped-slot[data-kind='adult'][data-face='front'] .wk-ped--adult.wk-ped--front,
+.wk-ped-slot[data-kind='child'][data-face='rear'] .wk-ped--child.wk-ped--rear,
+.wk-ped-slot[data-kind='child'][data-face='front'] .wk-ped--child.wk-ped--front {
   display: block;
 }
 
@@ -588,13 +593,8 @@
   animation-delay: calc(var(--ped-cycle, 1.15s) * -0.25);
 }
 
-/* Saat anak berhenti di rambu seluruh dunia berhenti; kaki pejalan ikut
-   berhenti, bukan jalan di tempat di belakang rambu. */
-.wk-traffic--paused .wk-ped-walk .wk-ped-leg--a,
-.wk-traffic--paused .wk-ped-walk .wk-ped-leg--b,
-.wk-traffic--paused .wk-ped-walk .wk-ped-torso {
-  animation-play-state: paused;
-}
+/* Kaki pejalan terus berjalan selama ambience hidup, termasuk saat anak
+   berhenti di rambu: kendaraan dan pejalan tetap lewat. */
 
 @keyframes wk-ped-step-a {
   0%,

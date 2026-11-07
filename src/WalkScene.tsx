@@ -334,6 +334,8 @@ export default function WalkScene({ step, onOpen }: Props) {
     if (!el) return
     el.dataset.kind = traffic.kind
     el.dataset.lane = traffic.lane
+    // Oncoming traffic (`dir -1`) shows its front to the camera.
+    el.dataset.face = traffic.dir === -1 ? 'front' : 'rear'
     setDisplay(el, true)
   }, [])
 
@@ -351,6 +353,8 @@ export default function WalkScene({ step, onOpen }: Props) {
     if (!el) return
     el.dataset.kind = ped.kind
     el.dataset.lane = ped.lane
+    // A walker approaching the camera (`dir -1`) faces us.
+    el.dataset.face = LANE_DIR[ped.lane] === -1 ? 'front' : 'rear'
     setDisplay(el, true)
   }, [])
 
@@ -428,9 +432,12 @@ export default function WalkScene({ step, onOpen }: Props) {
     draw(next)
   }, [step, reduced, measure, draw])
 
-  // The one animation loop. It only runs while walking and visible.
+  // The one animation loop. It keeps running while the world is stopped so
+  // the street stays alive at a sign; only reduced motion (no spawn at all)
+  // or a hidden tab stops it. `stepWorld` freezes scroll while stopped, so
+  // the belt and the hero stay put while `stepAmbience` keeps moving.
   useEffect(() => {
-    if (reduced || mode !== 'walking') return
+    if (reduced) return
 
     let raf = 0
     let active = false
@@ -441,16 +448,20 @@ export default function WalkScene({ step, onOpen }: Props) {
       const dt = last === 0 ? 0 : Math.min(MAX_FRAME_SECONDS, (now - last) / 1000)
       last = now
 
-      const next = stepWorld(worldRef.current, dt)
+      const prev = worldRef.current
+      const next = stepWorld(prev, dt)
       worldRef.current = next
+
+      // Ambience never pauses: vehicles and pedestrians keep passing even
+      // while the hero waits at a sign.
       stepAmbience(dt)
       draw(next)
 
-      if (next.mode !== 'walking') {
-        active = false
+      // Report the stop once; the loop itself keeps running. No per-frame
+      // setState.
+      if (next.mode !== 'walking' && prev.mode === 'walking') {
         setSignStep(next.step)
         setMode('stopped')
-        return
       }
       raf = requestAnimationFrame(frame)
     }
@@ -480,7 +491,7 @@ export default function WalkScene({ step, onOpen }: Props) {
       stop()
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [mode, reduced, draw, stepAmbience])
+  }, [reduced, draw, stepAmbience])
 
   const sign = WALK_SIGNS[signStep]
   const line = LINES[Math.min(step, LINES.length - 1)]
@@ -533,11 +544,7 @@ export default function WalkScene({ step, onOpen }: Props) {
         same depth formula as the scenery belt. The whole layer is
         pointer-events: none, so it can never eat the sign's tap.
       */}
-      <div
-        className={mode === 'stopped' ? 'wk-traffic wk-traffic--paused' : 'wk-traffic'}
-        aria-hidden="true"
-        ref={trafficLayerRef}
-      >
+      <div className="wk-traffic" aria-hidden="true" ref={trafficLayerRef}>
         {Array.from({ length: VEHICLE_SLOTS }, (_, i) => (
           <div
             key={`vehicle-${i}`}
@@ -546,8 +553,10 @@ export default function WalkScene({ step, onOpen }: Props) {
               vehicleRefs.current[i] = el
             }}
           >
-            <Car />
-            <Motorcycle />
+            <Car face="rear" />
+            <Car face="front" />
+            <Motorcycle face="rear" />
+            <Motorcycle face="front" />
           </div>
         ))}
         {Array.from({ length: PED_SLOTS }, (_, i) => (
@@ -558,8 +567,10 @@ export default function WalkScene({ step, onOpen }: Props) {
               pedRefs.current[i] = el
             }}
           >
-            <Pedestrian kind="adult" />
-            <Pedestrian kind="child" />
+            <Pedestrian kind="adult" face="rear" />
+            <Pedestrian kind="adult" face="front" />
+            <Pedestrian kind="child" face="rear" />
+            <Pedestrian kind="child" face="front" />
           </div>
         ))}
       </div>

@@ -4,7 +4,6 @@ import {
   PED_SPEED,
   SPAWN_DEPTH,
   SPAWN_SEED,
-  TRAFFIC_SPEED,
   createRng,
   spawnPed,
   spawnTraffic,
@@ -57,8 +56,10 @@ describe('spawnTraffic', () => {
       expect(traffic.id).toBe(id)
       expect(traffic.depth).toBe(SPAWN_DEPTH)
       expect(traffic.depth).toBe(1)
-      expect(traffic.speed).toBeGreaterThanOrEqual(TRAFFIC_SPEED.min)
-      expect(traffic.speed).toBeLessThanOrEqual(TRAFFIC_SPEED.max)
+      // Batas literal, bukan konstanta modul: kalau pita kecepatan bergeser,
+      // test ini harus gagal.
+      expect(traffic.speed).toBeGreaterThanOrEqual(0.18)
+      expect(traffic.speed).toBeLessThanOrEqual(0.3)
 
       lanes.add(traffic.lane)
       kinds.add(traffic.kind)
@@ -69,13 +70,15 @@ describe('spawnTraffic', () => {
     expect(kinds).toEqual(new Set(['car', 'bike']))
   })
 
-  it('laneL selalu menuju kamera dan laneR selalu menjauh', () => {
+  it('laneL searah hero (+1) dan laneR mendekat (-1), lajur kiri Indonesia', () => {
     const rng = createRng(SPAWN_SEED)
+
+    expect(LANE_DIR).toMatchObject({ laneL: 1, laneR: -1 })
 
     for (let id = 1; id <= 200; id += 1) {
       const traffic = spawnTraffic(rng, id)
       expect(traffic.dir).toBe(LANE_DIR[traffic.lane])
-      expect(traffic.dir).toBe(traffic.lane === 'laneL' ? -1 : 1)
+      expect(traffic.dir).toBe(traffic.lane === 'laneL' ? 1 : -1)
     }
   })
 })
