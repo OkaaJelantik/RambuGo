@@ -228,6 +228,12 @@
   font-family: 'Nunito', system-ui, sans-serif;
 }
 
+/* Wadah ini hanya titik fokus sementara setelah lembar ditutup; rambu yang
+   menjadi tujuan fokus sesungguhnya. Jangan gambar cincin di seluruh scene. */
+.wk-scene:focus {
+  outline: none;
+}
+
 /* Pita dunia: marka dan latar. Posisi + ukuran ditulis loop rAF,
    jadi tidak ada transisi CSS yang boleh menimpanya. */
 .wk-dashes,

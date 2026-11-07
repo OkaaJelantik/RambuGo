@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, RefObject } from 'react'
 import GroundScene from './scene/GroundScene'
 import HeroWalk from './art/HeroWalk'
 import {
@@ -34,6 +34,8 @@ import './walk.css'
 type Props = {
   step: number
   onOpen: (sign: Sign) => void
+  /** Wadah scene, dipakai App sebagai fokus cadangan setelah lembar ditutup. */
+  sceneRef?: RefObject<HTMLDivElement | null>
 }
 
 /** Depth of the hero. Fixed: the camera follows her. */
@@ -233,11 +235,14 @@ function randomWait(rng: () => number, min: number, max: number): number {
  * and writes the resulting transforms straight to refs, so React never
  * re-renders per frame. Viewport size is measured only on mount/resize.
  */
-export default function WalkScene({ step, onOpen }: Props) {
+export default function WalkScene({ step, onOpen, sceneRef }: Props) {
   const [reduced] = useState(prefersReducedMotion)
   const [mode, setMode] = useState<Mode>(() => (reduced ? 'stopped' : 'walking'))
   const [signStep, setSignStep] = useState(step)
 
+  const sceneElRef = useRef<HTMLDivElement | null>(null)
+  const sceneEl = sceneRef ?? sceneElRef
+  const signButtonRef = useRef<HTMLButtonElement | null>(null)
   const worldRef = useRef<WorldState>(reduced ? stoppedWorld(step) : createWorld(step))
   const dashRefs = useRef<Array<HTMLDivElement | null>>([])
   const propRefs = useRef<Array<HTMLDivElement | null>>([])
@@ -482,6 +487,15 @@ export default function WalkScene({ step, onOpen }: Props) {
     draw(next)
   }, [step, reduced, measure, draw])
 
+  // Setelah lembar ditutup, fokus berada di wadah scene karena rambu tujuan
+  // masih berjalan dan belum bisa difokuskan. Begitu dunia berhenti, pindahkan
+  // fokus ke rambu yang baru aktif — tetapi jangan rebut fokus kalau anak sudah
+  // memindahkannya sendiri.
+  useEffect(() => {
+    if (mode !== 'stopped') return
+    if (document.activeElement === sceneEl.current) signButtonRef.current?.focus()
+  }, [mode, signStep, sceneEl])
+
   // The one animation loop. It keeps running while the world is stopped so
   // the street stays alive at a sign; only reduced motion (no spawn at all)
   // or a hidden tab stops it. `stepWorld` freezes scroll while stopped, so
@@ -555,7 +569,7 @@ export default function WalkScene({ step, onOpen }: Props) {
   } as CSSProperties
 
   return (
-    <div className="wk-scene">
+    <div className="wk-scene" ref={sceneEl} tabIndex={-1}>
       <GroundScene />
 
       <div className="wk-dashes" aria-hidden="true">
@@ -629,6 +643,7 @@ export default function WalkScene({ step, onOpen }: Props) {
         type="button"
         className={mode === 'stopped' ? 'wk-sign wk-sign--in' : 'wk-sign'}
         style={signStyle}
+        ref={signButtonRef}
         onClick={() => onOpen(sign)}
         disabled={mode !== 'stopped'}
         aria-hidden={mode !== 'stopped'}

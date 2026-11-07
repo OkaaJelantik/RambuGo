@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { KINDS, QUESTIONS, WALK_SIGNS, type Question } from './data'
+import { QUESTIONS, WALK_SIGNS, type Question } from './data'
 import { LEG_SECONDS } from './scene/world'
 
 /**
@@ -61,6 +61,17 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/**
+ * Bentuk yang harus dibaca anak untuk tiap rambu walk. Sengaja literal, bukan
+ * turunan `KINDS`: assertion yang membaca `KINDS` akan ikut salah saat data
+ * salah (dulu "persegi hijau", padahal rambu petunjuk biru).
+ */
+const WALK_SHAPES: Record<string, string> = {
+  anak: 'segitiga kuning',
+  zebra: 'persegi biru',
+  'dilarang-masuk': 'bulat merah',
+}
+
 /** The plate of the sign this leg walks towards, once the world has stopped. */
 function signPlate(signName: string) {
   return screen.getByRole('button', {
@@ -85,12 +96,24 @@ function clearWalk() {
 
     fireEvent.click(signPlate(sign.name))
     expect(screen.getByRole('dialog', { name: `Rambu ${sign.name}` })).toBeTruthy()
-    // Bentuk rambu diajarkan di lembar dan selalu berasal dari KINDS.
-    expect(screen.getByText(`Bentuk: ${KINDS[sign.kind].shape}`)).toBeTruthy()
+    // Bentuk rambu diajarkan di lembar. Nilainya literal supaya data yang
+    // salah tidak lolos hanya karena assertion membaca sumber yang sama.
+    expect(screen.getByText(`Bentuk: ${WALK_SHAPES[sign.id]}`)).toBeTruthy()
     expect(screen.getByText(sign.meaning)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Mengerti, lanjut jalan' }))
     // Closing advances the leg (or ends the walk): the sheet is gone again.
     expect(screen.queryByRole('dialog')).toBeNull()
+
+    // Fokus tidak boleh jatuh ke <body>. Dua lembar pertama kembali ke scene
+    // (rambu berikutnya baru bisa difokuskan setelah berhenti); lembar ketiga
+    // memindahkan fokus ke judul persimpangan karena WalkScene sudah lepas.
+    const active = document.activeElement as HTMLElement | null
+    expect(active).not.toBe(document.body)
+    if (sign === WALK_SIGNS[WALK_SIGNS.length - 1]) {
+      expect(active).toBe(screen.getByRole('heading', { name: 'Kamu sampai di persimpangan' }))
+    } else {
+      expect(active?.closest('.wk-scene')).toBeTruthy()
+    }
   }
 }
 
@@ -133,11 +156,38 @@ function reachCrossroad() {
 }
 
 describe('alur aplikasi', () => {
+  it('lembar walk tidak menutup lewat ketukan latar; Escape mengembalikan fokus ke scene', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
+    frames.advance(FRAMES_PER_LEG)
+    fireEvent.click(signPlate(WALK_SIGNS[0].name))
+
+    // Ketukan di latar (termasuk area di bawah CTA) tidak boleh menutup lembar:
+    // dulu ketukan itu melewati rambu dan tidak bisa diulang.
+    fireEvent.click(document.querySelector('.overlay') as HTMLElement)
+    expect(screen.getByRole('dialog')).toBeTruthy()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    const active = document.activeElement as HTMLElement
+    expect(active).not.toBe(document.body)
+    expect(active.closest('.wk-scene')).toBeTruthy()
+  })
+
   it('jalur materi: 3 rambu, layar materi, lalu 5/5 dengan teks jalur materi', () => {
     reachCrossroad()
 
     fireEvent.click(screen.getByRole('button', { name: 'Jalur materi: belajar rambu lalu lintas' }))
     expect(screen.getByRole('heading', { name: 'Jalur Materi' })).toBeTruthy()
+
+    // Materi tetap mengembalikan fokus ke kartu yang membuka lembar.
+    const card = screen.getByRole('button', { name: /Banyak Anak Menyeberang/ })
+    // jsdom tidak memindahkan fokus saat klik; browser sungguhan melakukannya.
+    card.focus()
+    fireEvent.click(card)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(card)
 
     fireEvent.click(screen.getByRole('button', { name: /Sudah paham, coba kuis/ }))
     answerQuiz(() => true)

@@ -73,6 +73,12 @@
   z-index: 6;
 }
 
+/* Judul difokuskan hanya saat tiba dari scene berjalan (tabIndex -1), untuk
+   diumumkan ke pembaca layar; bukan kendali yang bisa di-Tab. */
+.fx-title:focus {
+  outline: none;
+}
+
 /* ---------- batang jalan tempat anak berdiri ---------- */
 
 .fx-trunk {

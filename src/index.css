@@ -549,15 +549,24 @@ button {
   line-height: 1.25;
 }
 
+/*
+ * Satu aturan kontras untuk keempat jenis. Teks ink di atas tint 25% warna
+ * jenis (≥11:1), dengan garis tepi warna asli supaya kode warna tetap terbaca.
+ * Warna jenis datang dari KINDS lewat `--kind-color`, bukan aturan per jenis.
+ */
 .kind-chip {
   display: inline-block;
   font-size: 0.72rem;
   font-weight: 800;
+  line-height: 1.3;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  color: #fff;
+  color: var(--ink);
+  border: 2px solid var(--kind-color, var(--ink));
+  background: #fff;
+  background: color-mix(in srgb, var(--kind-color, var(--ink)) 25%, #fff);
 }
 
 /* Baris kecil bentuk rambu di bawah chip jenis, dibaca anak. */

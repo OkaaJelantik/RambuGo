@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { KINDS, QUESTIONS, SIGNS, WALK_SIGNS, type Sign } from './data'
+import type { CSSProperties, RefObject } from 'react'
+import { KINDS, QUESTIONS, SIGNS, WALK_SIGNS, type Kind, type Sign } from './data'
 import { SignArt } from './SignArt'
 import Classroom from './Classroom'
 import WalkScene from './WalkScene'
@@ -8,22 +9,40 @@ import Kid from './Kid'
 
 type Stage = 'intro' | 'walk' | 'crossroad' | 'materi' | 'kuis' | 'home'
 
-function House({ className }: { className?: string }) {
+function HomeHouse({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 160 140" className={className} aria-hidden="true">
       <rect x="22" y="62" width="116" height="72" rx="8" fill="#FFF3DA" />
-      <polygon points="80,6 154,64 6,64" fill="#E0453F" />
+      <polygon points="80,6 154,64 6,64" fill="var(--red)" />
       <polygon points="80,6 154,64 80,64" fill="#C93A35" />
       <rect x="66" y="88" width="28" height="46" rx="5" fill="#B4653A" />
       <circle cx="88" cy="112" r="2.6" fill="#FFD76A" />
-      <rect x="32" y="78" width="24" height="22" rx="4" fill="#8FD8FF" stroke="#FFF3DA" strokeWidth="3" />
-      <rect x="104" y="78" width="24" height="22" rx="4" fill="#8FD8FF" stroke="#FFF3DA" strokeWidth="3" />
+      <rect x="32" y="78" width="24" height="22" rx="4" fill="var(--sky-1)" stroke="#FFF3DA" strokeWidth="3" />
+      <rect x="104" y="78" width="24" height="22" rx="4" fill="var(--sky-1)" stroke="#FFF3DA" strokeWidth="3" />
       <rect x="124" y="26" width="14" height="30" rx="4" fill="#B4653A" />
     </svg>
   )
 }
 
-function SignSheet({ sign, onClose, cta }: { sign: Sign; onClose: () => void; cta: string }) {
+/** Teks chip: jenis + bentuknya. Petunjuk & perintah sama-sama biru, jadi
+ *  bentuknya yang harus terbaca dari chip. */
+function kindChipText(kind: Kind) {
+  const { label, shape } = KINDS[kind]
+  return `${label} · ${shape.split(' ')[0]}`
+}
+
+function SignSheet({
+  sign,
+  onClose,
+  cta,
+  fallbackFocus,
+}: {
+  sign: Sign
+  onClose: () => void
+  cta: string
+  /** Fokus cadangan bila pemicu asli tidak bisa difokuskan lagi. */
+  fallbackFocus?: RefObject<HTMLElement | null>
+}) {
   const ctaRef = useRef<HTMLButtonElement>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
 
@@ -32,10 +51,21 @@ function SignSheet({ sign, onClose, cta }: { sign: Sign; onClose: () => void; ct
     const previous = document.activeElement as HTMLElement | null
     ctaRef.current?.focus()
     return () => {
-      // Pemicu bisa saja sudah lepas dari DOM; <body> mengambil alih.
-      if (previous?.isConnected) previous.focus()
+      // Pemicu bisa saja sudah lepas dari DOM, dinonaktifkan oleh langkah
+      // berikutnya (rambu walk), atau memang <body> saat lembar dibuka tanpa
+      // fokus. Jangan pernah memulihkan fokus ke <body>.
+      const canRestore =
+        previous !== null &&
+        previous !== document.body &&
+        previous.isConnected &&
+        !previous.matches(':disabled, [aria-disabled="true"]')
+      // Di jalur walk, pemicu masih terlihat aktif saat cleanup tetapi langkah
+      // berikutnya langsung menonaktifkannya; fokus yang dipulihkan ke sana
+      // akan jatuh ke <body>. Karena itu target eksplisit selalu menang.
+      const target = fallbackFocus?.current ?? (canRestore ? previous : null)
+      target?.focus()
     }
-  }, [])
+  }, [fallbackFocus])
 
   // Escape dan Tab ditangani di document agar tetap berlaku walau fokus
   // sudah lepas ke <body> (mis. setelah klik teks di dalam lembar).
@@ -72,20 +102,22 @@ function SignSheet({ sign, onClose, cta }: { sign: Sign; onClose: () => void; ct
   }, [onClose])
 
   return (
-    <div className="overlay" onClick={onClose}>
+    <div className="overlay">
       <div
         className="sheet chat"
         role="dialog"
         aria-modal="true"
         aria-label={`Rambu ${sign.name}`}
         ref={sheetRef}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="art">
           <SignArt art={sign.art} size={124} />
         </div>
-        <span className="kind-chip" style={{ background: KINDS[sign.kind].color }}>
-          Rambu {KINDS[sign.kind].label}
+        <span
+          className="kind-chip"
+          style={{ '--kind-color': KINDS[sign.kind].color } as CSSProperties}
+        >
+          Rambu {kindChipText(sign.kind)}
         </span>
         <p className="kind-shape">Bentuk: {KINDS[sign.kind].shape}</p>
 
@@ -126,6 +158,7 @@ export default function App() {
   })
   const [open, setOpen] = useState<Sign | null>(null)
   const [materiOpen, setMateriOpen] = useState<Sign | null>(null)
+  const walkSceneRef = useRef<HTMLDivElement | null>(null)
   const [via, setVia] = useState<'materi' | 'kuis' | null>(null)
   const [score, setScore] = useState(0)
 
@@ -156,8 +189,15 @@ export default function App() {
 
       {stage === 'walk' && (
         <section className="screen" key="walk">
-          <WalkScene step={walked} onOpen={setOpen} />
-          {open && <SignSheet sign={open} onClose={finishWalk} cta="Mengerti, lanjut jalan" />}
+          <WalkScene step={walked} onOpen={setOpen} sceneRef={walkSceneRef} />
+          {open && (
+            <SignSheet
+              sign={open}
+              onClose={finishWalk}
+              cta="Mengerti, lanjut jalan"
+              fallbackFocus={walkSceneRef}
+            />
+          )}
         </section>
       )}
 
@@ -189,8 +229,11 @@ export default function App() {
                   <SignArt art={s.art} size={80} />
                 </div>
                 <h4>{s.name}</h4>
-                <span className="kind-chip" style={{ background: KINDS[s.kind].color }}>
-                  {KINDS[s.kind].label}
+                <span
+                  className="kind-chip"
+                  style={{ '--kind-color': KINDS[s.kind].color } as CSSProperties}
+                >
+                  {kindChipText(s.kind)}
                 </span>
               </button>
             ))}
@@ -221,7 +264,7 @@ export default function App() {
         <section className="screen home-screen" key="home">
           <div className="home-card">
             <div className="house">
-              <House />
+              <HomeHouse />
             </div>
             <h2 style={{ fontSize: 'clamp(1.6rem,4vw,2.2rem)' }}>Kamu sampai di rumah!</h2>
             <p className="muted" style={{ marginTop: '0.4rem' }}>

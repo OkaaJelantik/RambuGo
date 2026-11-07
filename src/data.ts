@@ -22,7 +22,7 @@ export const KINDS: Record<Kind, { label: string; color: string; shape: string }
   peringatan: { label: 'Peringatan', color: '#F2B01E', shape: 'segitiga kuning' },
   larangan: { label: 'Larangan', color: '#E0453F', shape: 'bulat merah' },
   perintah: { label: 'Perintah', color: '#2E7BE0', shape: 'bulat biru' },
-  petunjuk: { label: 'Petunjuk', color: '#1C9B6B', shape: 'persegi hijau' },
+  petunjuk: { label: 'Petunjuk', color: '#2E7BE0', shape: 'persegi biru' },
 }
 
 export const SIGNS: Sign[] = [
@@ -123,7 +123,7 @@ export const QUESTIONS: Question[] = [
     prompt: 'Rambu dengan bentuk bulat dan warna dasar merah termasuk jenis?',
     options: ['Rambu petunjuk', 'Rambu larangan', 'Rambu peringatan'],
     answer: 1,
-    why: 'Bulat merah dipakai untuk larangan. Peringatan berwarna kuning bersegitiga, perintah berwarna biru, dan petunjuk berwarna hijau.',
+    why: 'Bulat merah dipakai untuk larangan. Peringatan berwarna kuning bersegitiga, perintah bulat biru, dan petunjuk persegi biru.',
   },
 ]
 
