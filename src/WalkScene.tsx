@@ -107,29 +107,40 @@ type PropSpec = {
 }
 
 /**
- * The belt, ordered from near to far. One entry per art kind, so every
- * screen holds all nine pieces and a walk shows each of them once per lap.
+ * The belt, ordered from near to far. Ten placements cover the nine art
+ * kinds, with `bin` used twice: `fadeAt(d) * nearFadeAt(d)` keeps 18% of the
+ * depth cycle under 10% opacity (7% as a piece passes the camera, 11% as it
+ * reaches the horizon), and two placements fit in that band, so nine
+ * placements necessarily drop to seven visible at some scroll phases. The
+ * tenth placement keeps at least eight pieces on screen.
  * Placement is a static table — never random — so two playthroughs of the
  * same leg show the same street. Objects are recycled by wrapping `base`
  * around `PROP_CYCLE`; the near end of the wrap is faded to opacity 0 by
  * `nearFadeAt`, and the far end lands at depth 1 below the horizon line
  * where `fadeAt` is 0, so no object pops in mid-screen or out of the sky.
  *
- * Near depths hold the thin or small pieces (bench, lamp, tree, fence);
- * the wide buildings sit further back so they never fill the frame, and
- * lanes alternate sides so the verge and the sidewalk are both populated.
- * `size` adds a little variation without ever moving an object's feet.
+ * The three big silhouettes are spread across the depth cycle and both
+ * sides — shop left at 0.28, bus stop right at 0.48, house left at 0.68 —
+ * on outer lanes (|lane| ≥ 0.80). A nearer one therefore enters from the
+ * screen edge instead of standing in front of the one behind it; in 226319d
+ * all three shared the right side at adjacent depths, so the shop hid the
+ * bus stop completely and ~94% of the house. The slots between the
+ * buildings hold thin or low pieces (bin, lamp, powerpole, bench, fence,
+ * tree); the remaining overlaps are partial and were measured with
+ * `elementFromPoint` over each prop's ink, not with bbox arithmetic.
+ * `size` adds variation without moving feet.
  */
 const LAYOUT: ReadonlyArray<PropSpec> = [
-  { art: 'bench', lane: 0.48, base: 0.16 },
-  { art: 'lamp', lane: -0.44, base: 0.25 },
-  { art: 'tree', lane: 0.54, base: 0.34, size: 1.1 },
-  { art: 'fence', lane: -0.60, base: 0.43 },
-  { art: 'shop', lane: 0.64, base: 0.52 },
-  { art: 'bin', lane: -0.42, base: 0.61 },
-  { art: 'busstop', lane: 0.50, base: 0.70 },
-  { art: 'powerpole', lane: -0.52, base: 0.79 },
-  { art: 'house', lane: 0.62, base: 0.88, size: 0.9 },
+  { art: 'tree', lane: 0.60, base: 0.08, size: 1.1 },
+  { art: 'bin', lane: -0.55, base: 0.18 },
+  { art: 'shop', lane: -1.10, base: 0.28 },
+  { art: 'fence', lane: 0.60, base: 0.38 },
+  { art: 'busstop', lane: 1.00, base: 0.48 },
+  { art: 'lamp', lane: -0.58, base: 0.58 },
+  { art: 'house', lane: -0.80, base: 0.68, size: 0.9 },
+  { art: 'powerpole', lane: 0.66, base: 0.78 },
+  { art: 'bench', lane: 0.50, base: 0.88 },
+  { art: 'bin', lane: 0.58, base: 0.98 },
 ]
 
 type Box = { w: number; h: number }

@@ -274,8 +274,8 @@ export function BusStop() {
 
       {/* bangku di bawah papan */}
       <rect x="46" y="112" width="68" height="8" rx="3" fill={WOOD} stroke={INK} strokeWidth="4" />
-      <rect x="52" y="120" width="7" height="20" fill={METAL} stroke={INK} strokeWidth="4" />
-      <rect x="101" y="120" width="7" height="20" fill={METAL} stroke={INK} strokeWidth="4" />
+      <rect x="52" y="120" width="7" height="30" fill={METAL} stroke={INK} strokeWidth="4" />
+      <rect x="101" y="120" width="7" height="30" fill={METAL} stroke={INK} strokeWidth="4" />
     </svg>
   )
 }

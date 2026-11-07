@@ -638,20 +638,3 @@
     animation: none;
   }
 }
-
-/* ============================================================
-   Art kit v2 — ruko, pagar, tong sampah, bangku, halte, tiang.
-   Hanya MENAMBAH aturan; ukuran wrapper tetap diisi dari proyeksi
-   oleh WalkScene, jadi art cukup mengisi kotaknya.
-   ============================================================ */
-
-.wk-shop,
-.wk-fence,
-.wk-bin,
-.wk-bench,
-.wk-busstop,
-.wk-powerpole {
-  display: block;
-  width: 100%;
-  height: auto;
-}
