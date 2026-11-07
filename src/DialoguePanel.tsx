@@ -61,13 +61,16 @@ export default function DialoguePanel({ beat, onAction }: Props) {
 
   return (
     <>
-      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      <div className="dlg-live sr-only" role="status" aria-live="polite" aria-atomic="true">
         {view?.text ?? ''}
       </div>
 
       {view && (
         <div className={leaving ? 'dlg dlg--out' : 'dlg'}>
-          <div className="dlg-row">
+          {/* Teks dan wajah panel bukan kendali. Tanpa menahan mousedown,
+              mengetuknya memindahkan fokus ke <body> — DoD §14.4. Ini hanya
+              menahan fokus; tidak ada aksi klik di baris ini. */}
+          <div className="dlg-row" onMouseDown={(e) => e.preventDefault()}>
             <div className="dlg-avatar" aria-hidden="true">
               <Kid />
             </div>

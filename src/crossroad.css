@@ -164,7 +164,10 @@
   filter: brightness(0.94);
 }
 
-/* papan nama di ujung jalan */
+/* Papan nama di ujung jalan. Sengaja tidak mematikan pointer-events: papan
+   ini digeser keluar kotak tombol cabang, jadi tanpa dirinya sendiri sebagai
+   sasaran ketuk, satu-satunya sasaran besar di layar tidak bisa diklik.
+   Ketukan di papan tetap milik tombol cabang karena papan ada di dalamnya. */
 .fx-sign {
   position: absolute;
   top: 0;
@@ -181,7 +184,6 @@
   border: 3px solid #fff;
   box-shadow: var(--shadow);
   text-align: left;
-  pointer-events: none;
 }
 
 .fx-branch.left .fx-sign {

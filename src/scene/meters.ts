@@ -33,10 +33,15 @@ export const METERS = {
   lane: 2.4,
   /** Lebar trotoar tempat anak berjalan. */
   sidewalk: 2.0,
-  /** Mobil: lebar × tinggi (dilihat dari belakang). */
-  car: { width: 1.8, height: 1.45 },
-  /** Motor: lebar × tinggi. */
-  motorcycle: { width: 0.7, height: 1.05 },
+  /**
+   * Mobil & motor: hanya lebar yang menjadi jangkar. Tinggi mengikuti aspek
+   * art-nya (mobil 1,8 × 90/160 → 1,01 m; motor 0,7 × 80/90 → 0,62 m), karena
+   * memaksa tinggi nyata 1,45 / 1,05 m akan memipihkan roda menjadi elips.
+   * Angka tinggi lama di tabel ini tidak pernah dibaca dan sudah dibuang;
+   * spec §7.1 mencatat tinggi tergambar yang sebenarnya.
+   */
+  car: { width: 1.8 },
+  motorcycle: { width: 0.7 },
   /**
    * Rambu: diameter pelat, tinggi tiang, dan tebal tiang. Tiang 9 cm adalah
    * tiang galvanis standar; angka ini yang membuat rambu tidak lagi memakai

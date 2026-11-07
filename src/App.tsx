@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, RefObject } from 'react'
 import { KINDS, QUESTIONS, SIGNS, WALK_SIGNS, type Kind, type Sign } from './data'
-import { SignArt } from './SignArt'
+import { SignArt, describeSign } from './SignArt'
 import Classroom from './Classroom'
 import WalkScene from './WalkScene'
 import Crossroad from './Crossroad'
@@ -163,6 +163,14 @@ const STOP_BEATS: StoryId[] = ['stop-1', 'stop-2', 'stop-3']
 const LEG_BEAT_MS = 3000
 
 /**
+ * Setelah lembar ditutup, CTA "Tutup" bisa berada tepat di atas baris tombol
+ * panel (360×640: CTA berakhir y=580,2, baris panel mulai y=580). Ketukan
+ * kedua dari ketuk ganda yang cepat akan mendarat di "Lanjut jalan" dan
+ * melewati rambu. Abaikan aksi panel selama 300 ms sesudah lembar tutup.
+ */
+const SHEET_GUARD_MS = 300
+
+/**
  * Sasaran fokus setelah sebuah aksi. Tombol yang diklik (tombol panel atau
  * tombol layar) hampir selalu ikut lepas dari DOM, jadi fokus harus pindah
  * ke sesuatu yang tetap ada — tidak pernah dibiarkan jatuh ke `<body>`.
@@ -204,8 +212,21 @@ export default function App() {
   const homeHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const quizCardRef = useRef<HTMLDivElement | null>(null)
   const pendingFocusRef = useRef<FocusTarget | null>(null)
+  // -Infinity: aksi panel sebelum lembar pertama pernah ditutup tidak ditahan.
+  const sheetClosedAtRef = useRef(-Infinity)
   const [via, setVia] = useState<'materi' | 'kuis' | null>(null)
   const [score, setScore] = useState(0)
+
+  /** Catat waktu tutup lembar; aksi panel sesudahnya ditahan sebentar. */
+  const closeWalkSheet = () => {
+    sheetClosedAtRef.current = performance.now()
+    setOpen(null)
+  }
+
+  const closeMateriSheet = () => {
+    sheetClosedAtRef.current = performance.now()
+    setMateriOpen(null)
+  }
 
   const restart = () => {
     pendingFocusRef.current = 'intro'
@@ -269,6 +290,11 @@ export default function App() {
   }
 
   const handleAction = (button: StoryButton) => {
+    // Ketukan yang menghapus lembar langsung menembus ke tombol panel di
+    // bawahnya. Tahan aksi panel sebentar supaya ketuk ganda tidak melewati
+    // rambu; setelah 300 ms tombol yang sama berfungsi normal lagi.
+    if (performance.now() - sheetClosedAtRef.current < SHEET_GUARD_MS) return
+
     switch (button.action) {
       case 'continue':
         continueWalk()
@@ -337,7 +363,7 @@ export default function App() {
             <SignSheet
               sign={open}
               opening={openingFor(open.id)}
-              onClose={() => setOpen(null)}
+              onClose={closeWalkSheet}
               cta="Tutup"
               fallbackFocus={walkSceneRef}
             />
@@ -392,7 +418,7 @@ export default function App() {
             <SignSheet
               sign={materiOpen}
               opening={openingFor(materiOpen.id)}
-              onClose={() => setMateriOpen(null)}
+              onClose={closeMateriSheet}
               cta="Tutup"
             />
           )}
@@ -481,6 +507,38 @@ function Quiz({
   const [score, setScore] = useState(0)
   const q = QUESTIONS[idx]
   const sign = q.signId ? SIGNS.find((s) => s.id === q.signId) : undefined
+  const nextRef = useRef<HTMLButtonElement>(null)
+  const promptRef = useRef<HTMLParagraphElement>(null)
+  const prevIdxRef = useRef(idx)
+
+  const feedbackText =
+    picked === null
+      ? ''
+      : `${picked === q.answer ? 'Tepat sekali! ' : 'Belum tepat. '}${q.why}`
+
+  // Memilih opsi menonaktifkan tombol yang sedang fokus, jadi fokus jatuh ke
+  // <body>. Pindahkan ke "Soal berikutnya" yang tetap ada, dan gulirkan ke
+  // dalam layar: pada 360×640 tombol ini lahir di bawah lipatan.
+  useEffect(() => {
+    if (picked === null) return
+    nextRef.current?.scrollIntoView?.({ block: 'center' })
+    nextRef.current?.focus({ preventScroll: true })
+  }, [picked, idx])
+
+  // Soal berganti dan tombol "Soal berikutnya" lepas dari DOM. Fokuskan
+  // pertanyaan baru (tabIndex -1), bukan membiarkan fokus ke <body>.
+  useEffect(() => {
+    if (prevIdxRef.current === idx) return
+    prevIdxRef.current = idx
+    promptRef.current?.focus()
+  }, [idx])
+
+  // Jalur dev `?s=kuis` membuka layar tanpa aksi panel, jadi App tidak punya
+  // sasaran fokus. Jangan biarkan fokus tetap di <body> (DoD §14.4); saat
+  // masuk lewat "Ke kuis", App sudah memfokuskan kartu, jadi ini no-op.
+  useEffect(() => {
+    if (document.activeElement === document.body) promptRef.current?.focus()
+  }, [])
 
   const pick = (i: number) => {
     if (picked !== null) return
@@ -496,6 +554,16 @@ function Quiz({
 
   return (
     <div className="quiz-wrap">
+      {/* Wilayah live tetap terpasang; teksnya yang berganti saat menjawab. */}
+      <p
+        className="quiz-live sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {feedbackText}
+      </p>
+
       <div className="quiz-progress">
         <span>
           Soal {idx + 1}/{QUESTIONS.length}
@@ -511,7 +579,12 @@ function Quiz({
             <SignArt art={sign.art} size={116} />
           </div>
         )}
-        <p className="prompt">{q.prompt}</p>
+        <p className="prompt" ref={promptRef} tabIndex={-1}>
+          {q.prompt}
+          {/* Gambar aria-hidden; deskripsi visual ikut pertanyaan supaya
+              terbaca saat fokus mendarat di sini (termasuk tanpa melihat). */}
+          {sign && <span className="sr-only"> {describeSign(sign)}.</span>}
+        </p>
 
         <div className="options">
           {q.options.map((opt, i) => {
@@ -531,11 +604,10 @@ function Quiz({
         {picked !== null && (
           <>
             <p className={`feedback ${picked === q.answer ? 'ok' : 'no'}`}>
-              {picked === q.answer ? 'Tepat sekali! ' : 'Belum tepat. '}
-              {q.why}
+              {feedbackText}
             </p>
             <div style={{ marginTop: '1rem' }}>
-              <button className="btn" onClick={next}>
+              <button className="btn" onClick={next} ref={nextRef}>
                 {idx + 1 >= QUESTIONS.length ? 'Sampai di rumah →' : 'Soal berikutnya →'}
               </button>
             </div>

@@ -151,10 +151,13 @@ tinggi viewport dan tidak ada lebar sebagai fraksi lebar viewport.
 `pxPerM(vh) = clamp(vh, 640, 1000) × 0,185` — 148 px/m pada viewport 800 px
 (`src/scene/projection.ts:107-109`); `pxAt(m, depth, vh)` mengubah meter ke piksel pada
 sebuah kedalaman (`:117`), dan `offsetX` menaruh meter lateral ke layar (`:122`).
-Tabelnya: anak 1,35; lajur 2,4; mobil 1,8×1,45; motor 0,7×1,05; pelat rambu 0,60 /
-tiang 2,0; rumah 6,5; ruko 4,0; pohon 3,5; tiang listrik 9,0; halte 1,8; lampu 4,5;
-tong 0,9; bangku 0,85; pagar 1,2; orang dewasa 1,7; anak pejalan 1,2
-(`src/scene/meters.ts:22-69`).
+Tabelnya: anak 1,35; lajur 2,4; mobil lebar 1,8 (tinggi tergambar 1,01 dari
+aspek art 90/160); motor lebar 0,7 (tinggi tergambar 0,62 dari aspek art 80/90);
+pelat rambu 0,60 / tiang 2,0; rumah 6,5; ruko 4,0; pohon 3,5; tiang listrik 9,0;
+halte 1,8; lampu 4,5; tong 0,9; bangku 0,85; pagar 1,2; orang dewasa 1,7; anak
+pejalan 1,2 (`src/scene/meters.ts:22-69`). Tinggi mobil/motor sengaja **tidak**
+menjadi kolom tabel: yang diukur adalah lebarnya, tingginya mengikuti aspek art
+supaya roda tidak terpipihkan.
 
 Satu catatan yang harus ikut terbaca: `METERS.child = 1,35` adalah **kotak seni** hero
 (viewBox 140×260). Sosok yang tergambar mengisi y 24–235, jadi tinggi yang terlihat

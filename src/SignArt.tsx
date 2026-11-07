@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Art } from './data'
+import { KINDS, type Art, type Sign } from './data'
 
 const INK = '#231F20'
 const YELLOW = '#FFC93C'
@@ -97,6 +97,17 @@ export const ART: Record<Art, ReactNode> = {
       />
     </>
   ),
+}
+
+/**
+ * Deskripsi visual untuk pembaca layar: bentuk + warna dari `KINDS`, lalu
+ * apa yang digambarkan dari nama rambu. Dipakai di prompt kuis karena
+ * gambarnya sendiri tetap `aria-hidden`; tanpa ini pertanyaan "Rambu ini"
+ * tidak punya petunjuk apa pun. Arti rambu sengaja tidak dipakai — itu
+ * jawaban kuis.
+ */
+export function describeSign(sign: Sign): string {
+  return `Rambu ${KINDS[sign.kind].shape} yang menunjukkan ${sign.name.toLowerCase()}`
 }
 
 export function SignArt({ art, size = 96 }: { art: Art; size?: number }) {

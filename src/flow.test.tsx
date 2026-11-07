@@ -1,9 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import Crossroad from './Crossroad'
 import { QUESTIONS, WALK_SIGNS, type Question } from './data'
+import { METERS } from './scene/meters'
 import { LEG_SECONDS } from './scene/world'
 import { INTRO_LINE } from './story'
+import { heroTop } from './WalkScene'
+// @ts-expect-error -- vitest runs in Node; app tsconfig has no Node types.
+import { readFileSync } from 'node:fs'
 
 /**
  * The walk scene scrolls on `requestAnimationFrame`; jsdom has no clock behind
@@ -123,9 +128,13 @@ const MATERI_LINE = 'Rambu yang tadi kulihat, aku kenali satu-satu.'
 const KUIS_LINE = 'Kalau benar, aku dapat bintang.'
 const HOME_LINE = 'Sampai di rumah. Rambu itu kawan di jalan — besok aku cerita ke Bu Guru.'
 
-/** Wilayah live yang selalu terpasang; teksnya mengikuti beat yang tampil. */
+/**
+ * Wilayah live panel yang selalu terpasang; teksnya mengikuti beat yang
+ * tampil. Dipilih lewat kelasnya karena kuis kini punya wilayah `status`
+ * sendiri untuk feedback.
+ */
 function panel(): HTMLElement {
-  return screen.getByRole('status')
+  return document.querySelector<HTMLElement>('.dlg-live') as HTMLElement
 }
 
 /** Panel dialog yang benar-benar digambar di layar, atau `null` saat kosong. */
@@ -154,11 +163,18 @@ async function arriveAtSign(index: number) {
   expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
 }
 
+/** Jeda nyata 320 ms: melewati guard 300 ms setelah lembar ditutup. */
+async function passSheetGuard() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 320))
+  })
+}
+
 /**
  * Buka lembar lewat tombol panel, baca bentuk + arti + pembuka naskah, lalu
  * "Tutup". Beat stop yang sama harus masih menunggu setelah lembar ditutup.
  */
-function readSign(index: number) {
+async function readSign(index: number) {
   const sign = WALK_SIGNS[index]
 
   fireEvent.click(screen.getByRole('button', { name: 'Apa ini?' }))
@@ -173,6 +189,9 @@ function readSign(index: number) {
   // Kembali ke beat yang sama: kalimat dan kedua tombolnya masih ada.
   expectPanelLine(STOP_LINES[index])
   expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
+
+  // Guard menahan aksi panel 300 ms setelah lembar tutup; tes melewatinya.
+  await passSheetGuard()
 }
 
 /**
@@ -183,7 +202,7 @@ function readSign(index: number) {
 async function clearWalk() {
   for (let i = 0; i < WALK_SIGNS.length; i += 1) {
     await arriveAtSign(i)
-    readSign(i)
+    await readSign(i)
 
     fireEvent.click(screen.getByRole('button', { name: 'Lanjut jalan' }))
 
@@ -250,6 +269,52 @@ async function reachCrossroad() {
   expect(screen.getByRole('heading', { name: 'Kamu sampai di persimpangan' })).toBeTruthy()
 }
 
+describe('persimpangan', () => {
+  it('papan nama tiap jalur adalah bagian dari tombol jalurnya', () => {
+    const onMateri = vi.fn()
+    const onKuis = vi.fn()
+    render(<Crossroad onMateri={onMateri} onKuis={onKuis} />)
+
+    const buttons = screen.getAllByRole('button')
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) {
+      const sign = button.querySelector<HTMLElement>('.fx-sign')
+      expect(sign).not.toBeNull()
+      // Papan digeser keluar kotak tombol; ia hanya bisa diklik kalau tetap
+      // menjadi keturunan tombol dan tidak mematikan pointer-events.
+      expect(sign!.closest('button')).toBe(button)
+    }
+
+    // Aturan `.fx-sign` (bukan `.fx-sign-text`) tidak boleh mematikan hit-test.
+    const css = readFileSync('src/crossroad.css', 'utf8')
+    const rule = /\.fx-sign\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(rule).not.toBe('')
+    expect(rule).not.toMatch(/pointer-events\s*:\s*none/)
+
+    fireEvent.click(buttons[0])
+    fireEvent.click(buttons[1])
+    expect(onMateri).toHaveBeenCalledTimes(1)
+    expect(onKuis).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('geometri hero', () => {
+  it('sol hero (y=235) duduk tepat di garis tanah', () => {
+    // Kotak art 260; sol berakhir di 235. Menggambar dengan -heroH membuat
+    // sol melayang 25/260 tinggi kotak. heroTop menggeser tepat sebesar itu.
+    expect(heroTop(260)).toBeCloseTo(-235, 6)
+    expect(heroTop(160)).toBeCloseTo(-(160 * 235) / 260, 6)
+    expect(heroTop(160) + 235 * (160 / 260)).toBeCloseTo(0, 6)
+  })
+
+  it('tabel meter hanya menyimpan lebar kendaraan; tinggi mengikuti aspek art', () => {
+    // Kolom tinggi 1,45 / 1,05 tidak pernah dibaca `vehicleBox`. Lebar adalah
+    // jangkar; tinggi tergambar 1,01 m (mobil) dan 0,62 m (motor).
+    expect(Object.keys(METERS.car)).toEqual(['width'])
+    expect(Object.keys(METERS.motorcycle)).toEqual(['width'])
+  })
+})
+
 describe('alur aplikasi', () => {
   it('rambu berhenti memunculkan panel; Apa ini? → lembar → Tutup kembali ke beat yang sama', async () => {
     render(<App />)
@@ -276,12 +341,80 @@ describe('alur aplikasi', () => {
     expect(panel().textContent).toBe(stopLine)
     expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
 
+    await passSheetGuard()
     // "Lanjut jalan" melepas tombolnya; fokus harus pindah ke wadah scene.
     fireEvent.click(screen.getByRole('button', { name: 'Lanjut jalan' }))
     const afterContinue = document.activeElement as HTMLElement
     expect(afterContinue).not.toBe(document.body)
     expect(afterContinue.closest('.wk-scene')).toBeTruthy()
     expectPanelLine(LEG_LINES[1])
+  })
+
+  it('ketukan kedua setelah lembar ditutup tidak melewati rambu', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
+    await arriveAtSign(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apa ini?' }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Tutup' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    // Ketuk ganda: tap kedua mendarat di "Lanjut jalan" <300 ms kemudian.
+    // Tanpa jeda, dunia maju ke leg-2 dan rambu pertama terlewat.
+    fireEvent.click(screen.getByRole('button', { name: 'Lanjut jalan' }))
+    expectPanelLine(STOP_LINES[0])
+    expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
+
+    // Setelah jeda, tombol yang sama berfungsi normal.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 320))
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Lanjut jalan' }))
+    expectPanelLine(LEG_LINES[1])
+  })
+
+  it('mengetuk teks panel tidak melepas fokus ke <body>', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
+    await arriveAtSign(0)
+
+    const text = document.querySelector<HTMLElement>('.dlg-text') as HTMLElement
+    const scene = document.querySelector<HTMLElement>('.wk-scene') as HTMLElement
+    scene.focus()
+    expect(document.activeElement).toBe(scene)
+
+    // Default mousedown (yang memindahkan fokus ke <body>) ditahan.
+    expect(fireEvent.mouseDown(text)).toBe(false)
+    expect(document.activeElement).toBe(scene)
+    fireEvent.click(text)
+    expect(document.activeElement).toBe(scene)
+  })
+
+  it('kuis: fokus tidak jatuh ke <body>, feedback diumumkan, rambu terbaca', async () => {
+    await reachCrossroad()
+    fireEvent.click(screen.getByRole('button', { name: 'Ke kuis' }))
+    expect(screen.getByText('Soal 1/5')).toBeTruthy()
+
+    // Deskripsi visual (bentuk + isi) ikut pertanyaan, bukan per soal.
+    const prompt = document.querySelector('.question-card .prompt') as HTMLElement
+    expect(prompt.textContent).toContain(
+      'Rambu segitiga kuning yang menunjukkan banyak anak menyeberang',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Banyak anak menyeberang' }))
+    const next = screen.getByRole('button', { name: 'Soal berikutnya →' })
+    expect(document.activeElement).toBe(next)
+
+    const live = document.querySelector<HTMLElement>('.quiz-live') as HTMLElement
+    expect(live.getAttribute('role')).toBe('status')
+    expect(live.getAttribute('aria-live')).toBe('polite')
+    expect(live.textContent).toContain('Tepat sekali!')
+
+    // Soal baru memfokuskan pertanyaannya, bukan membiarkan fokus ke <body>.
+    fireEvent.click(next)
+    expect(screen.getByText('Soal 2/5')).toBeTruthy()
+    expect(document.activeElement).toBe(document.querySelector('.question-card .prompt'))
   })
 
   it('beat leg tetap tampil saat prefers-reduced-motion', () => {
@@ -346,6 +479,7 @@ describe('alur aplikasi', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(card)
 
+    await passSheetGuard()
     // Tombol lanjut ke kuis hanya ada di panel (dock lama sudah dibuang).
     fireEvent.click(screen.getByRole('button', { name: 'Sudah paham, coba kuis' }))
     await waitFor(() => expectNoPanel())

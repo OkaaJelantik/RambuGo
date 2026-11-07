@@ -184,6 +184,19 @@ export function heroBox(viewportH: number): Box {
   return { w: h * (140 / 260), h }
 }
 
+/** HeroWalk is a 140 × 260 box; the drawn soles end at y=235, not y=260. */
+const HERO_ART_H = 260
+const HERO_SOLE_Y = 235
+
+/**
+ * Top of the drawn hero box, relative to the ground anchor at her feet.
+ * Anchoring by the art box (`-heroH`) leaves the soles 25/260 of the box
+ * above the pavement; this lowers the box so y=235 lands exactly on 0.
+ */
+export function heroTop(heroH: number): number {
+  return -heroH * (HERO_SOLE_Y / HERO_ART_H)
+}
+
 /**
  * Nominal size of a background object. The art keeps its own width/height
  * ratio, so a 3,5 m tree is 3,5 m tall on every viewport.
@@ -596,10 +609,11 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
       setZ(el, prop.z)
     })
 
-    // The hero never moves; only the world does. Anchored by her feet.
+    // The hero never moves; only the world does. Anchored by her soles
+    // (art y=235), not by the 260-tall art box, so she stands on the pavement.
     const heroScale = roundScale(HERO_DEPTH)
     if (heroRef.current) {
-      setTransform(heroRef.current, roundHalf(-heroW / 2), roundHalf(-heroH), heroScale)
+      setTransform(heroRef.current, roundHalf(-heroW / 2), roundHalf(heroTop(heroH)), heroScale)
     }
 
     // Ambience. A slot is a zero-sized anchor on its lane; the art hangs
