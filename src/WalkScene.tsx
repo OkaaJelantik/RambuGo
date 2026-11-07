@@ -283,6 +283,14 @@ function setZ(el: HTMLElement, z: number): void {
   if (el.style.zIndex !== value) el.style.zIndex = value
 }
 
+/** Nominal box of an art piece, in px, from the metres table. */
+function setBox(el: HTMLElement | SVGElement, box: Box): void {
+  const w = `${box.w}px`
+  const h = `${box.h}px`
+  if (el.style.width !== w) el.style.width = w
+  if (el.style.height !== h) el.style.height = h
+}
+
 /** Show or hide a traffic slot. `display` is never owned by React's style prop. */
 function setDisplay(el: HTMLElement, visible: boolean): void {
   const value = visible ? 'block' : 'none'
@@ -340,6 +348,7 @@ export default function WalkScene({ step, onOpen, sceneRef }: Props) {
 
   // Ambience state lives in refs: the loop mutates it and writes the DOM
   // directly, so spawning never re-renders React.
+  const trafficLayerRef = useRef<HTMLDivElement | null>(null)
   const vehicleRefs = useRef<Array<HTMLDivElement | null>>([])
   const pedRefs = useRef<Array<HTMLDivElement | null>>([])
   const vehiclesRef = useRef<Array<Traffic | null>>([null, null, null])
@@ -415,6 +424,21 @@ export default function WalkScene({ step, onOpen, sceneRef }: Props) {
       el.style.width = `${box.w}px`
       el.style.height = `${box.h}px`
     })
+
+    // Ambience art is sized from the same METERS table, once per measure; only
+    // the slot transform changes per frame. (walk.css carries the same sizes
+    // as a no-JS fallback through --wk-px-per-m.)
+    const layer = trafficLayerRef.current
+    if (layer) {
+      const cars = vehicleBox('car', h)
+      const bikes = vehicleBox('bike', h)
+      const adults = pedBox('adult', h)
+      const children = pedBox('child', h)
+      for (const el of layer.querySelectorAll<SVGElement>('.wk-veh--car')) setBox(el, cars)
+      for (const el of layer.querySelectorAll<SVGElement>('.wk-veh--bike')) setBox(el, bikes)
+      for (const el of layer.querySelectorAll<SVGElement>('.wk-ped--adult')) setBox(el, adults)
+      for (const el of layer.querySelectorAll<SVGElement>('.wk-ped--child')) setBox(el, children)
+    }
   }, [])
 
   const draw = useCallback((world: WorldState) => {
@@ -723,7 +747,7 @@ export default function WalkScene({ step, onOpen, sceneRef }: Props) {
         same depth formula as the scenery belt. The whole layer is
         pointer-events: none, so it can never eat the sign's tap.
       */}
-      <div className="wk-traffic" aria-hidden="true">
+      <div className="wk-traffic" aria-hidden="true" ref={trafficLayerRef}>
         {Array.from({ length: VEHICLE_SLOTS }, (_, i) => (
           <div
             key={`vehicle-${i}`}
