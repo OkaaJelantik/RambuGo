@@ -5,7 +5,7 @@
 
 .fx-scene {
   --rw: clamp(104px, 30vw, 190px);
-  /* palet disamakan dengan index.css / street.css */
+  /* palet disamakan dengan index.css */
   --grass: #69c64a;
   --grass-dark: #4fa936;
   --asphalt: #5b606b;
@@ -29,7 +29,7 @@
   }
 }
 
-/* Rumput memakai tangga warna bukit di street.css (#8cdb70 → #74c957 → --grass),
+/* Rumput memakai tangga warna bukit yang sama dengan layar lain (#8cdb70 → #74c957 → --grass),
    dipertahankan terang di bagian atas supaya tidak lebih pekat dari layar lain. */
 .fx-grass {
   position: absolute;

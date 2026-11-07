@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { KINDS, QUESTIONS, SIGNS, WALK_SIGNS, type Sign } from './data'
 import { SignArt } from './SignArt'
 import Classroom from './Classroom'
@@ -7,8 +8,6 @@ import Crossroad from './Crossroad'
 import Kid from './Kid'
 
 type Stage = 'intro' | 'walk' | 'crossroad' | 'materi' | 'kuis' | 'home'
-
-const WALK_X = [22, 50, 78]
 
 function House({ className }: { className?: string }) {
   return (
@@ -26,9 +25,62 @@ function House({ className }: { className?: string }) {
 }
 
 function SignSheet({ sign, onClose, cta }: { sign: Sign; onClose: () => void; cta: string }) {
+  const ctaRef = useRef<HTMLButtonElement>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
+
+  // Pindahkan fokus ke dalam lembar saat dibuka, kembalikan saat ditutup.
+  // Pemicu bisa saja sudah lepas dari DOM (mis. rambu berikutnya), jadi
+  // jatuh kembali ke <body> daripada meninggalkan fokus di elemen hantu.
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    ctaRef.current?.focus()
+    return () => {
+      if (previous && previous.isConnected) previous.focus()
+      else document.body.focus()
+    }
+  }, [])
+
+  // Tab tidak boleh keluar dari lembar selama lembar masih terbuka.
+  const keepFocusInside = (e: ReactKeyboardEvent) => {
+    if (e.key !== 'Tab' || !sheetRef.current) return
+    const items = Array.from(
+      sheetRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    )
+    if (items.length === 0) return
+    const first = items[0]
+    const last = items[items.length - 1]
+    const active = document.activeElement
+    const inside = sheetRef.current.contains(active)
+    if (e.shiftKey ? active === first || !inside : active === last || !inside) {
+      const target = e.shiftKey ? last : first
+      e.preventDefault()
+      target.focus()
+    }
+  }
+
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet chat" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="overlay"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation()
+          onClose()
+          return
+        }
+        keepFocusInside(e)
+      }}
+    >
+      <div
+        className="sheet chat"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Rambu ${sign.name}`}
+        ref={sheetRef}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="art">
           <SignArt art={sign.art} size={124} />
         </div>
@@ -48,7 +100,7 @@ function SignSheet({ sign, onClose, cta }: { sign: Sign; onClose: () => void; ct
 
         <p className="tip">{sign.tip}</p>
         <div className="actions">
-          <button className="btn" onClick={onClose}>
+          <button className="btn" onClick={onClose} ref={ctaRef}>
             {cta}
           </button>
         </div>
@@ -58,15 +110,17 @@ function SignSheet({ sign, onClose, cta }: { sign: Sign; onClose: () => void; ct
 }
 
 const STAGES: Stage[] = ['intro', 'walk', 'crossroad', 'materi', 'kuis', 'home']
-// ?s=walk untuk lompat langsung ke satu adegan (buat cek tampilan)
-const start = new URLSearchParams(window.location.search).get('s') as Stage | null
+// ?s=walk untuk lompat langsung ke satu adegan (buat cek tampilan).
+// Parameter ini alat bantu developer, jadi hanya dibaca di build dev.
+const devParams = import.meta.env.DEV ? new URLSearchParams(window.location.search) : null
+const start = devParams?.get('s') as Stage | null
 const initial: Stage = start && STAGES.includes(start) ? start : 'intro'
 
 export default function App() {
-  const still = new URLSearchParams(window.location.search).has('still')
+  const still = devParams?.has('still') ?? false
   const [stage, setStage] = useState<Stage>(initial)
   const [walked, setWalked] = useState(() => {
-    const v = Number(new URLSearchParams(window.location.search).get('step'))
+    const v = Number(devParams?.get('step'))
     return Number.isFinite(v) && v > 0 ? Math.min(v, 2) : 0
   })
   const [open, setOpen] = useState<Sign | null>(null)
@@ -109,7 +163,10 @@ export default function App() {
       {stage === 'crossroad' && (
         <section className="screen" key="crossroad">
           <Crossroad
-            onMateri={() => setStage('materi')}
+            onMateri={() => {
+              setVia('materi')
+              setStage('materi')
+            }}
             onKuis={() => {
               setVia('kuis')
               setStage('kuis')
@@ -122,7 +179,7 @@ export default function App() {
         <section className="screen materi-screen" key="materi">
           <div className="screen-head">
             <h2>Jalur Materi</h2>
-            <p>Klik rambu untuk tahu artinya. Ada suara juga.</p>
+            <p>Klik rambu untuk tahu artinya.</p>
           </div>
           <div className="grid">
             {SIGNS.map((s) => (
@@ -138,13 +195,7 @@ export default function App() {
             ))}
           </div>
           <div className="dock">
-            <button
-              className="btn orange"
-              onClick={() => {
-                setVia('materi')
-                setStage('kuis')
-              }}
-            >
+            <button className="btn orange" onClick={() => setStage('kuis')}>
               Sudah paham, coba kuis →
             </button>
           </div>
@@ -159,7 +210,6 @@ export default function App() {
           <Quiz
             onDone={(s) => {
               setScore(s)
-              setVia('kuis')
               setStage('home')
             }}
           />
