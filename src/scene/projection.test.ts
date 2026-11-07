@@ -5,6 +5,7 @@ import {
   ROAD_HALF,
   WALK_W,
   fadeAt,
+  nearFadeAt,
   roadHalfAt,
   scaleAt,
   walkHalfAt,
@@ -85,6 +86,37 @@ describe('fadeAt', () => {
     for (let i = 1; i < band.length; i += 1) {
       expect(fadeAt(band[i])).toBeLessThanOrEqual(fadeAt(band[i - 1]))
     }
+  })
+})
+
+describe('nearFadeAt', () => {
+  it('is hidden up to 0.06 and fully visible from 0.16 on', () => {
+    expect(nearFadeAt(0)).toBe(0)
+    expect(nearFadeAt(0.06)).toBe(0)
+    expect(nearFadeAt(0.16)).toBe(1)
+  })
+
+  it('fades in linearly halfway between 0.06 and 0.16', () => {
+    expect(nearFadeAt(0.11)).toBeCloseTo(0.5, 12)
+  })
+
+  it('never decreases as depth grows through the near band', () => {
+    const band = Array.from({ length: 11 }, (_, i) => 0.06 + i * 0.01)
+    for (let i = 1; i < band.length; i += 1) {
+      expect(nearFadeAt(band[i])).toBeGreaterThanOrEqual(nearFadeAt(band[i - 1]))
+    }
+  })
+
+  it('does not affect depth 0.16 or beyond', () => {
+    for (const depth of DEPTHS) {
+      if (depth < 0.16) continue
+      expect(nearFadeAt(depth)).toBe(1)
+    }
+  })
+
+  it('clamps depth like the other projection helpers', () => {
+    expect(nearFadeAt(-1)).toBe(0)
+    expect(nearFadeAt(2)).toBe(1)
   })
 })
 

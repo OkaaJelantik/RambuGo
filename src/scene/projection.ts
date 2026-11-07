@@ -27,6 +27,12 @@ const FADE_FAR = 0.92
 /** Depth where objects are still fully visible. */
 const FADE_NEAR = 0.62
 
+/** Depth where objects enter the near fade on their way past the camera. */
+const FADE_NEAR_START = 0.06
+
+/** Depth where the near fade ends and the object is fully visible. */
+const FADE_NEAR_END = 0.16
+
 function clampDepth(depth: number): number {
   return Math.min(1, Math.max(0, depth))
 }
@@ -52,6 +58,14 @@ export function fadeAt(depth: number): number {
   if (d <= FADE_NEAR) return 1
   if (d >= FADE_FAR) return 0
   return (FADE_FAR - d) / (FADE_FAR - FADE_NEAR)
+}
+
+/** Opacity at `depth` for objects about to pass the camera: 0 up to 0.06, 1 from 0.16 on. */
+export function nearFadeAt(depth: number): number {
+  const d = clampDepth(depth)
+  if (d <= FADE_NEAR_START) return 0
+  if (d >= FADE_NEAR_END) return 1
+  return (d - FADE_NEAR_START) / (FADE_NEAR_END - FADE_NEAR_START)
 }
 
 /** Half-width of the road at `depth`. */

@@ -5,7 +5,7 @@ import HeroWalk from './art/HeroWalk'
 import { House, StreetLamp, Tree } from './art/scenery'
 import { SignArt } from './SignArt'
 import { WALK_SIGNS, type Sign } from './data'
-import { fadeAt, scaleAt, xAt, yAt } from './scene/projection'
+import { fadeAt, nearFadeAt, scaleAt, xAt, yAt } from './scene/projection'
 import { createWorld, stepWorld, type Mode, type WorldState } from './scene/world'
 import './walk.css'
 
@@ -25,7 +25,7 @@ const SIGN_LANE = -0.35
 /** Number of dashed centre-line marks in the belt. */
 const DASH_COUNT = 8
 
-/** Seconds of travel that fit in one loop of the background-object belt. */
+/** Depth span of one loop of the background-object belt. */
 const PROP_CYCLE = 1
 
 /** Longest jump the loop will advance the world by, so a stalled frame cannot skip a leg. */
@@ -52,8 +52,9 @@ const PROP_ART = {
 
 /**
  * The belt's six objects, each reused from the Task 3 art kit. `base` is the
- * depth the object sits at when `scroll` is 0; the belt wraps at the horizon
- * (depth > 1, already invisible), so objects never pop in mid-screen.
+ * depth the object sits at when `scroll` is 0. Objects fade out before they
+ * reach the camera (`nearFadeAt`) and reappear at the horizon under the haze
+ * (`fadeAt`), so they never pop in mid-screen.
  */
 const PROPS: ReadonlyArray<{ kind: PropKind; lane: number; base: number }> = [
   { kind: 'house', lane: -0.62, base: 0.18 },
@@ -207,7 +208,7 @@ export default function WalkScene({ step, onOpen }: Props) {
       const x = xAt(spec.lane, depth) * w
       const y = yAt(depth) * h
       setTransform(el, roundHalf(x - (box.w * scale) / 2), roundHalf(y - box.h * scale), scale)
-      setOpacity(el, fadeAt(depth))
+      setOpacity(el, fadeAt(depth) * nearFadeAt(depth))
       setZ(el, 20 + Math.round((1 - Math.min(depth, 1)) * 80))
     })
 
