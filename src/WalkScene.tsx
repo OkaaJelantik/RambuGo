@@ -72,13 +72,6 @@ const PED_WAIT = { min: 2, max: 4 } as const
 const NEAR_EDGE = -0.05
 const FAR_EDGE = 1.05
 
-/** The three prompts the hero says on the way to the signs. */
-const LINES = [
-  'Ayo jalan! Rambu pertama ada di depan. Tekan platnya, ya 👆',
-  'Rambu berikutnya dekat. Tekan lagi 👆',
-  'Satu rambu lagi sebelum sampai jalan raya 👆',
-]
-
 /**
  * One kind of background art. Heights are fractions of the viewport height
  * at depth 0; `ratio` is the art's width / height.
@@ -558,7 +551,6 @@ export default function WalkScene({ step, onOpen, sceneRef }: Props) {
   }, [reduced, draw, stepAmbience])
 
   const sign = WALK_SIGNS[signStep]
-  const line = LINES[Math.min(step, LINES.length - 1)]
   const signStyle = {
     left: `${xAt(SIGN_LANE, SIGN_STOP_D) * 100}%`,
     top: `${yAt(SIGN_STOP_D) * 100}%`,
@@ -658,9 +650,6 @@ export default function WalkScene({ step, onOpen, sceneRef }: Props) {
       <div className="wk-hero-zone" style={heroStyle} ref={heroZoneRef}>
         <div className="wk-hero" ref={heroRef}>
           <HeroWalk pose={mode === 'walking' ? 'walk' : 'idle'} />
-        </div>
-        <div className="wk-bubble" key={step}>
-          {line}
         </div>
       </div>
 

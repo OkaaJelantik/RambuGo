@@ -11,7 +11,9 @@ import { LEG_SECONDS } from './scene/world'
  *
  * `WalkScene` caps one frame at 100 ms of world time, so frames are advanced
  * in 100 ms steps: one step for the zero-`dt` first frame, `LEG_SECONDS` worth
- * to finish the leg, plus a little slack.
+ * to finish the leg, plus a little slack. The extra `await` inside `act` lets
+ * the DOM's `disabled` mutation (world stopped → plate enabled) reach the
+ * MutationObserver that hands the stop beat to the dialogue panel.
  */
 const FRAMES_PER_LEG = Math.ceil(LEG_SECONDS / 0.1) + 2
 
@@ -33,14 +35,16 @@ function installFrames() {
 
   return {
     /** Run `frames` frames of `ms` each inside one `act`, flushing React. */
-    advance(frames: number, ms = 100) {
-      act(() => {
+    async advance(frames: number, ms = 100) {
+      await act(async () => {
         for (let i = 0; i < frames; i += 1) {
           now += ms
           const due = [...pending.values()]
           pending.clear()
           for (const cb of due) cb(now)
         }
+        // Biarkan MutationObserver + pembaruan React mendarat di dalam act.
+        await Promise.resolve()
       })
     },
   }
@@ -72,49 +76,97 @@ const WALK_SHAPES: Record<string, string> = {
   'dilarang-masuk': 'bulat merah',
 }
 
-/** The plate of the sign this leg walks towards, once the world has stopped. */
-function signPlate(signName: string) {
-  return screen.getByRole('button', {
-    name: `Rambu ${signName}, tekan untuk melihat artinya`,
-  })
+/**
+ * Naskah yang dipin apa adanya. Literal (bukan impor `STORY`) supaya
+ * perubahan kata di data tidak lolos hanya karena sumbernya sama.
+ */
+const LEG_LINES = [
+  'Aku jalan pelan-pelan. Trotoar itu tempat paling aman.',
+  'Rumah-rumah berderet di kiri. Pohonnya ramai dan senang.',
+  'Rambu berikutnya di dekat ujung trotoar. Tinggal satu!',
+]
+
+const STOP_LINES = [
+  'Eh, ada rambu segitiga kuning. Gambarnya anak-anak — artinya apa, ya?',
+  'Persegi biru, ada garis-garis putih. Ini tempat menyeberang!',
+  'Bulat merah, ada garis putih. Berarti tidak boleh masuk — aku jalan kaki, jadi boleh, ya?',
+]
+
+const OPENINGS: Record<string, string> = {
+  anak: 'Aku kecil, jadi aku paling suka rambu ini.',
+  zebra: 'Kalau mau ke seberang, lewat garis putih itu.',
+  'dilarang-masuk': 'Tapi aku jalan kaki. Sepeda dan mobil yang tidak boleh.',
+}
+
+const CROSSROAD_LINE = 'Sampai di persimpangan. Aku mau baca rambu lagi, atau langsung kuis?'
+const MATERI_LINE = 'Rambu yang tadi kulihat, aku kenali satu-satu.'
+const KUIS_LINE = 'Kalau benar, aku dapat bintang.'
+const HOME_LINE = 'Sampai di rumah. Rambu itu kawan di jalan — besok aku cerita ke Bu Guru.'
+
+/** Panel dialog bawah yang sedang tampil (bukan yang sedang animasi keluar). */
+function panel(): HTMLElement {
+  return screen.getByRole('status')
+}
+
+function expectPanelLine(line: string) {
+  expect(panel().textContent).toContain(line)
+  expect(panel().getAttribute('aria-live')).toBe('polite')
 }
 
 /**
- * Walk all three legs of the real scene: wait out the leg, open the sheet,
- * read the real copy, close it. Leaves the app at the crossroad.
+ * Tunggu satu leg selesai, lalu pastikan panel sudah memuat kalimat rambu
+ * yang ditemui. Dunia berhenti tepat di rambu; panel menyusul.
  */
-function clearWalk() {
-  for (const sign of WALK_SIGNS) {
-    // While the world is walking the plate is hidden from assistive tech.
-    expect(
-      screen.queryByRole('button', {
-        name: `Rambu ${sign.name}, tekan untuk melihat artinya`,
-      }),
-    ).toBeNull()
+async function arriveAtSign(index: number) {
+  await frames.advance(FRAMES_PER_LEG)
+  expectPanelLine(STOP_LINES[index])
+  expect(screen.getByRole('button', { name: 'Apa ini?' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
+}
 
-    frames.advance(FRAMES_PER_LEG)
+/**
+ * Buka lembar lewat tombol panel, baca bentuk + arti + pembuka naskah, lalu
+ * "Tutup". Beat stop yang sama harus masih menunggu setelah lembar ditutup.
+ */
+function readSign(index: number) {
+  const sign = WALK_SIGNS[index]
 
-    fireEvent.click(signPlate(sign.name))
-    expect(screen.getByRole('dialog', { name: `Rambu ${sign.name}` })).toBeTruthy()
-    // Bentuk rambu diajarkan di lembar. Nilainya literal supaya data yang
-    // salah tidak lolos hanya karena assertion membaca sumber yang sama.
-    expect(screen.getByText(`Bentuk: ${WALK_SHAPES[sign.id]}`)).toBeTruthy()
-    expect(screen.getByText(sign.meaning)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Mengerti, lanjut jalan' }))
-    // Closing advances the leg (or ends the walk): the sheet is gone again.
-    expect(screen.queryByRole('dialog')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Apa ini?' }))
+  expect(screen.getByRole('dialog', { name: `Rambu ${sign.name}` })).toBeTruthy()
+  // Baris pembuka Aku ada di atas arti, bukan menggantikannya.
+  expect(screen.getByText(OPENINGS[sign.id])).toBeTruthy()
+  expect(screen.getByText(sign.meaning)).toBeTruthy()
+  expect(screen.getByText(`Bentuk: ${WALK_SHAPES[sign.id]}`)).toBeTruthy()
 
-    // Fokus tidak boleh jatuh ke <body>. Dua lembar pertama kembali ke scene
-    // (rambu berikutnya baru bisa difokuskan setelah berhenti); lembar ketiga
-    // memindahkan fokus ke judul persimpangan karena WalkScene sudah lepas.
-    const active = document.activeElement as HTMLElement | null
-    expect(active).not.toBe(document.body)
-    if (sign === WALK_SIGNS[WALK_SIGNS.length - 1]) {
-      expect(active).toBe(screen.getByRole('heading', { name: 'Kamu sampai di persimpangan' }))
-    } else {
-      expect(active?.closest('.wk-scene')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Tutup' }))
+  expect(screen.queryByRole('dialog')).toBeNull()
+  // Kembali ke beat yang sama: kalimat dan kedua tombolnya masih ada.
+  expectPanelLine(STOP_LINES[index])
+  expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
+}
+
+/**
+ * Jalankan seluruh perjalanan kaki: tiga leg, tiga rambu (dibaca lewat
+ * panel), lalu "Lanjut jalan" sampai persimpangan. Panel persimpangan
+ * menawarkan kedua rute.
+ */
+async function clearWalk() {
+  for (let i = 0; i < WALK_SIGNS.length; i += 1) {
+    await arriveAtSign(i)
+    readSign(i)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lanjut jalan' }))
+
+    if (i < WALK_SIGNS.length - 1) {
+      // Leg berikutnya hanya bercerita: tidak ada tombol di panel.
+      expectPanelLine(LEG_LINES[i + 1])
+      expect(screen.queryByRole('button', { name: 'Lanjut jalan' })).toBeNull()
     }
   }
+
+  expectPanelLine(CROSSROAD_LINE)
+  expect(screen.getByRole('button', { name: 'Ke materi' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Ke kuis' })).toBeTruthy()
 }
 
 /**
@@ -140,72 +192,107 @@ function answerQuiz(correct: (question: Question, index: number) => boolean) {
   })
 }
 
+/**
+ * Setelah soal terakhir: layar rumah tampil, tetapi panel masih memutar beat
+ * kuis ("Kalau benar, aku dapat bintang.") dengan tombol "Selesai".
+ */
+function finishQuizPanel() {
+  expectPanelLine(KUIS_LINE)
+  fireEvent.click(screen.getByRole('button', { name: 'Selesai' }))
+  expectPanelLine(HOME_LINE)
+}
+
 /** Enter the classroom, walk to the crossroad, and assert we arrived. */
-function reachCrossroad() {
+async function reachCrossroad() {
   render(<App />)
 
+  // Di kelas panel belum tampil: kartu kelas yang memegang kalimat intro.
+  expect(screen.queryByRole('status')).toBeNull()
   expect(screen.getByRole('heading', { name: /Petualangan Rambu Lalu Lintas/ })).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
 
   // WalkScene is on screen and its HUD names the road ahead.
   expect(screen.getByText('Jalan ke jalan raya')).toBeTruthy()
+  expectPanelLine(LEG_LINES[0])
 
-  clearWalk()
-
+  await clearWalk()
   expect(screen.getByRole('heading', { name: 'Kamu sampai di persimpangan' })).toBeTruthy()
 }
 
 describe('alur aplikasi', () => {
-  it('lembar walk tidak menutup lewat ketukan latar; Escape mengembalikan fokus ke scene', () => {
+  it('rambu berhenti memunculkan panel; Apa ini? → lembar → Tutup kembali ke beat yang sama', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
-    frames.advance(FRAMES_PER_LEG)
-    fireEvent.click(signPlate(WALK_SIGNS[0].name))
 
-    // Ketukan di latar (termasuk area di bawah CTA) tidak boleh menutup lembar:
-    // dulu ketukan itu melewati rambu dan tidak bisa diulang.
-    fireEvent.click(document.querySelector('.overlay') as HTMLElement)
+    await arriveAtSign(0)
+    const stopLine = panel().textContent
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apa ini?' }))
     expect(screen.getByRole('dialog')).toBeTruthy()
 
+    // Ketukan di latar tidak menutup lembar; Escape yang menutup.
+    fireEvent.click(document.querySelector('.overlay') as HTMLElement)
+    expect(screen.getByRole('dialog')).toBeTruthy()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
+
+    // Fokus tidak jatuh ke <body>; ia kembali ke wadah scene.
     const active = document.activeElement as HTMLElement
     expect(active).not.toBe(document.body)
     expect(active.closest('.wk-scene')).toBeTruthy()
+
+    // Beat yang sama, bukan leg berikutnya.
+    expect(panel().textContent).toBe(stopLine)
+    expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
   })
 
-  it('jalur materi: 3 rambu, layar materi, lalu 5/5 dengan teks jalur materi', () => {
-    reachCrossroad()
+  it('jalur materi: 3 rambu, papan rambu, lalu 5/5 dengan teks jalur materi', async () => {
+    await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Jalur materi: belajar rambu lalu lintas' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ke materi' }))
     expect(screen.getByRole('heading', { name: 'Jalur Materi' })).toBeTruthy()
+    expectPanelLine(MATERI_LINE)
 
-    // Materi tetap mengembalikan fokus ke kartu yang membuka lembar.
+    // Kartu membuka lembar yang sama, lengkap dengan pembuka naskah.
     const card = screen.getByRole('button', { name: /Banyak Anak Menyeberang/ })
     // jsdom tidak memindahkan fokus saat klik; browser sungguhan melakukannya.
     card.focus()
     fireEvent.click(card)
+    expect(screen.getByText(OPENINGS.anak)).toBeTruthy()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(card)
 
-    fireEvent.click(screen.getByRole('button', { name: /Sudah paham, coba kuis/ }))
+    // Tombol lanjut ke kuis hanya ada di panel (dock lama sudah dibuang).
+    fireEvent.click(screen.getByRole('button', { name: 'Sudah paham, coba kuis' }))
+    expect(screen.queryByRole('status')).toBeNull()
     answerQuiz(() => true)
+    finishQuizPanel()
 
     expect(screen.getByText('Benar 5/5')).toBeTruthy()
     expect(screen.getByText('Bintang 3 ⭐')).toBeTruthy()
     // `via` still says the materi path, even though the quiz came after it.
     expect(screen.getByText('Kamu belajar dulu, lalu mengerjakan kuis.')).toBeTruthy()
     expect(screen.queryByText('Kamu berani mencoba kuis lebih dulu.')).toBeNull()
+
+    // "Pulang" menutup panel di rumah; kartu rumah tetap punya tombol main lagi.
+    fireEvent.click(screen.getByRole('button', { name: 'Pulang' }))
+    expect(screen.queryByRole('status')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Main lagi dari kelas' }))
+    expect(screen.getByRole('heading', { name: /Petualangan Rambu Lalu Lintas/ })).toBeTruthy()
   })
 
-  it('jalur kuis: 3 dari 5 benar, Bintang 2, dan teks jalur kuis', () => {
-    reachCrossroad()
+  it('jalur kuis: 3 dari 5 benar, Bintang 2, dan teks jalur kuis', async () => {
+    await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Jalur kuis: uji pemahaman rambu' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ke kuis' }))
     expect(screen.getByText('Soal 1/5')).toBeTruthy()
+    // Selama soal, panel tidak menemani (tidak ada tombol yang bisa dipakai
+    // melewati kuis).
+    expect(screen.queryByRole('status')).toBeNull()
 
     answerQuiz((_, index) => index < 3)
+    finishQuizPanel()
 
     expect(screen.getByText('Benar 3/5')).toBeTruthy()
     expect(screen.getByText('Bintang 2 ⭐')).toBeTruthy()
@@ -213,22 +300,24 @@ describe('alur aplikasi', () => {
     expect(screen.queryByText('Kamu belajar dulu, lalu mengerjakan kuis.')).toBeNull()
   })
 
-  it('jalur kuis: tepat 4 dari 5 benar dapat Bintang 3', () => {
-    reachCrossroad()
+  it('jalur kuis: tepat 4 dari 5 benar dapat Bintang 3', async () => {
+    await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Jalur kuis: uji pemahaman rambu' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ke kuis' }))
     answerQuiz((_, index) => index < 4)
+    finishQuizPanel()
 
     // The 4/2 rule lives exactly on this boundary: 4 is three stars, 3 is not.
     expect(screen.getByText('Benar 4/5')).toBeTruthy()
     expect(screen.getByText('Bintang 3 ⭐')).toBeTruthy()
   })
 
-  it('skor 0 tetap pulang dengan Bintang 1', () => {
-    reachCrossroad()
+  it('skor 0 tetap pulang dengan Bintang 1', async () => {
+    await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Jalur kuis: uji pemahaman rambu' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ke kuis' }))
     answerQuiz(() => false)
+    finishQuizPanel()
 
     expect(screen.getByText('Benar 0/5')).toBeTruthy()
     expect(screen.getByText('Bintang 1 ⭐')).toBeTruthy()

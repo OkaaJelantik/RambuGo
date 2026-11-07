@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, RefObject } from 'react'
 import { KINDS, QUESTIONS, SIGNS, WALK_SIGNS, type Kind, type Sign } from './data'
 import { SignArt } from './SignArt'
@@ -6,6 +6,8 @@ import Classroom from './Classroom'
 import WalkScene from './WalkScene'
 import Crossroad from './Crossroad'
 import Kid from './Kid'
+import DialoguePanel from './DialoguePanel'
+import { beatById, openingFor, type StoryButton, type StoryId } from './story'
 
 type Stage = 'intro' | 'walk' | 'crossroad' | 'materi' | 'kuis' | 'home'
 
@@ -33,11 +35,14 @@ function kindChipText(kind: Kind) {
 
 function SignSheet({
   sign,
+  opening,
   onClose,
   cta,
   fallbackFocus,
 }: {
   sign: Sign
+  /** Baris pembuka Aku di atas arti; hanya rambu yang ada di naskah. */
+  opening?: string
   onClose: () => void
   cta: string
   /** Fokus cadangan bila pemicu asli tidak bisa difokuskan lagi. */
@@ -127,6 +132,7 @@ function SignSheet({
           </div>
           <div className="chat-bubble">
             <h3>{sign.name}</h3>
+            {opening && <p className="sheet-opening">{opening}</p>}
             <p>{sign.meaning}</p>
           </div>
         </div>
@@ -149,12 +155,44 @@ const devParams = import.meta.env.DEV ? new URLSearchParams(window.location.sear
 const start = devParams?.get('s') as Stage | null
 const initial: Stage = start && STAGES.includes(start) ? start : 'intro'
 
+/** Beat untuk tiap leg dan tiap rambu; urutannya mengikat (naskah). */
+const LEG_BEATS: StoryId[] = ['leg-1', 'leg-2', 'leg-3']
+const STOP_BEATS: StoryId[] = ['stop-1', 'stop-2', 'stop-3']
+
+/** Kalimat leg tampil otomatis lalu hilang sendiri; ±3 detik. */
+const LEG_BEAT_MS = 3000
+
+function beatAt(beats: StoryId[], step: number): StoryId {
+  return beats[Math.min(Math.max(step, 0), beats.length - 1)]
+}
+
+/** Beat awal mengikuti adegan yang dibuka lewat URL. */
+function startBeat(stage: Stage, walked: number): StoryId | null {
+  if (stage === 'intro') return 'intro'
+  if (stage === 'walk') return beatAt(LEG_BEATS, walked)
+  if (stage === 'crossroad') return 'crossroad'
+  if (stage === 'materi') return 'materi'
+  if (stage === 'home') return 'home'
+  // Kuis: panel tidak tampil selama soal; beat kuis menyusul di layar rumah.
+  return null
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 export default function App() {
   const still = devParams?.has('still') ?? false
   const [stage, setStage] = useState<Stage>(initial)
   const [walked, setWalked] = useState(() => {
     const v = Number(devParams?.get('step'))
     return Number.isFinite(v) && v > 0 ? Math.min(v, 2) : 0
+  })
+  const [beatId, setBeatId] = useState<StoryId | null>(() => {
+    const v = Number(devParams?.get('step'))
+    const step = Number.isFinite(v) && v > 0 ? Math.min(v, 2) : 0
+    return startBeat(initial, step)
   })
   const [open, setOpen] = useState<Sign | null>(null)
   const [materiOpen, setMateriOpen] = useState<Sign | null>(null)
@@ -165,36 +203,139 @@ export default function App() {
   const restart = () => {
     setStage('intro')
     setWalked(0)
+    setBeatId('intro')
     setOpen(null)
     setMateriOpen(null)
     setVia(null)
     setScore(0)
   }
 
-  const finishWalk = useCallback(() => {
-    setOpen(null)
-    if (walked + 1 >= WALK_SIGNS.length) setStage('crossroad')
-    else setWalked(walked + 1)
-  }, [walked])
+  // Kalimat leg hanya singgah: hilang sendiri setelah ±3 detik. Kalau dunia
+  // sudah berhenti lebih dulu dan beat stop sudah tampil, timer ini tidak
+  // boleh menghapusnya (karena itu updater fungsional).
+  useEffect(() => {
+    if (!beatId || !beatId.startsWith('leg-')) return
+    const id = beatId
+    const timer = window.setTimeout(() => {
+      setBeatId((current) => (current === id ? null : current))
+    }, LEG_BEAT_MS)
+    return () => window.clearTimeout(timer)
+  }, [beatId])
+
+  // Satu-satunya sinyal "dunia berhenti" yang tersedia tanpa mengubah
+  // WalkScene: plat rambu baru bisa ditekan (disabled dilepas) saat mode
+  // berhenti. App mengintip tombol rambu di dalam wadah scene dan memakai
+  // transisi itu untuk memunculkan beat stop. Saat gerak dikurangi, dunia
+  // memang langsung berhenti, jadi diperiksa sekali di awal.
+  useEffect(() => {
+    if (stage !== 'walk') return
+    const root = walkSceneRef.current
+    if (!root) return
+
+    const showStopBeat = () => {
+      const plates = root.querySelectorAll<HTMLButtonElement>(
+        'button.wk-sign, button[aria-label^="Rambu "]',
+      )
+      for (const plate of plates) {
+        if (!plate.disabled) {
+          setBeatId(beatAt(STOP_BEATS, walked))
+          return
+        }
+      }
+    }
+
+    if (prefersReducedMotion()) showStopBeat()
+
+    const observer = new MutationObserver(showStopBeat)
+    observer.observe(root, { subtree: true, attributes: true, attributeFilter: ['disabled'] })
+    return () => observer.disconnect()
+  }, [stage, walked])
+
+  const continueWalk = () => {
+    if (stage === 'intro') {
+      setStage('walk')
+      setWalked(0)
+      setBeatId(beatAt(LEG_BEATS, 0))
+      return
+    }
+    if (stage !== 'walk') return
+
+    if (walked + 1 >= WALK_SIGNS.length) {
+      setStage('crossroad')
+      setBeatId('crossroad')
+    } else {
+      setWalked(walked + 1)
+      setBeatId(beatAt(LEG_BEATS, walked + 1))
+    }
+  }
+
+  const handleAction = (button: StoryButton) => {
+    switch (button.action) {
+      case 'continue':
+        continueWalk()
+        return
+      case 'learn':
+        if (stage === 'walk') setOpen(WALK_SIGNS[walked])
+        return
+      case 'materi':
+        setVia('materi')
+        setStage('materi')
+        setBeatId('materi')
+        return
+      case 'kuis':
+        // Panel tidak menemani soal; beat kuis muncul sebagai pembuka hasil.
+        // Lewat persimpangan berarti jalur kuis; lewat papan materi tetap
+        // dihitung jalur materi.
+        if (beatId === 'crossroad') setVia('kuis')
+        setStage('kuis')
+        setBeatId(null)
+        return
+      case 'home':
+        // "Selesai" menutup kuis, "Pulang" menutup panel di rumah.
+        if (beatId === 'kuis') setBeatId('home')
+        else if (beatId === 'home') setBeatId(null)
+        else {
+          setStage('home')
+          setBeatId('home')
+        }
+        return
+      case 'restart':
+        restart()
+        return
+    }
+  }
 
   return (
     <div className={still ? 'app still' : 'app'}>
       {stage === 'intro' && (
         <section className="screen" key="intro">
           <Classroom
-            onStart={() => setStage('walk')}
+            onStart={() => {
+              setWalked(0)
+              setStage('walk')
+              setBeatId(beatAt(LEG_BEATS, 0))
+            }}
           />
         </section>
       )}
 
       {stage === 'walk' && (
         <section className="screen" key="walk">
-          <WalkScene step={walked} onOpen={setOpen} sceneRef={walkSceneRef} />
+          <WalkScene
+            step={walked}
+            onOpen={(sign) => {
+              // Cadangan bila pengamat mode tidak sempat menangkap transisi.
+              setBeatId(beatAt(STOP_BEATS, walked))
+              setOpen(sign)
+            }}
+            sceneRef={walkSceneRef}
+          />
           {open && (
             <SignSheet
               sign={open}
-              onClose={finishWalk}
-              cta="Mengerti, lanjut jalan"
+              opening={openingFor(open.id)}
+              onClose={() => setOpen(null)}
+              cta="Tutup"
               fallbackFocus={walkSceneRef}
             />
           )}
@@ -207,17 +348,19 @@ export default function App() {
             onMateri={() => {
               setVia('materi')
               setStage('materi')
+              setBeatId('materi')
             }}
             onKuis={() => {
               setVia('kuis')
               setStage('kuis')
+              setBeatId(null)
             }}
           />
         </section>
       )}
 
       {stage === 'materi' && (
-        <section className="screen materi-screen" key="materi">
+        <section className="screen materi-screen dlg-space" key="materi">
           <div className="screen-head">
             <h2>Jalur Materi</h2>
             <p>Klik rambu untuk tahu artinya.</p>
@@ -238,13 +381,13 @@ export default function App() {
               </button>
             ))}
           </div>
-          <div className="dock">
-            <button className="btn orange" onClick={() => setStage('kuis')}>
-              Sudah paham, coba kuis →
-            </button>
-          </div>
           {materiOpen && (
-            <SignSheet sign={materiOpen} onClose={() => setMateriOpen(null)} cta="Tutup" />
+            <SignSheet
+              sign={materiOpen}
+              opening={openingFor(materiOpen.id)}
+              onClose={() => setMateriOpen(null)}
+              cta="Tutup"
+            />
           )}
         </section>
       )}
@@ -255,6 +398,8 @@ export default function App() {
             onDone={(s) => {
               setScore(s)
               setStage('home')
+              // Beat kuis ("Kalau benar, aku dapat bintang.") membuka layar hasil.
+              setBeatId('kuis')
             }}
           />
         </section>
@@ -291,6 +436,16 @@ export default function App() {
           </div>
         </section>
       )}
+
+      {/*
+        Panel hidup di luar section adegan supaya selalu di bawah layar dan
+        tidak ikut animasi masuk layar. Di kelas panel tidak digambar: kartu
+        kelas sudah memuat kalimat intro dan tombol "Keluar kelas"-nya sendiri.
+      */}
+      <DialoguePanel
+        beat={stage === 'intro' ? null : beatById(beatId)}
+        onAction={handleAction}
+      />
     </div>
   )
 }
