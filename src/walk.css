@@ -1,0 +1,607 @@
+/* ============================================================
+   Scene berjalan 2.5D — semua kelas berprefix `wk-`.
+   Latar statis ada di bagian atas. Task berikutnya hanya
+   MENAMBAH bagian baru di bawah file ini; jangan menulis ulang
+   aturan yang sudah ada.
+   ============================================================ */
+
+/* ---------- kanvas latar ---------- */
+
+.wk-ground {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* --wk-horizon diisi GroundScene dari HORIZON (fraksi tinggi viewport). */
+}
+
+.wk-ground > svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- langit ---------- */
+
+.wk-sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 100%);
+}
+
+/* ---------- bukit jauh ---------- */
+
+.wk-hill {
+  fill: var(--grass-dark);
+}
+
+.wk-hill--a {
+  opacity: 0.28;
+}
+
+.wk-hill--b {
+  opacity: 0.42;
+}
+
+.wk-hill--c {
+  opacity: 0.58;
+}
+
+/* ---------- kabut cakrawala ---------- */
+
+/* Puncak putih tepat di garis cakrawala, lalu memudar ke atas.
+   Ujung bawahnya 0.5% di bawah cakrawala, tertutup .wk-verge,
+   supaya tidak ada garis sambung. */
+.wk-haze {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--wk-horizon) - 7%);
+  height: 7.5%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.55) 62%,
+    rgba(255, 255, 255, 0.92) 100%
+  );
+}
+
+/* ---------- tanah (verge) ---------- */
+
+.wk-verge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--wk-horizon);
+  bottom: 0;
+  background: linear-gradient(180deg, var(--grass) 0%, var(--grass) 52%, var(--grass-dark) 100%);
+}
+
+/* ---------- trotoar kiri, jalan, garis kerb ---------- */
+
+/* Task 11: hanya trotoar kiri yang digambar. Jalan mulai di kerb dan
+   dipotong tepi kanan frame, jadi tidak ada trotoar atau garis sisi seberang. */
+.wk-walk-left polygon {
+  /* Beton: turunan --road-line yang digelapkan sedikit, supaya garis kerb
+     putih tetap terbaca di sebelahnya. */
+  fill: color-mix(in srgb, var(--road-line) 80%, var(--ink));
+}
+
+.wk-road polygon {
+  fill: var(--road);
+}
+
+.wk-kerb polygon {
+  fill: var(--road-line);
+}
+
+/* ============================================================
+   Art kit v1 — hero berjalan + rumah, pohon, lampu.
+   Bagian ini hanya MENAMBAH aturan baru; aturan di atas tidak
+   diubah. Semua SVG art diletakkan lewat pembungkus sendiri,
+   bukan langsung di bawah `.wk-ground`.
+   ============================================================ */
+
+/* ---------- rumah, pohon, lampu ---------- */
+
+.wk-house,
+.wk-tree,
+.wk-lamp {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- hero berjalan ---------- */
+
+/* Satu siklus langkah. Scene boleh memperlambat atau menghentikan
+   seluruh dunia dengan menimpa --cycle di ancestor .hw. */
+:root {
+  --cycle: 1.1s;
+}
+
+.hw {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  /* --cycle sengaja tidak diisi di sini: default-nya ada di :root,
+     jadi scene bisa memperlambat/menghentikan seluruh dunia dengan
+     menimpa --cycle di ancestor .hw mana pun. */
+}
+
+/* Rotasi kaki memakai sumbu di pangkal paha masing-masing. */
+.hw-leg {
+  transform-box: view-box;
+}
+
+.hw-leg--a {
+  transform-origin: 56px 150px;
+}
+
+.hw-leg--b {
+  transform-origin: 84px 150px;
+}
+
+/* Dua langkah per siklus: kaki kiri keluar pada setengah pertama,
+   kaki kanan pada setengah kedua, jadi kaki tidak pernah menyilang.
+   Delay negatif membuat hero sudah dalam langkah saat pertama tampil,
+   sehingga pose walk langsung berbeda dari pose idle yang statis. */
+.hw-walk .hw-leg--a {
+  animation: hw-step-a var(--cycle, 1.1s) ease-in-out infinite;
+}
+
+.hw-walk .hw-leg--b {
+  animation: hw-step-b var(--cycle, 1.1s) ease-in-out infinite;
+}
+
+.hw-walk .hw-torso {
+  animation: hw-bob var(--cycle, 1.1s) ease-in-out infinite;
+}
+
+.hw-walk .hw-leg--a,
+.hw-walk .hw-leg--b,
+.hw-walk .hw-torso {
+  animation-delay: calc(var(--cycle, 1.1s) * -0.25);
+}
+
+@keyframes hw-step-a {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(18deg);
+  }
+}
+
+@keyframes hw-step-b {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(-18deg);
+  }
+}
+
+/* Dua pantulan 2 px per siklus, seirama dengan langkah. */
+@keyframes hw-bob {
+  0%,
+  50%,
+  100% {
+    transform: translateY(0);
+  }
+  25%,
+  75% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Gerak dimatikan total; pose tetap netral dan hero tetap terlihat. */
+@media (prefers-reduced-motion: reduce) {
+  .hw-walk .hw-torso,
+  .hw-walk .hw-leg--a,
+  .hw-walk .hw-leg--b {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   WalkScene — pita dunia yang bergerak, rambu, hero, HUD.
+   Bagian ini hanya MENAMBAH aturan baru di bawah file.
+   ============================================================ */
+
+/* ---------- kanvas adegan ---------- */
+
+.wk-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Wadah tumpukan sendiri: z-index internal (HUD 400, rambu 160, hero 200)
+     tetap di bawah overlay lembar rambu (z-index 40 di index.css). Tanpa ini
+     rambu dan HUD menembus overlay saat sheet terbuka. */
+  isolation: isolate;
+  font-family: 'Nunito', system-ui, sans-serif;
+}
+
+/* Wadah ini hanya titik fokus sementara setelah lembar ditutup; rambu yang
+   menjadi tujuan fokus sesungguhnya. Jangan gambar cincin di seluruh scene. */
+.wk-scene:focus {
+  outline: none;
+}
+
+/* Pita dunia: marka dan latar. Posisi + ukuran ditulis loop rAF,
+   jadi tidak ada transisi CSS yang boleh menimpanya. */
+.wk-dashes,
+.wk-props {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.wk-dash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  border-radius: 3px;
+  background: var(--road-line);
+}
+
+.wk-prop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+/* Ukuran wrapper diisi dari proyeksi; art mengisi kotak itu. */
+.wk-prop > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- hero dan balon ---------- */
+
+/* Titik jangkar di kaki hero. Bubble sengaja di luar .wk-hero supaya
+   tidak ikut terskala oleh transform proyeksi. */
+.wk-hero-zone {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 200;
+  pointer-events: none;
+}
+
+.wk-hero {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+.wk-hero > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- rambu aktif ---------- */
+
+/* Posisi (left/top) diisi dari proyeksi; tampil/sembunyi lewat
+   transisi CSS ini, bukan lewat loop rAF. */
+.wk-sign {
+  position: absolute;
+  z-index: 160;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Pelat 0,60 m pada kedalaman berhenti 0,26; --wk-sign-scale = depthScale(0,26). */
+  width: calc(var(--wk-px-per-m, 148px) * 0.6 * var(--wk-sign-scale, 0.6228));
+  /* Di ponsel pendek (360×640) pelat 0,60 m hanya ~49 px, jadi tombolnya
+     dijaga ≥56 px sesuai target sentuh plan; pelat tetap 0,60×0,60. */
+  min-width: 56px;
+  padding: 0;
+  border: 0;
+  background: none;
+  transform: translate(-50%, -92%) scale(0.88);
+  transform-origin: 50% 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.24s ease,
+    transform 0.32s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.wk-sign--in {
+  transform: translate(-50%, -100%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.wk-sign-plate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 7px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 6px 0 rgba(42, 35, 32, 0.16), 0 12px 20px rgba(42, 35, 32, 0.2);
+}
+
+.wk-sign-plate > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wk-sign-pole {
+  /* Tiang 9 cm × 2,0 m pada kedalaman berhenti yang sama. */
+  width: calc(var(--wk-px-per-m, 148px) * 0.09 * var(--wk-sign-scale, 0.6228));
+  height: calc(var(--wk-px-per-m, 148px) * 2 * var(--wk-sign-scale, 0.6228));
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--road) 40%, var(--paper)),
+    color-mix(in srgb, var(--road) 80%, var(--ink))
+  );
+}
+
+.wk-sign-plate::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  border: 4px dashed var(--yellow);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.wk-sign--in .wk-sign-plate {
+  animation: wk-pulse 1.7s ease-in-out infinite;
+}
+
+.wk-sign--in .wk-sign-plate::after {
+  opacity: 1;
+  animation: wk-spin 9s linear infinite;
+}
+
+@keyframes wk-pulse {
+  0%,
+  100% {
+    box-shadow: 0 6px 0 rgba(42, 35, 32, 0.16), 0 12px 20px rgba(42, 35, 32, 0.2);
+  }
+  50% {
+    box-shadow: 0 8px 0 rgba(42, 35, 32, 0.12), 0 18px 26px rgba(42, 35, 32, 0.24);
+  }
+}
+
+@keyframes wk-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* ---------- HUD ---------- */
+
+.wk-hud {
+  position: absolute;
+  top: clamp(12px, 2.4vh, 24px);
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 249, 238, 0.92);
+  box-shadow: 0 5px 16px rgba(42, 35, 32, 0.14);
+  font-size: clamp(0.7rem, 1.7vw, 0.86rem);
+  font-weight: 800;
+  color: var(--ink);
+  white-space: nowrap;
+  z-index: 400;
+}
+
+.wk-pips {
+  display: flex;
+  gap: 5px;
+}
+
+.wk-pips i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d6cdbd;
+}
+
+.wk-pips i.on {
+  background: var(--orange);
+}
+
+/* Gerak berulang dimatikan; rambu tetap langsung bisa ditekan. */
+@media (prefers-reduced-motion: reduce) {
+  .wk-sign {
+    transition: none;
+  }
+
+  .wk-sign--in .wk-sign-plate,
+  .wk-sign--in .wk-sign-plate::after {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   Trafik & pejalan (Task 5). Bagian ini hanya MENAMBAH aturan
+   baru di bawah file; aturan di atas tidak diubah.
+   ============================================================ */
+
+/* ---------- lapisan ambience ---------- */
+
+/* Di atas jalan dan pita latar, di bawah rambu (z-index 160). Tidak
+   menangkap pointer sama sekali, jadi tap rambu selalu tembus. */
+.wk-traffic {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Satu slot adalah titik jangkar di tanah. Anak seni digantung di atas
+   titik itu dan ditengahkan, jadi loop cukup menulis translate + scale. */
+.wk-traffic-item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* Ukuran seni dari meter yang sama dengan seluruh scene. --wk-px-per-m
+   diisi measure() di WalkScene dari pxPerM(vh); setiap ukuran di bawah ini
+   adalah meter (dikali rasio gambar seni), bukan fraksi viewport. */
+.wk-veh,
+.wk-ped {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: none;
+  transform: translateX(-50%);
+}
+
+.wk-veh--car {
+  /* METERS.car.width 1,8 m; art 160 × 90. */
+  width: calc(var(--wk-px-per-m, 148px) * 1.8);
+  height: calc(var(--wk-px-per-m, 148px) * 1.8 * 0.5625);
+}
+
+.wk-veh--bike {
+  /* METERS.motorcycle.width 0,7 m; art 90 × 80. */
+  width: calc(var(--wk-px-per-m, 148px) * 0.7);
+  height: calc(var(--wk-px-per-m, 148px) * 0.7 * 0.8889);
+}
+
+.wk-ped--adult {
+  /* METERS.adult 1,7 m; art 90 × 200. */
+  width: calc(var(--wk-px-per-m, 148px) * 1.7 * 0.45);
+  height: calc(var(--wk-px-per-m, 148px) * 1.7);
+}
+
+.wk-ped--child {
+  /* METERS.pedestrianChild 1,2 m; art 90 × 200. */
+  width: calc(var(--wk-px-per-m, 148px) * 1.2 * 0.45);
+  height: calc(var(--wk-px-per-m, 148px) * 1.2);
+}
+
+/* Satu slot membawa empat varian seni: dua jenis × dua sisi. data-kind dan
+   data-face memilih yang tampil. Slot sendiri tetap display:none sampai
+   loop menampilkannya. */
+.wk-veh-slot[data-kind='car'][data-face='rear'] .wk-veh--car.wk-veh--rear,
+.wk-veh-slot[data-kind='car'][data-face='front'] .wk-veh--car.wk-veh--front,
+.wk-veh-slot[data-kind='bike'][data-face='rear'] .wk-veh--bike.wk-veh--rear,
+.wk-veh-slot[data-kind='bike'][data-face='front'] .wk-veh--bike.wk-veh--front,
+.wk-ped-slot[data-kind='adult'][data-face='rear'] .wk-ped--adult.wk-ped--rear,
+.wk-ped-slot[data-kind='adult'][data-face='front'] .wk-ped--adult.wk-ped--front,
+.wk-ped-slot[data-kind='child'][data-face='rear'] .wk-ped--child.wk-ped--rear,
+.wk-ped-slot[data-kind='child'][data-face='front'] .wk-ped--child.wk-ped--front {
+  display: block;
+}
+
+/* ---------- langkah pejalan ---------- */
+
+/* Pola sama dengan hero: dua langkah per siklus, kaki bergantian.
+   Sumbu putar di pangkal paha masing-masing. */
+.wk-ped-leg {
+  transform-box: view-box;
+}
+
+.wk-ped--adult .wk-ped-leg--a {
+  transform-origin: 38px 126px;
+}
+
+.wk-ped--adult .wk-ped-leg--b {
+  transform-origin: 52px 126px;
+}
+
+.wk-ped--child .wk-ped-leg--a {
+  transform-origin: 38px 142px;
+}
+
+.wk-ped--child .wk-ped-leg--b {
+  transform-origin: 52px 142px;
+}
+
+.wk-ped-walk .wk-ped-leg--a {
+  animation: wk-ped-step-a var(--ped-cycle, 1.15s) ease-in-out infinite;
+}
+
+.wk-ped-walk .wk-ped-leg--b {
+  animation: wk-ped-step-b var(--ped-cycle, 1.15s) ease-in-out infinite;
+}
+
+.wk-ped-walk .wk-ped-torso {
+  animation: wk-ped-bob var(--ped-cycle, 1.15s) ease-in-out infinite;
+}
+
+.wk-ped-walk .wk-ped-leg--a,
+.wk-ped-walk .wk-ped-leg--b,
+.wk-ped-walk .wk-ped-torso {
+  animation-delay: calc(var(--ped-cycle, 1.15s) * -0.25);
+}
+
+/* Kaki pejalan terus berjalan selama ambience hidup, termasuk saat anak
+   berhenti di rambu: kendaraan dan pejalan tetap lewat. */
+
+@keyframes wk-ped-step-a {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(16deg);
+  }
+}
+
+@keyframes wk-ped-step-b {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(-16deg);
+  }
+}
+
+@keyframes wk-ped-bob {
+  0%,
+  50%,
+  100% {
+    transform: translateY(0);
+  }
+  25%,
+  75% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Gerak dimatikan; pejalan tetap terlihat dengan pose netral. */
+@media (prefers-reduced-motion: reduce) {
+  .wk-ped-walk .wk-ped-torso,
+  .wk-ped-walk .wk-ped-leg--a,
+  .wk-ped-walk .wk-ped-leg--b {
+    animation: none;
+  }
+}

@@ -88,139 +88,6 @@ button {
   }
 }
 
-.sky {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, var(--sky-1) 0%, #b6e6ff 46%, var(--sky-2) 78%);
-}
-
-.sun {
-  position: absolute;
-  top: 7%;
-  right: 9%;
-  width: clamp(64px, 9vw, 112px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #fff6c9, #ffd75e 60%, #ffc02e);
-  box-shadow: 0 0 0 14px rgba(255, 222, 120, 0.28), 0 0 70px rgba(255, 205, 70, 0.55);
-}
-
-.cloud {
-  position: absolute;
-  background: #fff;
-  border-radius: 999px;
-  opacity: 0.94;
-  filter: drop-shadow(0 8px 0 rgba(150, 200, 230, 0.25));
-  animation: drift 38s linear infinite;
-}
-
-.cloud::before,
-.cloud::after {
-  content: '';
-  position: absolute;
-  background: #fff;
-  border-radius: 50%;
-}
-
-.cloud::before {
-  width: 62%;
-  padding-top: 62%;
-  top: -46%;
-  left: 12%;
-}
-
-.cloud::after {
-  width: 44%;
-  padding-top: 44%;
-  top: -28%;
-  right: 12%;
-}
-
-.cloud-a {
-  width: clamp(90px, 12vw, 170px);
-  height: clamp(28px, 3.6vw, 48px);
-  top: 13%;
-  left: 14%;
-}
-
-.cloud-b {
-  width: clamp(70px, 9vw, 130px);
-  height: clamp(22px, 2.8vw, 38px);
-  top: 23%;
-  left: 62%;
-  animation-duration: 52s;
-  animation-direction: reverse;
-}
-
-@keyframes drift {
-  from {
-    transform: translateX(-6vw);
-  }
-  to {
-    transform: translateX(106vw);
-  }
-}
-
-.ground {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 38%;
-  background: var(--grass);
-}
-
-.ground::after {
-  content: '';
-  position: absolute;
-  left: -20px;
-  right: -20px;
-  top: -16px;
-  height: 32px;
-  background: radial-gradient(circle at 16px 34px, #7bcc59 16px, transparent 17px) repeat-x;
-  background-size: 34px 32px;
-  opacity: 0.95;
-}
-
-.ground::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 12px;
-  background: #8ad96a;
-}
-
-.road {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 24%;
-  background: linear-gradient(180deg, #6a6f7a, var(--road));
-  border-top: 8px solid #f7f3e8;
-}
-
-.road::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 10px;
-  background: repeating-linear-gradient(90deg, var(--road-line) 0 46px, transparent 46px 96px);
-  opacity: 0.9;
-  transform: translateY(-50%);
-}
-
-.sidewalk {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 24%;
-  height: 5%;
-  background: #ded7c8;
-}
-
 /* ---------- buttons ---------- */
 
 .btn {
@@ -231,7 +98,8 @@ button {
   gap: 0.5rem;
   padding: 0.95rem 2rem;
   border-radius: 999px;
-  background: var(--blue);
+  /* Putih di atas --blue hanya 4,18:1 (gagal AA). --blue-dark = 6,48:1. */
+  background: var(--blue-dark);
   color: #fff;
   font-family: 'Fredoka', sans-serif;
   font-weight: 600;
@@ -253,69 +121,6 @@ button {
   box-shadow: 0 2px 0 var(--shade), 0 6px 12px rgba(42, 35, 32, 0.16);
 }
 
-.btn.orange {
-  background: var(--orange);
-}
-
-.btn.green {
-  background: var(--green);
-}
-
-.btn.ghost {
-  background: #fff;
-  color: var(--ink);
-  box-shadow: 0 6px 0 #d9cdb8, 0 12px 22px rgba(42, 35, 32, 0.12);
-}
-
-/* ---------- intro ---------- */
-
-.intro-card {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: min(640px, 90vw);
-  background: var(--paper);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: clamp(24px, 4vw, 44px);
-  text-align: center;
-  border: 4px solid #fff;
-}
-
-.badge-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: #ffe9c9;
-  color: #8a5a12;
-  border-radius: 999px;
-  padding: 0.45rem 1rem;
-  font-weight: 800;
-  font-size: 0.9rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.intro-card h1 {
-  font-size: clamp(2rem, 5.4vw, 3.25rem);
-  line-height: 1.05;
-  margin: 1rem 0 0.75rem;
-}
-
-.intro-card .lede {
-  font-size: clamp(1rem, 2.1vw, 1.15rem);
-  line-height: 1.6;
-  color: #6b5f52;
-  margin-bottom: 1.75rem;
-}
-
-.kid-big {
-  width: clamp(96px, 14vw, 132px);
-  margin: 0 auto 0.5rem;
-  animation: bob 2.6s ease-in-out infinite;
-}
-
 @keyframes bob {
   0%,
   100% {
@@ -324,224 +129,6 @@ button {
   50% {
     transform: translateY(-7px);
   }
-}
-
-/* ---------- walk ---------- */
-
-.hud {
-  position: absolute;
-  top: clamp(16px, 3vh, 32px);
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 999px;
-  padding: 0.5rem 1.1rem;
-  font-weight: 800;
-  font-size: 0.95rem;
-  box-shadow: 0 6px 18px rgba(42, 35, 32, 0.14);
-  backdrop-filter: blur(6px);
-}
-
-.pips {
-  display: flex;
-  gap: 5px;
-}
-
-.pip {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #d6cdbd;
-}
-
-.pip.on {
-  background: var(--orange);
-  transform: scale(1.25);
-}
-
-.sign-slot {
-  position: absolute;
-  bottom: 27.5%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.sign-slot .pole {
-  width: 12px;
-  height: clamp(72px, 12vh, 120px);
-  background: linear-gradient(90deg, #b9bec7, #8d939d);
-  border-radius: 6px;
-}
-
-.sign-slot .plate {
-  display: grid;
-  place-items: center;
-  width: clamp(78px, 11vw, 108px);
-  height: clamp(78px, 11vw, 108px);
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 8px 0 rgba(42, 35, 32, 0.14), 0 16px 30px rgba(42, 35, 32, 0.2);
-  padding: 6px;
-}
-
-.sign-slot.locked {
-  filter: grayscale(0.85) opacity(0.55);
-}
-
-.sign-slot.active .plate {
-  animation: pulse 1.6s ease-in-out infinite;
-  cursor: pointer;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-6px) scale(1.06);
-  }
-}
-
-@keyframes pop {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(14px) scale(0.85);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
-  }
-}
-
-.walker {
-  position: absolute;
-  bottom: 24.5%;
-  width: clamp(64px, 9vw, 92px);
-  transition: left 0.9s cubic-bezier(0.45, 0, 0.2, 1);
-  animation: bob 1.1s ease-in-out infinite;
-  z-index: 2;
-}
-
-.hint-bubble {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  top: clamp(68px, 10vh, 96px);
-  background: var(--paper);
-  border-radius: 20px;
-  padding: 0.85rem 1.4rem;
-  font-weight: 800;
-  font-size: clamp(0.95rem, 1.8vw, 1.1rem);
-  box-shadow: var(--shadow);
-  animation: pop 0.4s ease-out both;
-  z-index: 3;
-}
-
-.hint-bubble::after {
-  content: '';
-  position: absolute;
-  top: -8px;
-  left: 50%;
-  transform: translateX(-50%) rotate(45deg);
-  width: 16px;
-  height: 16px;
-  background: var(--paper);
-  border-radius: 3px;
-}
-
-/* ---------- crossroad ---------- */
-
-.crossroad {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 4vh 4vw;
-}
-
-.crossroad-inner {
-  width: min(920px, 100%);
-  text-align: center;
-}
-
-.crossroad h2 {
-  font-size: clamp(1.7rem, 4vw, 2.6rem);
-  color: #fff;
-  text-shadow: 0 4px 0 rgba(42, 35, 32, 0.18);
-  margin-bottom: 0.4rem;
-}
-
-.crossroad p.sub {
-  color: rgba(255, 255, 255, 0.92);
-  font-weight: 700;
-  margin-bottom: clamp(16px, 3vh, 32px);
-}
-
-.fork {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(14px, 2.4vw, 26px);
-}
-
-@media (max-width: 680px) {
-  .fork {
-    grid-template-columns: 1fr;
-  }
-}
-
-.fork-card {
-  position: relative;
-  background: var(--paper);
-  border-radius: var(--radius);
-  padding: clamp(20px, 3vw, 32px);
-  text-align: left;
-  box-shadow: var(--shadow);
-  border: 4px solid #fff;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-
-.fork-card:hover {
-  transform: translateY(-6px);
-}
-
-.fork-card .tag {
-  display: inline-block;
-  font-weight: 800;
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.3rem 0.7rem;
-  border-radius: 999px;
-  margin-bottom: 0.75rem;
-}
-
-.fork-card h3 {
-  font-size: clamp(1.25rem, 2.6vw, 1.6rem);
-  margin-bottom: 0.4rem;
-}
-
-.fork-card p {
-  color: #6b5f52;
-  line-height: 1.55;
-  font-size: 0.98rem;
-}
-
-.fork-arrow {
-  position: absolute;
-  right: 22px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 1.6rem;
-  font-weight: 700;
-  opacity: 0.45;
 }
 
 /* ---------- materi ---------- */
@@ -608,27 +195,32 @@ button {
   line-height: 1.25;
 }
 
+/*
+ * Satu aturan kontras untuk keempat jenis. Teks ink di atas tint 25% warna
+ * jenis (≥11:1), dengan garis tepi warna asli supaya kode warna tetap terbaca.
+ * Warna jenis datang dari KINDS lewat `--kind-color`, bukan aturan per jenis.
+ */
 .kind-chip {
   display: inline-block;
   font-size: 0.72rem;
   font-weight: 800;
+  line-height: 1.3;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  color: #fff;
+  color: var(--ink);
+  border: 2px solid var(--kind-color, var(--ink));
+  background: #fff;
+  background: color-mix(in srgb, var(--kind-color, var(--ink)) 25%, #fff);
 }
 
-.dock {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 14px clamp(16px, 4vw, 48px);
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  background: linear-gradient(180deg, rgba(255, 247, 234, 0) 0%, #fff7ea 45%);
+/* Baris kecil bentuk rambu di bawah chip jenis, dibaca anak. */
+.kind-shape {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #6b5f52;
 }
 
 /* ---------- modal ---------- */
@@ -636,11 +228,16 @@ button {
 .overlay {
   position: fixed;
   inset: 0;
+  /* Plain scrim, not `backdrop-filter: blur`: the scene keeps animating
+     underneath, so a blur would re-composite the whole frame every tick on
+     the GPU. One translucent layer is the cheaper way to dim it. */
   background: rgba(38, 32, 28, 0.5);
-  backdrop-filter: blur(3px);
   display: grid;
   place-items: center;
-  padding: 5vh 4vw;
+  /* Ruang bawah menyisakan baris tombol panel (48 px tombol + 12 px padding).
+     Sheet dipusatkan di sisa ruang itu, jadi tepi bawah CTA berhenti ±35 px
+     di atas tombol; guard 300 ms di App.tsx tetap lapis kedua. */
+  padding: 5vh 4vw calc(5vh + 60px);
   z-index: 40;
   animation: fade 0.25s ease-out;
 }
@@ -656,7 +253,9 @@ button {
 
 .sheet {
   width: min(520px, 100%);
-  max-height: 90dvh;
+  /* Sama dengan sisa ruang overlay di atas: 90dvh dikurangi 60 px baris
+     tombol panel. */
+  max-height: calc(90dvh - 60px);
   overflow-y: auto;
   background: var(--paper);
   border-radius: 32px;
@@ -728,6 +327,12 @@ button {
 
 .quiz-wrap {
   width: min(640px, 100%);
+}
+
+.quiz-title {
+  margin-bottom: clamp(10px, 2vh, 18px);
+  text-align: center;
+  font-size: clamp(1.25rem, 3.2vw, 1.65rem);
 }
 
 .quiz-progress {
@@ -872,7 +477,8 @@ button {
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.75;
+  /* No opacity: 75 % of #6a4300 over the orange end of the badge is 3,65:1.
+     The full colour is 4,77:1 there and 6,28:1 at the yellow end. */
 }
 
 .badge-card .title {
@@ -900,7 +506,8 @@ button {
 }
 
 .muted {
-  color: #8b7d6d;
+  /* 5,92:1 on the home card's --paper; the old #8b7d6d was 3,82:1. */
+  color: #6b5f52;
   font-weight: 600;
   font-size: 0.92rem;
 }
@@ -915,6 +522,29 @@ button {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Kurangi gerak: matikan animasi dekoratif tanpa henti dan transisi
+   dekoratif. Tampilan pada kondisi motion normal tidak berubah. */
+@media (prefers-reduced-motion: reduce) {
+  .sheet .art {
+    animation: none;
+  }
+
+  /* Every one-shot entrance in this file: scene/screenIn, overlay/fade,
+     sheet and home/sheetIn. Normal rendering is untouched. */
+  .screen,
+  .overlay,
+  .sheet,
+  .home-card {
+    animation: none;
+  }
+
+  .btn,
+  .sign-card,
+  .option {
+    transition: none;
+  }
 }
 
 /* screenshot / reduced-motion: matikan animasi masuk */

@@ -5,7 +5,7 @@
 
 .fx-scene {
   --rw: clamp(104px, 30vw, 190px);
-  /* palet disamakan dengan index.css / street.css */
+  /* palet disamakan dengan index.css */
   --grass: #69c64a;
   --grass-dark: #4fa936;
   --asphalt: #5b606b;
@@ -29,8 +29,8 @@
   }
 }
 
-/* Rumput memakai tangga warna bukit di street.css (#8cdb70 → #74c957 → --grass),
-   dipertahankan terang di bagian atas supaya tidak lebih pekat dari layar lain. */
+/* Rumput memakai tangga warna hijau terang (#8cdb70 → #74c957 → --grass) yang hanya ada
+   di layar persimpangan ini, dijaga terang di bagian atas supaya tidak lebih pekat dari dasarnya. */
 .fx-grass {
   position: absolute;
   inset: 0;
@@ -71,6 +71,12 @@
   box-shadow: 0 6px 18px rgba(42, 35, 32, 0.16);
   white-space: nowrap;
   z-index: 6;
+}
+
+/* Judul difokuskan hanya saat tiba dari scene berjalan (tabIndex -1), untuk
+   diumumkan ke pembaca layar; bukan kendali yang bisa di-Tab. */
+.fx-title:focus {
+  outline: none;
 }
 
 /* ---------- batang jalan tempat anak berdiri ---------- */
@@ -150,15 +156,22 @@
     0 0 0 6px rgba(255, 255, 255, 0.55);
 }
 
+/* Dua warna: putih (6,31:1 di atas aspal) dan ink (7,19:1 di atas rumput).
+   Ring putih tunggal di atas rumput cuma 2,15:1, jadi praktis tak terlihat. */
 .fx-branch:focus-visible {
-  outline: none;
+  outline: 3px solid #fff;
+  outline-offset: 0;
+  box-shadow: 0 0 0 6px #2a2320;
 }
 
 .fx-branch:active .fx-road {
   filter: brightness(0.94);
 }
 
-/* papan nama di ujung jalan */
+/* Papan nama di ujung jalan. Sengaja tidak mematikan pointer-events: papan
+   ini digeser keluar kotak tombol cabang, jadi tanpa dirinya sendiri sebagai
+   sasaran ketuk, satu-satunya sasaran besar di layar tidak bisa diklik.
+   Ketukan di papan tetap milik tombol cabang karena papan ada di dalamnya. */
 .fx-sign {
   position: absolute;
   top: 0;
@@ -175,7 +188,6 @@
   border: 3px solid #fff;
   box-shadow: var(--shadow);
   text-align: left;
-  pointer-events: none;
 }
 
 .fx-branch.left .fx-sign {
@@ -242,6 +254,14 @@
   display: block;
 }
 
+/* Panel dialog (34vh) menutupi anak di 360×640 — dan di 360×800 panelnya
+   tepat mulai di atas kepalanya. Angkat dia setinggi ruang panel pola
+   `dlg-space` (170 px) plus jarak, supaya wajah dan label "kamu di sini"
+   tetap di atas panel. */
+.dlg-space .fx-kid {
+  bottom: calc(186px + env(safe-area-inset-bottom, 0px));
+}
+
 .fx-here {
   position: absolute;
   top: 100%;
@@ -286,5 +306,17 @@
 
   .fx-sign-icon {
     font-size: 1.05rem;
+  }
+}
+
+/* Kurangi gerak: hentikan goyangan anak dan transisi sorotan cabang jalan.
+   Tampilan pada kondisi motion normal tidak berubah. */
+@media (prefers-reduced-motion: reduce) {
+  .fx-kid {
+    animation: none;
+  }
+
+  .fx-branch .fx-road {
+    transition: none;
   }
 }

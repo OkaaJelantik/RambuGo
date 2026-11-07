@@ -1,4 +1,6 @@
+import type { RefObject } from 'react'
 import Kid from './Kid'
+import { INTRO_LINE } from './story'
 import './classroom.css'
 
 const CLOCK_TICKS = Array.from({ length: 12 }, (_, i) => i * 30)
@@ -91,7 +93,14 @@ function Desk({ variant = 0 }: { variant?: number }) {
   )
 }
 
-export default function Classroom({ onStart }: { onStart: () => void }) {
+export default function Classroom({
+  onStart,
+  headingRef,
+}: {
+  onStart: () => void
+  /** Judul kelas; App memfokuskannya saat layar ini menjadi tujuan fokus. */
+  headingRef?: RefObject<HTMLHeadingElement | null>
+}) {
   return (
     <section className="cr-screen" aria-labelledby="cr-title">
       <div className="cr-room" aria-hidden="true">
@@ -595,12 +604,10 @@ export default function Classroom({ onStart }: { onStart: () => void }) {
             <span className="cr-dot" aria-hidden="true" />
             Kelas 2 SD
           </p>
-          <h1 className="cr-title" id="cr-title">
+          <h1 className="cr-title" id="cr-title" ref={headingRef} tabIndex={-1}>
             Petualangan <span className="cr-mark">Rambu Lalu Lintas</span>
           </h1>
-          <p className="cr-lead">
-            Ayo berangkat bersama Bu Guru untuk mengenal rambu lalu lintas di jalan!
-          </p>
+          <p className="cr-lead">{INTRO_LINE}</p>
           <button className="cr-cta" type="button" onClick={onStart}>
             Keluar kelas
             <span className="cr-cta-arrow" aria-hidden="true">

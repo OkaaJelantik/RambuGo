@@ -1,9 +1,18 @@
+import { useEffect, useRef } from 'react'
 import Kid from './Kid'
 import './crossroad.css'
 
 type Props = { onMateri: () => void; onKuis: () => void }
 
 export default function Crossroad({ onMateri, onKuis }: Props) {
+  const titleRef = useRef<HTMLHeadingElement>(null)
+
+  // Tiba dari scene berjalan: rambu terakhir (pemicu fokus) sudah lepas dari
+  // DOM. Umumkan tujuan dengan memfokuskan judul, bukan membiarkan <body>.
+  useEffect(() => {
+    titleRef.current?.focus()
+  }, [])
+
   return (
     <div className="fx-scene">
       <div className="fx-grass" />
@@ -12,7 +21,9 @@ export default function Crossroad({ onMateri, onKuis }: Props) {
       <div className="fx-tree fx-tree-c" />
       <div className="fx-tree fx-tree-d" />
 
-      <h2 className="fx-title">Kamu sampai di persimpangan</h2>
+      <h2 className="fx-title" ref={titleRef} tabIndex={-1}>
+        Kamu sampai di persimpangan
+      </h2>
 
       {/* jalan lurus tempat anak berdiri */}
       <div className="fx-trunk">
