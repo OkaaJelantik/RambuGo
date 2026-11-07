@@ -25,6 +25,12 @@ function prefersReducedMotion(): boolean {
  * tata letak apa pun. Saat beat hilang, panel masih digambar satu animasi
  * pendek supaya tidak "pop"; pada `prefers-reduced-motion` animasi itu
  * dimatikan dan panel langsung hilang.
+ *
+ * Wilayah `aria-live` sengaja tidak ikut lahir-mati bersama panel. Kalau ia
+ * dibuat bersamaan dengan kalimatnya, pembaca layar sering tidak
+ * mengumumkannya — terutama kalimat rambu yang datang setelah kalimat leg
+ * sempat hilang. Wilayah itu hidup selama App, teksnya saja yang berganti;
+ * salinan visualnya `aria-hidden` supaya tidak dibaca dua kali.
  */
 export default function DialoguePanel({ beat, onAction }: Props) {
   const [view, setView] = useState<StoryBeat | null>(beat)
@@ -51,37 +57,39 @@ export default function DialoguePanel({ beat, onAction }: Props) {
     return () => window.clearTimeout(timer)
   }, [beat, hasView])
 
-  if (!view) return null
-
-  const lastIndex = view.buttons.length - 1
+  const lastIndex = view ? view.buttons.length - 1 : -1
 
   return (
-    <div
-      className={leaving ? 'dlg dlg--out' : 'dlg'}
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      aria-hidden={leaving || undefined}
-    >
-      <div className="dlg-row">
-        <div className="dlg-avatar" aria-hidden="true">
-          <Kid />
-        </div>
-        <p className="dlg-text">{view.text}</p>
+    <>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {view?.text ?? ''}
       </div>
 
-      <div className="dlg-actions">
-        {view.buttons.map((button, index) => (
-          <button
-            key={`${button.action}-${button.label}`}
-            type="button"
-            className={`dlg-btn${index === lastIndex ? ' dlg-btn--primary' : ''}`}
-            onClick={() => onAction(button)}
-          >
-            {button.label}
-          </button>
-        ))}
-      </div>
-    </div>
+      {view && (
+        <div className={leaving ? 'dlg dlg--out' : 'dlg'}>
+          <div className="dlg-row">
+            <div className="dlg-avatar" aria-hidden="true">
+              <Kid />
+            </div>
+            <p className="dlg-text" aria-hidden="true">
+              {view.text}
+            </p>
+          </div>
+
+          <div className="dlg-actions">
+            {view.buttons.map((button, index) => (
+              <button
+                key={`${button.action}-${button.label}`}
+                type="button"
+                className={`dlg-btn${index === lastIndex ? ' dlg-btn--primary' : ''}`}
+                onClick={() => onAction(button)}
+              >
+                {button.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

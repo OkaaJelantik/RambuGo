@@ -48,6 +48,10 @@ import './walk.css'
 type Props = {
   step: number
   onOpen: (sign: Sign) => void
+  /** Dunia berhenti di rambu; App memakainya untuk memunculkan beat stop. */
+  onStop?: () => void
+  /** Ketukan plat rambu — cadangan saat dunia sudah berhenti sejak awal. */
+  onSignTap?: () => void
   /** Wadah scene, dipakai App sebagai fokus cadangan setelah lembar ditutup. */
   sceneRef?: RefObject<HTMLDivElement | null>
 }
@@ -326,10 +330,13 @@ function randomWait(rng: () => number, min: number, max: number): number {
  * and writes the resulting transforms straight to refs, so React never
  * re-renders per frame. Viewport size is measured only on mount/resize.
  */
-export default function WalkScene({ step, onOpen, sceneRef }: Props) {
+export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }: Props) {
   const [reduced] = useState(prefersReducedMotion)
   const [mode, setMode] = useState<Mode>(() => (reduced ? 'stopped' : 'walking'))
   const [signStep, setSignStep] = useState(step)
+  // Mode `stopped` karena reduced motion sejak awal bukan "dunia berhenti":
+  // jangan sampai ia memicu onStop dan menimpa kalimat leg pertama.
+  const wasStoppedRef = useRef(mode === 'stopped')
   // Only GroundScene needs the viewport in React: its polygons are drawn in
   // px from the metres table, and it re-renders on resize, not per frame.
   const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight })
@@ -635,6 +642,15 @@ export default function WalkScene({ step, onOpen, sceneRef }: Props) {
     if (document.activeElement === sceneEl.current) signButtonRef.current?.focus()
   }, [mode, signStep, sceneEl])
 
+  // Dunia berhenti setelah satu leg penuh. Itu satu-satunya sinyal yang
+  // dibutuhkan App untuk menampilkan beat stop; mode `stopped` yang sudah ada
+  // sejak mount (reduced motion) tidak dihitung sebagai transisi.
+  useEffect(() => {
+    const stopped = mode === 'stopped'
+    if (stopped && !wasStoppedRef.current) onStop?.()
+    wasStoppedRef.current = stopped
+  }, [mode, onStop])
+
   // The one animation loop. It keeps running while the world is stopped so
   // the street stays alive at a sign; only reduced motion (no spawn at all)
   // or a hidden tab stops it. `stepWorld` freezes scroll while stopped, so
@@ -782,7 +798,12 @@ export default function WalkScene({ step, onOpen, sceneRef }: Props) {
         type="button"
         className={mode === 'stopped' ? 'wk-sign wk-sign--in' : 'wk-sign'}
         ref={signButtonRef}
-        onClick={() => onOpen(sign)}
+        onClick={() => {
+          // Cadangan untuk mode yang sudah berhenti sejak awal (reduced
+          // motion): App tetap mendapat beat stop sebelum lembarnya terbuka.
+          onSignTap?.()
+          onOpen(sign)
+        }}
         disabled={mode !== 'stopped'}
         aria-hidden={mode !== 'stopped'}
         aria-label={`Rambu ${sign.name}, tekan untuk melihat artinya`}

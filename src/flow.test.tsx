@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { QUESTIONS, WALK_SIGNS, type Question } from './data'
 import { LEG_SECONDS } from './scene/world'
+import { INTRO_LINE } from './story'
 
 /**
  * The walk scene scrolls on `requestAnimationFrame`; jsdom has no clock behind
@@ -12,8 +13,8 @@ import { LEG_SECONDS } from './scene/world'
  * `WalkScene` caps one frame at 100 ms of world time, so frames are advanced
  * in 100 ms steps: one step for the zero-`dt` first frame, `LEG_SECONDS` worth
  * to finish the leg, plus a little slack. The extra `await` inside `act` lets
- * the DOM's `disabled` mutation (world stopped → plate enabled) reach the
- * MutationObserver that hands the stop beat to the dialogue panel.
+ * the mode change that stops the world reach React's effects and the
+ * dialogue panel before `advance` resolves.
  */
 const FRAMES_PER_LEG = Math.ceil(LEG_SECONDS / 0.1) + 2
 
@@ -62,8 +63,27 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
+
+/** jsdom has no `matchMedia`; answer it with a fixed preference. */
+function mockReducedMotion(reduce: boolean) {
+  vi.stubGlobal(
+    'matchMedia',
+    (query: string) =>
+      ({
+        matches: reduce && query.includes('prefers-reduced-motion'),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList,
+  )
+}
 
 /**
  * Bentuk yang harus dibaca anak untuk tiap rambu walk. Sengaja literal, bukan
@@ -103,9 +123,19 @@ const MATERI_LINE = 'Rambu yang tadi kulihat, aku kenali satu-satu.'
 const KUIS_LINE = 'Kalau benar, aku dapat bintang.'
 const HOME_LINE = 'Sampai di rumah. Rambu itu kawan di jalan — besok aku cerita ke Bu Guru.'
 
-/** Panel dialog bawah yang sedang tampil (bukan yang sedang animasi keluar). */
+/** Wilayah live yang selalu terpasang; teksnya mengikuti beat yang tampil. */
 function panel(): HTMLElement {
   return screen.getByRole('status')
+}
+
+/** Panel dialog yang benar-benar digambar di layar, atau `null` saat kosong. */
+function panelEl(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('.dlg')
+}
+
+/** Panel harus benar-benar lepas dari DOM, bukan sekadar `aria-hidden`. */
+function expectNoPanel() {
+  expect(panelEl()).toBeNull()
 }
 
 function expectPanelLine(line: string) {
@@ -207,7 +237,8 @@ async function reachCrossroad() {
   render(<App />)
 
   // Di kelas panel belum tampil: kartu kelas yang memegang kalimat intro.
-  expect(screen.queryByRole('status')).toBeNull()
+  expectNoPanel()
+  expect(screen.getByText(INTRO_LINE)).toBeTruthy()
   expect(screen.getByRole('heading', { name: /Petualangan Rambu Lalu Lintas/ })).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
 
@@ -244,6 +275,58 @@ describe('alur aplikasi', () => {
     // Beat yang sama, bukan leg berikutnya.
     expect(panel().textContent).toBe(stopLine)
     expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
+
+    // "Lanjut jalan" melepas tombolnya; fokus harus pindah ke wadah scene.
+    fireEvent.click(screen.getByRole('button', { name: 'Lanjut jalan' }))
+    const afterContinue = document.activeElement as HTMLElement
+    expect(afterContinue).not.toBe(document.body)
+    expect(afterContinue.closest('.wk-scene')).toBeTruthy()
+    expectPanelLine(LEG_LINES[1])
+  })
+
+  it('beat leg tetap tampil saat prefers-reduced-motion', () => {
+    mockReducedMotion(true)
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
+
+    // Gerak dikurangi mematikan animasi, bukan narasi: kalimat leg pertama
+    // tidak boleh langsung ditimpa beat stop.
+    expectPanelLine(LEG_LINES[0])
+    expect(screen.queryByRole('button', { name: 'Lanjut jalan' })).toBeNull()
+  })
+
+  it('ketuk plat rambu memunculkan beat stop tanpa MutationObserver', () => {
+    mockReducedMotion(true)
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
+    expectPanelLine(LEG_LINES[0])
+
+    // Dunia sudah berhenti sejak awal di mode ini; ketukan plat adalah
+    // sinyal cadangan yang eksplisit (onSignTap), bukan pantauan DOM.
+    fireEvent.click(screen.getByRole('button', { name: /Rambu Banyak Anak Menyeberang/ }))
+    expect(screen.getByRole('dialog', { name: 'Rambu Banyak Anak Menyeberang' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tutup' }))
+    expectPanelLine(STOP_LINES[0])
+    expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
+  })
+
+  it('beat leg hilang sendiri setelah 3 detik', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
+    expectPanelLine(LEG_LINES[0])
+
+    act(() => {
+      vi.advanceTimersByTime(3000)
+    })
+    // Panel masih memutar animasi keluar; setelah EXIT_MS ia benar-benar lepas.
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+
+    expect(panel().textContent).toBe('')
+    expectNoPanel()
   })
 
   it('jalur materi: 3 rambu, papan rambu, lalu 5/5 dengan teks jalur materi', async () => {
@@ -265,7 +348,7 @@ describe('alur aplikasi', () => {
 
     // Tombol lanjut ke kuis hanya ada di panel (dock lama sudah dibuang).
     fireEvent.click(screen.getByRole('button', { name: 'Sudah paham, coba kuis' }))
-    expect(screen.queryByRole('status')).toBeNull()
+    await waitFor(() => expectNoPanel())
     answerQuiz(() => true)
     finishQuizPanel()
 
@@ -277,7 +360,7 @@ describe('alur aplikasi', () => {
 
     // "Pulang" menutup panel di rumah; kartu rumah tetap punya tombol main lagi.
     fireEvent.click(screen.getByRole('button', { name: 'Pulang' }))
-    expect(screen.queryByRole('status')).toBeNull()
+    await waitFor(() => expectNoPanel())
     fireEvent.click(screen.getByRole('button', { name: 'Main lagi dari kelas' }))
     expect(screen.getByRole('heading', { name: /Petualangan Rambu Lalu Lintas/ })).toBeTruthy()
   })
@@ -289,7 +372,7 @@ describe('alur aplikasi', () => {
     expect(screen.getByText('Soal 1/5')).toBeTruthy()
     // Selama soal, panel tidak menemani (tidak ada tombol yang bisa dipakai
     // melewati kuis).
-    expect(screen.queryByRole('status')).toBeNull()
+    await waitFor(() => expectNoPanel())
 
     answerQuiz((_, index) => index < 3)
     finishQuizPanel()
@@ -321,5 +404,22 @@ describe('alur aplikasi', () => {
 
     expect(screen.getByText('Benar 0/5')).toBeTruthy()
     expect(screen.getByText('Bintang 1 ⭐')).toBeTruthy()
+  })
+
+  it('Pulang melepas panel dari DOM dan fokus mendarat di judul rumah', async () => {
+    await reachCrossroad()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ke kuis' }))
+    answerQuiz(() => true)
+    finishQuizPanel()
+
+    // Beat home tampil dengan tombol "Pulang"; klik itu harus melepas panel
+    // (bukan cuma menyembunyikannya dengan aria-hidden).
+    fireEvent.click(screen.getByRole('button', { name: 'Pulang' }))
+    await waitFor(() => expectNoPanel())
+    expect(panel().textContent).toBe('')
+
+    const heading = screen.getByRole('heading', { name: 'Kamu sampai di rumah!' })
+    expect(document.activeElement).toBe(heading)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SIGN_OPENINGS, STORY, beatById, openingFor, type StoryAction } from './story'
+import { INTRO_LINE, SIGN_OPENINGS, STORY, beatById, openingFor, type StoryAction } from './story'
 import { WALK_SIGNS } from './data'
 
 /** Hitung kalimat dari tanda akhir yang diikuti spasi atau akhir teks. */
@@ -27,6 +27,12 @@ describe('naskah cerita', () => {
   it('memuat 11 beat dengan urutan naskah', () => {
     expect(STORY).toHaveLength(11)
     expect(STORY.map((beat) => beat.id)).toEqual(EXPECTED_IDS)
+  })
+
+  it('kalimat intro diekspor dan dipakai beat intro', () => {
+    // Layar kelas membaca kalimat ini langsung; jangan sampai ada salinan.
+    expect(beatById('intro')?.text).toBe(INTRO_LINE)
+    expect(INTRO_LINE).toContain('Bu Guru')
   })
 
   it('setiap balon maksimal 2 kalimat dan 90 karakter', () => {

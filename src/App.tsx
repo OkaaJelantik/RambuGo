@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, RefObject } from 'react'
 import { KINDS, QUESTIONS, SIGNS, WALK_SIGNS, type Kind, type Sign } from './data'
 import { SignArt } from './SignArt'
@@ -162,6 +162,13 @@ const STOP_BEATS: StoryId[] = ['stop-1', 'stop-2', 'stop-3']
 /** Kalimat leg tampil otomatis lalu hilang sendiri; ±3 detik. */
 const LEG_BEAT_MS = 3000
 
+/**
+ * Sasaran fokus setelah sebuah aksi. Tombol yang diklik (tombol panel atau
+ * tombol layar) hampir selalu ikut lepas dari DOM, jadi fokus harus pindah
+ * ke sesuatu yang tetap ada — tidak pernah dibiarkan jatuh ke `<body>`.
+ */
+type FocusTarget = 'walk' | 'home' | 'intro' | 'materi' | 'quiz'
+
 function beatAt(beats: StoryId[], step: number): StoryId {
   return beats[Math.min(Math.max(step, 0), beats.length - 1)]
 }
@@ -175,11 +182,6 @@ function startBeat(stage: Stage, walked: number): StoryId | null {
   if (stage === 'home') return 'home'
   // Kuis: panel tidak tampil selama soal; beat kuis menyusul di layar rumah.
   return null
-}
-
-function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 export default function App() {
@@ -197,10 +199,16 @@ export default function App() {
   const [open, setOpen] = useState<Sign | null>(null)
   const [materiOpen, setMateriOpen] = useState<Sign | null>(null)
   const walkSceneRef = useRef<HTMLDivElement | null>(null)
+  const classroomHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  const materiHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  const homeHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  const quizCardRef = useRef<HTMLDivElement | null>(null)
+  const pendingFocusRef = useRef<FocusTarget | null>(null)
   const [via, setVia] = useState<'materi' | 'kuis' | null>(null)
   const [score, setScore] = useState(0)
 
   const restart = () => {
+    pendingFocusRef.current = 'intro'
     setStage('intro')
     setWalked(0)
     setBeatId('intro')
@@ -222,37 +230,24 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [beatId])
 
-  // Satu-satunya sinyal "dunia berhenti" yang tersedia tanpa mengubah
-  // WalkScene: plat rambu baru bisa ditekan (disabled dilepas) saat mode
-  // berhenti. App mengintip tombol rambu di dalam wadah scene dan memakai
-  // transisi itu untuk memunculkan beat stop. Saat gerak dikurangi, dunia
-  // memang langsung berhenti, jadi diperiksa sekali di awal.
-  useEffect(() => {
-    if (stage !== 'walk') return
-    const root = walkSceneRef.current
-    if (!root) return
+  // Tombol yang diklik hampir selalu ikut terlepas bersama beat. Pindahkan
+  // fokus sesudah adegan baru terpasang dan sebelum animasi keluar panel
+  // sempat menyembunyikannya — jangan biarkan fokus jatuh ke <body>.
+  useLayoutEffect(() => {
+    const target = pendingFocusRef.current
+    if (!target) return
+    pendingFocusRef.current = null
 
-    const showStopBeat = () => {
-      const plates = root.querySelectorAll<HTMLButtonElement>(
-        'button.wk-sign, button[aria-label^="Rambu "]',
-      )
-      for (const plate of plates) {
-        if (!plate.disabled) {
-          setBeatId(beatAt(STOP_BEATS, walked))
-          return
-        }
-      }
-    }
-
-    if (prefersReducedMotion()) showStopBeat()
-
-    const observer = new MutationObserver(showStopBeat)
-    observer.observe(root, { subtree: true, attributes: true, attributeFilter: ['disabled'] })
-    return () => observer.disconnect()
-  }, [stage, walked])
+    if (target === 'walk') walkSceneRef.current?.focus()
+    else if (target === 'home') homeHeadingRef.current?.focus()
+    else if (target === 'intro') classroomHeadingRef.current?.focus()
+    else if (target === 'materi') materiHeadingRef.current?.focus()
+    else quizCardRef.current?.focus()
+  }, [stage, beatId])
 
   const continueWalk = () => {
     if (stage === 'intro') {
+      pendingFocusRef.current = 'walk'
       setStage('walk')
       setWalked(0)
       setBeatId(beatAt(LEG_BEATS, 0))
@@ -261,9 +256,13 @@ export default function App() {
     if (stage !== 'walk') return
 
     if (walked + 1 >= WALK_SIGNS.length) {
+      // Persimpangan memfokuskan judulnya sendiri saat terpasang.
       setStage('crossroad')
       setBeatId('crossroad')
     } else {
+      // Tombol "Lanjut jalan" ikut terlepas; wadah scene tetap ada, jadi
+      // fokus ditahan di sana sebelum tombolnya hilang.
+      walkSceneRef.current?.focus()
       setWalked(walked + 1)
       setBeatId(beatAt(LEG_BEATS, walked + 1))
     }
@@ -278,6 +277,7 @@ export default function App() {
         if (stage === 'walk') setOpen(WALK_SIGNS[walked])
         return
       case 'materi':
+        pendingFocusRef.current = 'materi'
         setVia('materi')
         setStage('materi')
         setBeatId('materi')
@@ -287,11 +287,14 @@ export default function App() {
         // Lewat persimpangan berarti jalur kuis; lewat papan materi tetap
         // dihitung jalur materi.
         if (beatId === 'crossroad') setVia('kuis')
+        pendingFocusRef.current = 'quiz'
         setStage('kuis')
         setBeatId(null)
         return
       case 'home':
-        // "Selesai" menutup kuis, "Pulang" menutup panel di rumah.
+        // "Selesai" menutup kuis, "Pulang" menutup panel di rumah. Keduanya
+        // mendarat di judul rumah yang tetap terpasang.
+        pendingFocusRef.current = 'home'
         if (beatId === 'kuis') setBeatId('home')
         else if (beatId === 'home') setBeatId(null)
         else {
@@ -310,7 +313,9 @@ export default function App() {
       {stage === 'intro' && (
         <section className="screen" key="intro">
           <Classroom
+            headingRef={classroomHeadingRef}
             onStart={() => {
+              pendingFocusRef.current = 'walk'
               setWalked(0)
               setStage('walk')
               setBeatId(beatAt(LEG_BEATS, 0))
@@ -323,11 +328,9 @@ export default function App() {
         <section className="screen" key="walk">
           <WalkScene
             step={walked}
-            onOpen={(sign) => {
-              // Cadangan bila pengamat mode tidak sempat menangkap transisi.
-              setBeatId(beatAt(STOP_BEATS, walked))
-              setOpen(sign)
-            }}
+            onOpen={(sign) => setOpen(sign)}
+            onStop={() => setBeatId(beatAt(STOP_BEATS, walked))}
+            onSignTap={() => setBeatId(beatAt(STOP_BEATS, walked))}
             sceneRef={walkSceneRef}
           />
           {open && (
@@ -346,11 +349,13 @@ export default function App() {
         <section className="screen" key="crossroad">
           <Crossroad
             onMateri={() => {
+              pendingFocusRef.current = 'materi'
               setVia('materi')
               setStage('materi')
               setBeatId('materi')
             }}
             onKuis={() => {
+              pendingFocusRef.current = 'quiz'
               setVia('kuis')
               setStage('kuis')
               setBeatId(null)
@@ -362,7 +367,9 @@ export default function App() {
       {stage === 'materi' && (
         <section className="screen materi-screen dlg-space" key="materi">
           <div className="screen-head">
-            <h2>Jalur Materi</h2>
+            <h2 ref={materiHeadingRef} tabIndex={-1}>
+              Jalur Materi
+            </h2>
             <p>Klik rambu untuk tahu artinya.</p>
           </div>
           <div className="grid">
@@ -395,7 +402,9 @@ export default function App() {
       {stage === 'kuis' && (
         <section className="screen quiz-screen" key="kuis">
           <Quiz
+            cardRef={quizCardRef}
             onDone={(s) => {
+              pendingFocusRef.current = 'home'
               setScore(s)
               setStage('home')
               // Beat kuis ("Kalau benar, aku dapat bintang.") membuka layar hasil.
@@ -406,12 +415,21 @@ export default function App() {
       )}
 
       {stage === 'home' && (
-        <section className="screen home-screen" key="home">
+        <section
+          className={`screen home-screen${beatId ? ' dlg-space' : ''}`}
+          key="home"
+        >
           <div className="home-card">
             <div className="house">
               <HomeHouse />
             </div>
-            <h2 style={{ fontSize: 'clamp(1.6rem,4vw,2.2rem)' }}>Kamu sampai di rumah!</h2>
+            <h2
+              ref={homeHeadingRef}
+              tabIndex={-1}
+              style={{ fontSize: 'clamp(1.6rem,4vw,2.2rem)' }}
+            >
+              Kamu sampai di rumah!
+            </h2>
             <p className="muted" style={{ marginTop: '0.4rem' }}>
               {via === 'materi'
                 ? 'Kamu belajar dulu, lalu mengerjakan kuis.'
@@ -450,7 +468,14 @@ export default function App() {
   )
 }
 
-function Quiz({ onDone }: { onDone: (score: number) => void }) {
+function Quiz({
+  onDone,
+  cardRef,
+}: {
+  onDone: (score: number) => void
+  /** Kartu soal; App memfokuskannya saat layar kuis menjadi tujuan fokus. */
+  cardRef?: RefObject<HTMLDivElement | null>
+}) {
   const [idx, setIdx] = useState(0)
   const [picked, setPicked] = useState<number | null>(null)
   const [score, setScore] = useState(0)
@@ -480,7 +505,7 @@ function Quiz({ onDone }: { onDone: (score: number) => void }) {
         </span>
       </div>
 
-      <div className="question-card">
+      <div className="question-card" ref={cardRef} tabIndex={-1}>
         {sign && (
           <div style={{ display: 'grid', placeItems: 'center', marginBottom: '0.8rem' }}>
             <SignArt art={sign.art} size={116} />

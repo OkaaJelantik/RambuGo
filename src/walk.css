@@ -291,52 +291,6 @@
   height: 100%;
 }
 
-.wk-bubble {
-  position: absolute;
-  left: 0;
-  bottom: calc(var(--wk-hero-h, 160px) + 10px);
-  transform: translateX(-50%);
-  width: max-content;
-  max-width: min(52vw, 240px);
-  padding: 0.6rem 0.9rem;
-  border-radius: 18px 18px 6px 18px;
-  background: var(--paper);
-  border: 3px solid #fff;
-  box-shadow: 0 6px 0 rgba(42, 35, 32, 0.1), 0 12px 22px rgba(42, 35, 32, 0.16);
-  color: var(--ink);
-  font-size: clamp(0.76rem, 1.9vw, 0.92rem);
-  font-weight: 800;
-  line-height: 1.35;
-  text-align: left;
-  animation: wk-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  z-index: 1;
-}
-
-.wk-bubble::after {
-  content: '';
-  position: absolute;
-  bottom: -13px;
-  left: 50%;
-  width: 14px;
-  height: 14px;
-  background: var(--paper);
-  border-right: 3px solid #fff;
-  border-bottom: 3px solid #fff;
-  border-radius: 0 0 4px 0;
-  transform: translateX(-50%) rotate(45deg);
-}
-
-@keyframes wk-pop {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(8px) scale(0.92);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
-  }
-}
-
 /* ---------- rambu aktif ---------- */
 
 /* Posisi (left/top) diisi dari proyeksi; tampil/sembunyi lewat
@@ -481,10 +435,6 @@
 
   .wk-sign--in .wk-sign-plate,
   .wk-sign--in .wk-sign-plate::after {
-    animation: none;
-  }
-
-  .wk-bubble {
     animation: none;
   }
 }

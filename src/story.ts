@@ -37,10 +37,18 @@ export type StoryBeat = {
   buttons: StoryButton[]
 }
 
+/**
+ * Kalimat pembuka. Diekspor karena layar kelas memakainya langsung: panel
+ * tidak digambar selama `stage === 'intro'`, tetapi anak harus tetap membaca
+ * kalimat naskah yang sama, bukan salinannya.
+ */
+export const INTRO_LINE =
+  'Bu Guru bilang, rambu itu penunjuk jalan. Aku cari tiga rambu di trotoar, ya!'
+
 export const STORY: StoryBeat[] = [
   {
     id: 'intro',
-    text: 'Bu Guru bilang, rambu itu penunjuk jalan. Aku cari tiga rambu di trotoar, ya!',
+    text: INTRO_LINE,
     buttons: [{ label: 'Keluar kelas', action: 'continue' }],
   },
   {

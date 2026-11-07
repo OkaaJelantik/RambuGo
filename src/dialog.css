@@ -164,6 +164,32 @@
   padding-bottom: calc(170px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Di ponsel pendek kartu rumah (≈506 px) lebih tinggi daripada ruang yang
+   tersisa di atas panel (≈480 px di 360×640). Padding bawah saja tidak
+   menolong: `.home-screen` memusatkan kartu secara grid, dan begitu isinya
+   meluap ia menempel di padding atas. Rapatkan sedikit — hanya selama panel
+   rumah tampil — supaya tombol "Main lagi dari kelas" tidak masuk ke bawah
+   panel. Pada 360×800 tidak ada yang berubah. */
+@media (max-height: 700px) {
+  .home-screen.dlg-space .home-card {
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+
+  .home-screen.dlg-space .house {
+    width: 96px;
+  }
+
+  .home-screen.dlg-space .badge-card {
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+
+  .home-screen.dlg-space .score-line {
+    margin-bottom: 12px;
+  }
+}
+
 /* Baris pembuka Aku di dalam lembar "Apa ini?", di atas arti rambu. */
 .sheet-opening {
   margin-bottom: 0.55rem;
