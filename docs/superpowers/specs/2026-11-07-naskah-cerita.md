@@ -13,11 +13,11 @@ Aturan dialog:
 | # | beat | tempat | dialog | tombol |
 |---|---|---|---|---|
 | 0 | `intro` | kelas | "Bu Guru bilang, rambu itu penunjuk jalan. Aku cari tiga rambu di trotoar, ya!" | **Keluar kelas** |
-| 1 | `leg-1` | trotoar | "Aku jalan pelan-pelan. Trotoar itu tempat paling aman." | **Lanjut jalan** |
+| 1 | `leg-1` | trotoar | "Aku jalan pelan-pelan. Trotoar itu tempat paling aman." | — (otomatis, tanpa tombol) |
 | 2 | `stop-1` | rambu *Banyak Anak Menyeberang* | "Eh, ada rambu segitiga kuning. Gambarnya anak-anak. Artinya apa, ya?" | **Apa ini?** · **Lanjut jalan** |
-| 3 | `leg-2` | trotoar | "Rumah-rumah berderet di kiri. Pohonnya ramai dan senang." | **Lanjut jalan** |
+| 3 | `leg-2` | trotoar | "Rumah-rumah berderet di kiri. Pohonnya ramai dan senang." | — (otomatis, tanpa tombol) |
 | 4 | `stop-2` | rambu *Tempat Menyeberang* | "Persegi biru, ada garis-garis putih. Ini tempat menyeberang!" | **Apa ini?** · **Lanjut jalan** |
-| 5 | `leg-3` | trotoar | "Rambu berikutnya di dekat ujung trotoar. Tinggal satu!" | **Lanjut jalan** |
+| 5 | `leg-3` | trotoar | "Rambu berikutnya di dekat ujung trotoar. Tinggal satu!" | — (otomatis, tanpa tombol) |
 | 6 | `stop-3` | rambu *Dilarang Masuk* | "Bulat merah, ada garis putih. Berarti tidak boleh masuk. Aku jalan kaki, jadi boleh, ya?" | **Apa ini?** · **Lanjut jalan** |
 | 7 | `crossroad` | persimpangan | "Sampai di persimpangan. Aku mau baca rambu lagi, atau langsung kuis?" | **Ke materi** · **Ke kuis** |
 | 8 | `materi` | papan rambu | "Rambu yang tadi kulihat, aku kenali satu-satu." | **Sudah paham, coba kuis** |
