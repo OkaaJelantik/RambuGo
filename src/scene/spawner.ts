@@ -19,7 +19,7 @@ export const PED_SPEED = { min: 0.08, max: 0.14 } as const
 /**
  * Depth direction of each lane: `-1` comes towards the camera, `1` heads
  * away. Indonesia drives on the left, so traffic keeps to the left of its
- * own heading: the hero walks forward on the right sidewalk, which puts
+ * own heading: the camera and the hero walk the left sidewalk, which puts
  * same-direction traffic in the screen-left lane (`laneL`, receding) and
  * oncoming traffic in the screen-right lane next to her (`laneR`,
  * approaching). Sidewalks keep people walking both ways.

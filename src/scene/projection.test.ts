@@ -21,6 +21,7 @@ import {
   pxPerM,
   pxPerMAt,
   scaleAt,
+  spriteShare,
   yAt,
 } from './projection'
 
@@ -204,33 +205,69 @@ describe('offsetX', () => {
 })
 
 describe('street geometry in metres', () => {
-  it('is one lane width per lane, so the road is 7 m wide', () => {
-    expect(LANE_M).toBe(3.5)
-    expect(ROAD_M).toBe(7)
+  it('is one narrow lane width per lane, so the road is 4,8 m wide', () => {
+    // A kampung street, not an arterial one: see meters.ts for why the lane
+    // had to come down from 3,5 m for the phone frame.
+    expect(LANE_M).toBe(2.4)
+    expect(ROAD_M).toBeCloseTo(4.8, 12)
   })
 
   it('has a 2 m sidewalk whose road edge is the kerb', () => {
     expect(SIDEWALK_M).toBe(2)
-    expect(KERB_X).toBeCloseTo(0.8, 12)
-    expect(LANE_SPLIT_X).toBeCloseTo(KERB_X + 3.5, 12)
+    expect(KERB_X).toBeCloseTo(0.3, 12)
+    expect(LANE_SPLIT_X).toBeCloseTo(KERB_X + LANE_M, 12)
+    expect(LANE_SPLIT_X).toBeCloseTo(2.7, 12)
   })
 
-  it('puts the sidewalk centre 0,2 m left of the camera line', () => {
+  it('puts the sidewalk centre 0,7 m left of the camera line', () => {
     expect(SIDEWALK_CENTRE).toBeCloseTo(SIDEWALK_LEFT + SIDEWALK_M / 2, 12)
-    expect(SIDEWALK_CENTRE).toBeCloseTo(-0.2, 12)
+    expect(SIDEWALK_CENTRE).toBeCloseTo(-0.7, 12)
+    // The room the phone frame needs between the child and the road.
+    expect(KERB_X - SIDEWALK_CENTRE).toBeCloseTo(1, 12)
   })
 
   it('centres each lane name in metres', () => {
     expect(LANES.laneL).toBeCloseTo(KERB_X + LANE_M / 2, 12)
     expect(LANES.laneR).toBeCloseTo(KERB_X + (LANE_M * 3) / 2, 12)
-    expect(LANES.sidewalkL).toBeLessThan(0)
-    expect(LANES.sidewalkR).toBeGreaterThan(LANES.sidewalkL)
-    // Both pedestrian lanes stay on the one sidewalk in frame.
+    // Both pedestrian lanes stay on the one sidewalk in frame …
+    expect(LANES.sidewalkL).toBeGreaterThan(SIDEWALK_LEFT)
     expect(LANES.sidewalkR).toBeLessThan(KERB_X)
+    expect(LANES.sidewalkL).toBeLessThan(SIDEWALK_CENTRE)
+    expect(LANES.sidewalkR).toBeGreaterThan(SIDEWALK_CENTRE)
+    // … and neither walks the child's own line, which would draw a passer-by
+    // straight through her.
+    expect(LANES.sidewalkL).not.toBeCloseTo(SIDEWALK_CENTRE, 6)
+    expect(LANES.sidewalkR).not.toBeCloseTo(SIDEWALK_CENTRE, 6)
   })
 
   it('paints the road past the right edge even at the horizon on a desktop', () => {
     expect(offsetX(ROAD_FAR_X, 1, 1280, 800)).toBeGreaterThan(1280)
+  })
+})
+
+describe('spriteShare', () => {
+  it('is 1 for a box wholly inside the frame', () => {
+    expect(spriteShare(180, 100, 360)).toBe(1)
+  })
+
+  it('counts only the part inside each edge', () => {
+    expect(spriteShare(0, 100, 360)).toBeCloseTo(0.5, 12) // left half cropped
+    expect(spriteShare(360, 100, 360)).toBeCloseTo(0.5, 12) // right half cropped
+    expect(spriteShare(0, 100, 360)).toBe(spriteShare(360, 100, 360))
+  })
+
+  it('is 0 when the box is off screen or has no width', () => {
+    expect(spriteShare(-100, 50, 360)).toBe(0)
+    expect(spriteShare(500, 50, 360)).toBe(0)
+    expect(spriteShare(180, 0, 360)).toBe(0)
+  })
+
+  it('is not the frame share the width guard uses', () => {
+    // A 120 px box at x = 345 has 285..360 inside the phone, i.e. 75 px: 62,5 %
+    // of the sprite but only ~21 % of the frame. The two are not interchangeable.
+    const share = spriteShare(345, 120, 360)
+    expect(share).toBeCloseTo(0.625, 12)
+    expect((share * 120) / 360).toBeCloseTo(75 / 360, 12)
   })
 })
 

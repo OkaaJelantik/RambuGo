@@ -71,7 +71,7 @@ export const SIGN_STOP_D = 0.26
 export const SIGN_X = KERB_X
 
 /** Number of dashed centre-line marks in the belt. */
-const DASH_COUNT = 8
+export const DASH_COUNT = 8
 
 /** Depth span of one loop of the background-object belt. */
 export const PROP_CYCLE = 1
@@ -84,7 +84,7 @@ const VEHICLE_SLOTS = 3
 const PED_SLOTS = 2
 
 /** Random spawn waits in seconds, `[min, max]`. */
-const TRAFFIC_WAIT = { min: 1, max: 2.5 } as const
+export const TRAFFIC_WAIT = { min: 1, max: 2.5 } as const
 const PED_WAIT = { min: 2, max: 4 } as const
 
 /**
@@ -93,8 +93,8 @@ const PED_WAIT = { min: 2, max: 4 } as const
  * enter just behind the camera and leave at the horizon, so both bounds of
  * the range are used and nothing pops in mid-screen.
  */
-const NEAR_EDGE = -0.05
-const FAR_EDGE = 1.05
+export const NEAR_EDGE = -0.05
+export const FAR_EDGE = 1.05
 
 /**
  * One kind of background art. `height` is in metres, from `scene/meters.ts`;
@@ -124,6 +124,8 @@ type PropSpec = {
   base: number
 }
 
+export type { PropSpec }
+
 /**
  * The belt, ordered from near to far. Ten placements cover the nine art
  * kinds, with `bin` used twice.
@@ -135,29 +137,40 @@ type PropSpec = {
  * object pops in mid-screen or out of the sky.
  *
  * The camera walks the left sidewalk, so every placement is a lateral metre
- * from that line (sidewalk −1,2 m … kerb +0,8 m). Houses, shop, tree, fence
- * and power pole stand back on the garden side (x < −1,2 m); bus stop, lamp,
- * bench and bins stand on the sidewalk itself. The bus stop starts at depth
- * 0,52, the far half, and the width guard below fades it out before it can
- * ever sit across half the frame.
+ * from that line (verge < −1,7 m; sidewalk −1,7 … +0,3 m). Houses, shop, tree,
+ * fence and power pole stand back on the garden side (anchor x < −1,7 m);
+ * bus stop, lamp, bench and bins stand on the sidewalk itself.
+ *
+ * The two big buildings used to sit at −7,8 m and −6,0 m. On a 360 px phone
+ * that showed 1–13 % of their sprite (3–40 px) through the haze, i.e. the
+ * garden side of the street did not exist. They now stand at −4,0 m and
+ * −3,8 m: still behind the pavement (their anchors are on the verge), but
+ * close enough that the house's visible box covers 34–45 % of the phone
+ * frame through the seven phases the near/horizon fades paint it, and the
+ * shop still shows 10–58 % of its sprite on five — instead of a 3 px sliver.
+ * Moving the house any further right pushes its unguarded box past half the
+ * frame, so −4,0 m is the right edge of the safe band; `scale.test.ts` pins
+ * both ends.
  *
  * On a 360 px phone the 6,5 m house is wider than the frame even at the
- * horizon. It is kept far to the left so the frame crops it instead of it
- * wiping the screen; a placement decision, never a rescaled object.
+ * horizon. It is kept far enough to the left that the frame crops it instead
+ * of it wiping the screen; a placement decision, never a rescaled object.
  * `scale.test.ts` locks the result: no prop may cover more than half the
- * viewport at any scroll phase, on any of the three test viewports.
+ * viewport at any scroll phase, on any of the three test viewports, and both
+ * buildings must still show at least 8 % of their sprite at five of the nine
+ * phases.
  */
 export const LAYOUT: ReadonlyArray<PropSpec> = [
   { art: 'tree', x: -2.8, base: 0.08 },
   { art: 'bin', x: -0.9, base: 0.17 },
-  { art: 'shop', x: -6.0, base: 0.26 },
+  { art: 'shop', x: -3.8, base: 0.26 },
   { art: 'fence', x: -3.5, base: 0.35 },
-  { art: 'busstop', x: 0.7, base: 0.52 },
-  { art: 'lamp', x: 0.6, base: 0.61 },
-  { art: 'house', x: -7.8, base: 0.7 },
+  { art: 'busstop', x: -0.7, base: 0.52 },
+  { art: 'lamp', x: 0.15, base: 0.61 },
+  { art: 'house', x: -4.0, base: 0.7 },
   { art: 'powerpole', x: -2.9, base: 0.79 },
   { art: 'bench', x: -0.6, base: 0.88 },
-  { art: 'bin', x: 0.5, base: 0.97 },
+  { art: 'bin', x: 0.0, base: 0.97 },
 ]
 
 export type Box = { w: number; h: number }
@@ -239,7 +252,7 @@ export function visibleFraction(cx: number, width: number, viewportW: number): n
 /**
  * Opacity of one belt piece. On top of the depth fades, a piece is faded out
  * before its visible width reaches half the viewport: on a 360 px phone the
- * 3,2 m bus stop is 100 % of the frame at arm's length, so perspective alone
+ * 1,9 m bus stop is 100 % of the frame at arm's length, so perspective alone
  * would wipe the screen. Cropping the *metres* is not an option, and moving
  * its depth cannot save every phase of a moving belt, so the renderer fades
  * the piece while it is wide. The rule is the acceptance rule from the plan:
@@ -314,6 +327,109 @@ function roundScale(depth: number): number {
 export function propZ(depth: number): number {
   const d = Math.min(1, Math.max(0, depth))
   return 20 + Math.round((1 - d) * 80)
+}
+
+/** One projected object, exactly as the draw loop paints it. */
+export type Placement = {
+  depth: number
+  /** Frame scale the loop applies (three decimals, like the DOM writes). */
+  scale: number
+  /** On-screen box, in px, after `scale`. */
+  width: number
+  height: number
+  /** Screen x of the anchor: the box's horizontal centre. */
+  x: number
+  /** Screen y of the anchor: the box's bottom edge, on the ground. */
+  y: number
+  /** Share of the frame the box covers, before any opacity guard. */
+  coverage: number
+  /** What the scene paints: depth fades × width guard (props) or depth fades only. */
+  opacity: number
+  z: number
+}
+
+/** Depth of dash `index` at `scroll`; the one formula the loop draws with. */
+export function dashDepth(index: number, scroll: number): number {
+  return wrap((index + 0.5) / DASH_COUNT - scroll, PROP_CYCLE)
+}
+
+/**
+ * A road dash as drawn: flat on the lane split, faded by depth only. No belt
+ * guard here — a 0,45 m marking can never wipe the frame, and giving it the
+ * guard would let a badly placed split hide itself.
+ */
+export function placeDash(
+  index: number,
+  scroll: number,
+  viewportW: number,
+  viewportH: number,
+): Placement {
+  const depth = dashDepth(index, scroll)
+  const box = dashBox(viewportH)
+  const scale = roundScale(depth)
+  const width = box.w * scale
+  const x = offsetX(LANE_SPLIT_X, depth, viewportW, viewportH)
+  return {
+    depth,
+    scale,
+    width,
+    height: box.h * scale,
+    x,
+    y: yAt(depth) * viewportH,
+    coverage: visibleFraction(x, width, viewportW),
+    opacity: fadeAt(depth) * 0.9,
+    z: 1,
+  }
+}
+
+/** One belt piece as drawn: metres, depth scale, frame crop and belt guard. */
+export function placeProp(
+  spec: PropSpec,
+  depth: number,
+  viewportW: number,
+  viewportH: number,
+): Placement {
+  const box = propBox(spec.art, viewportH)
+  const scale = roundScale(depth)
+  const width = box.w * scale
+  const x = offsetX(spec.x, depth, viewportW, viewportH)
+  const coverage = visibleFraction(x, width, viewportW)
+  return {
+    depth,
+    scale,
+    width,
+    height: box.h * scale,
+    x,
+    y: yAt(depth) * viewportH,
+    coverage,
+    opacity: beltOpacity(depth, coverage),
+    z: propZ(depth),
+  }
+}
+
+/** One ambience vehicle as drawn: lane metre, depth scale, depth fades. */
+export function placeVehicle(
+  lane: 'laneL' | 'laneR',
+  kind: 'car' | 'bike',
+  depth: number,
+  viewportW: number,
+  viewportH: number,
+): Placement {
+  const box = vehicleBox(kind, viewportH)
+  const scale = roundScale(depth)
+  const width = box.w * scale
+  const x = offsetX(LANES[lane], depth, viewportW, viewportH)
+  return {
+    depth,
+    scale,
+    width,
+    height: box.h * scale,
+    x,
+    y: yAt(depth) * viewportH,
+    coverage: visibleFraction(x, width, viewportW),
+    opacity: fadeAt(depth) * nearFadeAt(depth),
+    z: propZ(depth),
+  }
 }
 
 /** A random wait in `[min, max)`, used to schedule the next spawn. */
@@ -409,7 +525,6 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
     if (plateEl) {
       plateEl.style.width = `${platePx}px`
       plateEl.style.height = `${platePx}px`
-      plateEl.style.setProperty('--wk-plate', `${platePx}px`)
     }
     const pole = signPolePx(h)
     const poleEl = signPoleRef.current
@@ -453,32 +568,32 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
     if (!w || !h) return
 
     // Road dashes: a flat marking on the lane split, in metres like the rest.
-    const dash = dashBox(h)
     for (let i = 0; i < DASH_COUNT; i += 1) {
       const el = dashRefs.current[i]
       if (!el) continue
-      const depth = wrap((i + 0.5) / DASH_COUNT - world.scroll, PROP_CYCLE)
-      const scale = roundScale(depth)
-      const x = offsetX(LANE_SPLIT_X, depth, w, h)
-      const y = yAt(depth) * h
-      setTransform(el, roundHalf(x - (dash.w * scale) / 2), roundHalf(y - (dash.h * scale) / 2), scale)
-      setOpacity(el, fadeAt(depth) * 0.9)
-      setZ(el, 1)
+      const dash = placeDash(i, world.scroll, w, h)
+      setTransform(
+        el,
+        roundHalf(dash.x - dash.width / 2),
+        roundHalf(dash.y - dash.height / 2),
+        dash.scale,
+      )
+      setOpacity(el, dash.opacity)
+      setZ(el, dash.z)
     }
 
     // Scenery: bottom-centred on its point on the verge/sidewalk.
     propRefs.current.forEach((el, i) => {
       if (!el) return
-      const spec = LAYOUT[i]
-      const depth = propDepth(spec.base, world.scroll)
-      const box = propBox(spec.art, h)
-      const scale = roundScale(depth)
-      const x = offsetX(spec.x, depth, w, h)
-      const y = yAt(depth) * h
-      const coverage = visibleFraction(x, box.w * scale, w)
-      setTransform(el, roundHalf(x - (box.w * scale) / 2), roundHalf(y - box.h * scale), scale)
-      setOpacity(el, beltOpacity(depth, coverage))
-      setZ(el, propZ(depth))
+      const prop = placeProp(LAYOUT[i], propDepth(LAYOUT[i].base, world.scroll), w, h)
+      setTransform(
+        el,
+        roundHalf(prop.x - prop.width / 2),
+        roundHalf(prop.y - prop.height),
+        prop.scale,
+      )
+      setOpacity(el, prop.opacity)
+      setZ(el, prop.z)
     })
 
     // The hero never moves; only the world does. Anchored by her feet.
@@ -496,11 +611,10 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
         setDisplay(el, false)
         return
       }
-      const x = offsetX(LANES[vehicle.lane], vehicle.depth, w, h)
-      const y = yAt(vehicle.depth) * h
-      setTransform(el, roundHalf(x), roundHalf(y), roundScale(vehicle.depth))
-      setOpacity(el, fadeAt(vehicle.depth) * nearFadeAt(vehicle.depth))
-      setZ(el, propZ(vehicle.depth))
+      const placed = placeVehicle(vehicle.lane, vehicle.kind, vehicle.depth, w, h)
+      setTransform(el, roundHalf(placed.x), roundHalf(placed.y), placed.scale)
+      setOpacity(el, placed.opacity)
+      setZ(el, placed.z)
     })
 
     pedsRef.current.forEach((ped, i) => {

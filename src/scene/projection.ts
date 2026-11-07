@@ -27,14 +27,22 @@ export const DEPTH_K = 9
  */
 export const CAMERA_DEPTH = 0.12
 
-/** Lateral metre 0 is the camera's line; the kerb is this far to the right. */
-export const SIDEWALK_LEFT = -1.2
+/**
+ * The one sidewalk in frame, in metres from the camera's own line.
+ *
+ * The camera hovers just behind the kerb (0,3 m), not over the sidewalk's
+ * centre, so the road — the thing the scene is about — starts near the frame's
+ * centre instead of at its right edge. The child is still fully on the
+ * pavement, one metre from the kerb; see `SIDEWALK_CENTRE`.
+ */
+export const SIDEWALK_LEFT = -1.7
 export const SIDEWALK_M = METERS.sidewalk
 export const KERB_X = SIDEWALK_LEFT + SIDEWALK_M
 /**
  * Lateral metre of the sidewalk's centre line. The hero walks here, not on the
- * camera's own line: the camera sits 0.2 m towards the kerb, so the child is
- * drawn slightly left of screen centre on every viewport.
+ * camera's own line: the camera sits 0,7 m towards the kerb, so the child is
+ * drawn left of screen centre on every viewport and the road has room to the
+ * right.
  */
 export const SIDEWALK_CENTRE = SIDEWALK_LEFT + SIDEWALK_M / 2
 
@@ -52,10 +60,15 @@ export const KERB_LINE_M = 0.12
  * Lateral metres for each lane name the spawner uses. Sidewalks keep people
  * walking both ways on the one sidewalk in frame; the road's near lane carries
  * same-direction traffic (away) and the far lane oncoming traffic.
+ *
+ * `sidewalkL` and `sidewalkR` are deliberately *not* `SIDEWALK_CENTRE`: a
+ * passer-by walking the child's own line would be drawn on top of her, and the
+ * one thing the framing must never do is hide the hero behind a pedestrian.
+ * They stand 0,6 m and 0,65 m to either side of her line instead.
  */
 export const LANES = {
-  sidewalkL: -1.0,
-  sidewalkR: -0.2,
+  sidewalkL: SIDEWALK_LEFT + 0.4,
+  sidewalkR: KERB_X - 0.35,
   laneL: KERB_X + LANE_M / 2,
   laneR: KERB_X + LANE_M * 1.5,
 } as const
@@ -108,6 +121,19 @@ export function pxAt(m: number, depth: number, viewportH: number): number {
 /** Screen x in px of lateral metre `m` at `depth`. */
 export function offsetX(m: number, depth: number, viewportW: number, viewportH: number): number {
   return viewportW / 2 + m * pxPerMAt(depth, viewportH)
+}
+
+/**
+ * Share of a projected box that is inside the frame, 0..1. `visibleFraction`
+ * answers "how much of the frame does this cover"; this answers "how much of
+ * the object can I see", which is what the framing tests mean by a visible
+ * building, marking or vehicle.
+ */
+export function spriteShare(cx: number, width: number, viewportW: number): number {
+  if (width <= 0) return 0
+  const left = Math.max(0, cx - width / 2)
+  const right = Math.min(viewportW, cx + width / 2)
+  return Math.max(0, right - left) / width
 }
 
 /** Viewport height fraction of the ground at `depth`. */

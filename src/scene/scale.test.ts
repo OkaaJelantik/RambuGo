@@ -1,46 +1,68 @@
-import { describe, expect, it } from 'vitest'
+import { render } from '@testing-library/react'
+import { createElement } from 'react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { METERS } from './meters'
 import {
+  CAMERA_DEPTH,
+  KERB_X,
+  LANES,
+  LANE_SPLIT_X,
   SIDEWALK_CENTRE,
-  depthScale,
+  SIDEWALK_LEFT,
   fadeAt,
   nearFadeAt,
   offsetX,
   pxAt,
   pxPerM,
   pxPerMAt,
+  spriteShare,
   yAt,
 } from './projection'
 import { LEG_SECONDS, SCROLL_PER_SEC } from './world'
-import {
+import WalkScene, {
+  DASH_COUNT,
+  FAR_EDGE,
   HERO_DEPTH,
   LAYOUT,
+  NEAR_EDGE,
   PROP_ART,
   SIGN_STOP_D,
   SIGN_X,
+  TRAFFIC_WAIT,
   beltOpacity,
+  dashBox,
   heroBox,
+  pedBox,
+  placeDash,
+  placeProp,
+  placeVehicle,
   propBox,
   propDepth,
   propZ,
   signPlatePx,
   signPolePx,
-  visibleFraction,
+  vehicleBox,
+  type PropKind,
 } from '../WalkScene'
+import { SPAWN_SEED, createRng, shouldSpawn, spawnTraffic } from './spawner'
 
 /**
- * Cross-viewport scale audit for the Task 11 framing.
+ * Task 14 framing guard.
  *
- * The three viewports are the ones the plan names. The nine scroll phases are
- * evenly spaced across **one full leg** — `SCROLL_PER_SEC × LEG_SECONDS` of
- * world travel — because a leg is exactly the range the child sees before the
- * world stops at a sign. Nine phases of a 6 s leg are ~0,75 s apart.
+ * The old version of this file compared `pxAt(METERS.x, d, h)` with another
+ * `pxAt(METERS.x, d, h)`: `depthScale` cancelled, everything was an identity,
+ * and the reviewer could revert the whole metre pipeline without a red test.
+ * Every number below therefore comes out of a production function that the
+ * draw loop calls (`heroBox`, `propBox`, `vehicleBox`, `pedBox`, `placeProp`,
+ * `placeDash`, `placeVehicle`, `beltOpacity`, `signPlatePx`), or out of the
+ * inline `style.width/height` the component writes after `measure()` — and
+ * the expected values are concrete pixels, so deleting the metre pipeline
+ * cannot keep them green.
  *
- * Everything is measured through the same functions `WalkScene` renders with
- * (`propDepth`, `propBox`, `offsetX`, `beltOpacity`, `signPlatePx`), so the
- * test cannot drift from the scene. The child's visibility is sampled on a
- * coarse humanoid ink mask, not with bounding-box arithmetic: the hero's
- * 140 × 260 art box has transparent corners, so a bbox overlap would lie.
+ * A leg is `SCROLL_PER_SEC × LEG_SECONDS` = 1,8 depth units of world travel.
+ * Nine phases across it are 0,225 units apart: enough samples to see every
+ * belt piece through its near, mid and far thirds, and every marking through
+ * most of its pass.
  */
 
 const VIEWPORTS = [
@@ -49,20 +71,27 @@ const VIEWPORTS = [
   { label: '1280×800', w: 1280, h: 800 },
 ] as const
 
+const H = 800
+const PPM = pxPerM(H)
+
 /** World travel of one leg, in depth units. */
 const LEG_SCROLL = SCROLL_PER_SEC * LEG_SECONDS
 
 /** Nine evenly spaced scroll phases across one leg. */
 const PHASES = Array.from({ length: 9 }, (_, i) => (i / 8) * LEG_SCROLL)
 
-/** z-index of the sign and the hero, from walk.css. */
+/** z-index of the sign, the hero and the HUD, from walk.css. */
 const SIGN_Z = 160
 const HERO_Z = 200
 const HUD_Z = 400
 
+/** HUD pill box from walk.css: top 12–24 px, ~52 px tall, 300 px wide. */
+const HUD = { top: 12, bottom: 64, halfWidth: 150 }
+
 /**
  * Coarse ink mask of `HeroWalk`'s 140 × 260 viewBox: head, arms/torso, skirt
- * and legs. Deliberately humanoid, not the rectangle around it.
+ * and legs. Deliberately humanoid, not the rectangle around it, and it starts
+ * at y = 24 because the top 24 units of the art are empty.
  */
 function heroBodyPoints(): Array<readonly [number, number]> {
   const out: Array<readonly [number, number]> = []
@@ -79,43 +108,59 @@ function heroBodyPoints(): Array<readonly [number, number]> {
   return out
 }
 
+const BODY = heroBodyPoints()
+
 type Rect = { x0: number; x1: number; y0: number; y1: number; z: number; opacity: number }
 
 function contains(rect: Rect, x: number, y: number): boolean {
   return x >= rect.x0 && x <= rect.x1 && y >= rect.y0 && y <= rect.y1
 }
 
-/** Occluders in front of the hero at one phase (props, sign, HUD). */
-function occluders(w: number, h: number, scroll: number): Rect[] {
+/**
+ * Everything painted over the scene at one phase, with the z-index the draw
+ * loop gives it. Props and ambience are placed by the same functions the loop
+ * calls, so their z-order here is the z-order on screen.
+ */
+function paintRects(w: number, h: number, scroll: number): Rect[] {
   const list: Rect[] = []
 
   for (const spec of LAYOUT) {
-    const depth = propDepth(spec.base, scroll)
-    const box = propBox(spec.art, h)
-    const scale = Math.round(depthScale(depth) * 1000) / 1000
-    const width = box.w * scale
-    const height = box.h * scale
-    const cx = offsetX(spec.x, depth, w, h)
-    const ground = yAt(depth) * h
+    const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
     list.push({
-      x0: cx - width / 2,
-      x1: cx + width / 2,
-      y0: ground - height,
-      y1: ground,
-      z: propZ(depth),
-      opacity: beltOpacity(depth, visibleFraction(cx, width, w)),
+      x0: p.x - p.width / 2,
+      x1: p.x + p.width / 2,
+      y0: p.y - p.height,
+      y1: p.y,
+      z: p.z,
+      opacity: p.opacity,
     })
+  }
+
+  // Both lanes of traffic, at every depth a vehicle can be at: the hero must
+  // stay clear of the road anyway, and this keeps that honest.
+  for (const lane of ['laneL', 'laneR'] as const) {
+    for (const depth of [0.2, 0.35, 0.5, 0.65, 0.8]) {
+      const v = placeVehicle(lane, 'car', depth, w, h)
+      list.push({
+        x0: v.x - v.width / 2,
+        x1: v.x + v.width / 2,
+        y0: v.y - v.height,
+        y1: v.y,
+        z: v.z,
+        opacity: v.opacity,
+      })
+    }
   }
 
   // The sign button's plate is above its pole; its bottom edge is the plate's
   // bottom, not the ground.
   const plate = signPlatePx(h)
   const pole = signPolePx(h)
-  const signX = offsetX(SIGN_X, SIGN_STOP_D, w, h)
+  const signCx = offsetX(SIGN_X, SIGN_STOP_D, w, h)
   const signGround = yAt(SIGN_STOP_D) * h
   list.push({
-    x0: signX - plate / 2,
-    x1: signX + plate / 2,
+    x0: signCx - plate / 2,
+    x1: signCx + plate / 2,
     y0: signGround - pole.h - plate,
     y1: signGround - pole.h,
     z: SIGN_Z,
@@ -124,10 +169,10 @@ function occluders(w: number, h: number, scroll: number): Rect[] {
 
   // HUD pill at the top centre (walk.css: top 12–24 px, z 400).
   list.push({
-    x0: w / 2 - 150,
-    x1: w / 2 + 150,
-    y0: 12,
-    y1: 64,
+    x0: w / 2 - HUD.halfWidth,
+    x1: w / 2 + HUD.halfWidth,
+    y0: HUD.top,
+    y1: HUD.bottom,
     z: HUD_Z,
     opacity: 1,
   })
@@ -135,161 +180,591 @@ function occluders(w: number, h: number, scroll: number): Rect[] {
   return list
 }
 
+type BuildingPhase = {
+  depth: number
+  /** Share of the sprite inside the frame, 0..1. */
+  share: number
+  /** Share of the frame the visible sprite covers, 0..1. */
+  frame: number
+  /** Painted opacity, after the belt's width guard. */
+  opacity: number
+  /** Opacity of the depth fades alone: what the width guard took away. */
+  depthOpacity: number
+}
+
+type BuildingPhases = {
+  /** Phases where enough of the sprite shows at a readable opacity. */
+  shown: number
+  best: number
+  minShare: number
+  phases: BuildingPhase[]
+}
+
 type Measurements = {
-  houseToChild: number
-  carToLane: number
-  maxPropCoverage: number
-  maxRawVisiblePropCoverage: number
-  worstProp: string
+  heroW: number
+  heroH: number
+  heroCx: number
+  inkLeft: number
+  inkRight: number
   childVisible: number
-  plateMetres: number
-  plateVsChildGap: number
+  maxRawDepthCoverage: number
+  maxPaintedCoverage: number
+  guardFades: number
+  building: Record<'house' | 'shop', BuildingPhases>
+  marksMinPerPhase: number
+  marksNearestDepth: number
+  opposingNearest: number
+  opposingBest: number
+  signGap: number
 }
 
 function measureViewport(w: number, h: number): Measurements {
-  const body = heroBodyPoints()
   const hero = heroBox(h)
-  // Same projector and same lateral metre as WalkScene's heroStyle.
   const heroCx = offsetX(SIDEWALK_CENTRE, HERO_DEPTH, w, h)
+  const inkLeft = heroCx - hero.w / 2 + (24 / 140) * hero.w
+  const inkRight = heroCx - hero.w / 2 + (116 / 140) * hero.w
+  const footY = yAt(HERO_DEPTH) * h
 
-  let houseToChild = 0
-  let carToLane = 0
-  let maxPropCoverage = 0
-  let maxRawVisiblePropCoverage = 0
-  let worstProp = ''
   let childVisible = 1
-  let plateVsChildGap = Number.POSITIVE_INFINITY
+  let maxRawDepthCoverage = 0
+  let maxPaintedCoverage = 0
+  let guardFades = 0
+  let marksMinPerPhase = Number.POSITIVE_INFINITY
+  let marksNearestDepth = Number.POSITIVE_INFINITY
+  const building: Record<'house' | 'shop', BuildingPhases> = {
+    house: { shown: 0, best: 0, minShare: 1, phases: [] },
+    shop: { shown: 0, best: 0, minShare: 1, phases: [] },
+  }
 
   for (const scroll of PHASES) {
-    // house : child, at equal depth (the acceptance wording).
-    const houseDepth = propDepth(LAYOUT.find((p) => p.art === 'house')!.base, scroll)
-    houseToChild = Math.max(
-      houseToChild,
-      pxAt(METERS.house, houseDepth, h) / pxAt(METERS.child, houseDepth, h),
-    )
-
-    // car : lane, at equal depth.
-    const carDepth = Math.min(1, Math.max(0, scroll / LEG_SCROLL))
-    carToLane = Math.max(
-      carToLane,
-      pxAt(METERS.car.width, carDepth, h) / pxAt(METERS.lane, carDepth, h),
-    )
-
-    // Prop coverage: the visible clipped width, counted only while the scene
-    // actually paints the piece (opacity ≥ 0,10 — the Task 6 threshold).
     for (const spec of LAYOUT) {
-      const depth = propDepth(spec.base, scroll)
-      const box = propBox(spec.art, h)
-      const scale = depthScale(depth)
-      const width = box.w * scale
-      const cx = offsetX(spec.x, depth, w, h)
-      const coverage = visibleFraction(cx, width, w)
-      const opacity = beltOpacity(depth, coverage)
-      if (opacity >= 0.1 && coverage > maxPropCoverage) {
-        maxPropCoverage = coverage
-        worstProp = `${spec.art}@${depth.toFixed(2)}`
+      const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+      // Raw geometry: the box × depthScale, before any guard. A piece can be
+      // this wide on screen and still be invisible; the point is that a 3×
+      // oversized sprite cannot hide behind the guard.
+      if (fadeAt(p.depth) * nearFadeAt(p.depth) >= 0.5) {
+        maxRawDepthCoverage = Math.max(maxRawDepthCoverage, p.coverage)
       }
-      // What this piece would cover with only the depth fades: the report
-      // uses this to show why the width guard exists.
-      if (fadeAt(depth) * nearFadeAt(depth) >= 0.1) {
-        maxRawVisiblePropCoverage = Math.max(maxRawVisiblePropCoverage, coverage)
+      // Painted: only what the guard actually shows counts against the
+      // half-frame rule.
+      if (p.opacity >= 0.1) maxPaintedCoverage = Math.max(maxPaintedCoverage, p.coverage)
+      if (p.coverage >= 0.5 && p.opacity === 0) guardFades += 1
+    }
+
+    for (const art of ['house', 'shop'] as const) {
+      const spec = LAYOUT.find((s) => s.art === art)!
+      const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+      const share = spriteShare(p.x, p.width, w)
+      building[art].best = Math.max(building[art].best, p.opacity)
+      building[art].phases.push({
+        depth: p.depth,
+        share,
+        frame: p.coverage,
+        opacity: p.opacity,
+        depthOpacity: fadeAt(p.depth) * nearFadeAt(p.depth),
+      })
+      if (share >= 0.08 && p.opacity >= 0.5) {
+        building[art].shown += 1
+        building[art].minShare = Math.min(building[art].minShare, share)
       }
     }
 
-    // Child silhouette visibility: sample the ink mask and test it against
-    // every occluder that is both opaque enough and painted above the hero.
-    const footY = yAt(HERO_DEPTH) * h
-    const list = occluders(w, h, scroll)
-    const above = list.filter((r) => r.z > HERO_Z && r.opacity >= 0.1)
+    const marks = Array.from({ length: DASH_COUNT }, (_, i) => placeDash(i, scroll, w, h)).filter(
+      (dash) =>
+        dash.width >= 12 && spriteShare(dash.x, dash.width, w) >= 0.6 && dash.opacity >= 0.4,
+    )
+    marksMinPerPhase = Math.min(marksMinPerPhase, marks.length)
+    for (const dash of marks) marksNearestDepth = Math.min(marksNearestDepth, dash.depth)
+
+    // Silhouette: sample the ink and count only points that are inside the
+    // frame and not behind something painted above the hero.
+    const above = paintRects(w, h, scroll).filter((r) => r.z > HERO_Z && r.opacity >= 0.1)
     let seen = 0
-    for (const [vx, vy] of body) {
+    for (const [vx, vy] of BODY) {
       const x = heroCx - hero.w / 2 + (vx / 140) * hero.w
       const y = footY - hero.h + (vy / 260) * hero.h
-      if (!above.some((r) => contains(r, x, y))) seen += 1
+      if (x < 0 || x > w || y < 0 || y > h) continue
+      if (above.some((r) => contains(r, x, y))) continue
+      seen += 1
     }
-    childVisible = Math.min(childVisible, seen / body.length)
+    childVisible = Math.min(childVisible, seen / BODY.length)
+  }
 
-    // The sign plate must never sit over her silhouette, z-order or not.
-    const plateRect = list.find((r) => r.z === SIGN_Z)!
-    for (const [vx, vy] of body) {
-      const x = heroCx - hero.w / 2 + (vx / 140) * hero.w
-      const y = footY - hero.h + (vy / 260) * hero.h
-      if (contains(plateRect, x, y)) plateVsChildGap = 0
-    }
-    if (plateVsChildGap !== 0) {
-      const heroRight = heroCx + hero.w / 2
-      plateVsChildGap = Math.min(plateVsChildGap, plateRect.x0 - heroRight)
+  // Oncoming traffic: a laneR car is "seen" when at least a fifth of the
+  // sprite is inside the frame at half opacity or better.
+  let opposingNearest = Number.POSITIVE_INFINITY
+  let opposingBest = 0
+  for (let depth = 0.16; depth <= 0.92; depth += 0.002) {
+    const car = placeVehicle('laneR', 'car', depth, w, h)
+    const share = spriteShare(car.x, car.width, w)
+    if (share >= 0.2 && car.opacity >= 0.5) {
+      opposingNearest = Math.min(opposingNearest, depth)
+      opposingBest = Math.max(opposingBest, share)
     }
   }
 
-  const plateMetres = signPlatePx(h) / pxPerMAt(SIGN_STOP_D, h)
-
   return {
-    houseToChild,
-    carToLane,
-    maxPropCoverage,
-    maxRawVisiblePropCoverage,
-    worstProp,
+    heroW: hero.w,
+    heroH: hero.h,
+    heroCx,
+    inkLeft,
+    inkRight,
     childVisible,
-    plateMetres,
-    plateVsChildGap,
+    maxRawDepthCoverage,
+    maxPaintedCoverage,
+    guardFades,
+    building,
+    marksMinPerPhase,
+    marksNearestDepth,
+    opposingNearest,
+    opposingBest,
+    signGap: offsetX(SIGN_X, SIGN_STOP_D, w, h) - signPlatePx(h) / 2 - inkRight,
   }
 }
 
-describe('metre scale across viewports', () => {
+describe('one metre, every object class', () => {
+  it('draws the hero at METERS.child, not as a share of the viewport', () => {
+    const hero = heroBox(H)
+    expect(hero.h).toBeCloseTo(199.8, 6)
+    expect(hero.w).toBeCloseTo(107.5846153, 6)
+    // A quarter-screen hero would be `0.25 * vh`; the metre pipeline clamps
+    // pxPerM at 640..1000, so the two diverge outside a 800 px viewport.
+    expect(heroBox(600).h).toBeCloseTo(159.84, 6)
+    expect(Math.abs(heroBox(600).h - 0.25 * 600)).toBeGreaterThan(5)
+    expect(heroBox(1100).h).toBeCloseTo(249.75, 6)
+    expect(Math.abs(heroBox(1100).h - 0.25 * 1100)).toBeGreaterThan(10)
+  })
+
+  it('draws every prop at its METERS height, with the art ratio, at the focal plane', () => {
+    const field: Record<PropKind, number> = {
+      house: METERS.house,
+      shop: METERS.shop,
+      tree: METERS.tree,
+      lamp: METERS.lamp,
+      fence: METERS.fence,
+      bin: METERS.bin,
+      bench: METERS.bench,
+      busstop: METERS.busStop,
+      powerpole: METERS.powerPole,
+    }
+    for (const kind of Object.keys(PROP_ART) as PropKind[]) {
+      const box = propBox(kind, H)
+      // Concrete pixels: a viewport-height fraction would be ~0,28 × 800.
+      expect(box.h).toBeCloseTo(field[kind] * PPM, 6)
+      expect(box.h / PPM).toBeCloseTo(field[kind], 6)
+      expect(box.w / box.h).toBeCloseTo(PROP_ART[kind].ratio, 6)
+    }
+    // The house-to-child ratio only holds if both come through the same
+    // metre table; the old fraction pipeline gave ~1,1.
+    expect(propBox('house', H).h / heroBox(H).h).toBeCloseTo(4.8148, 3)
+  })
+
+  it('anchors the car at 1,8 m and keeps it inside the 2,4 m lane', () => {
+    const car = vehicleBox('car', H)
+    expect(car.w).toBeCloseTo(266.4, 6)
+    expect(car.h).toBeCloseTo(149.85, 6)
+    expect(car.w / pxAt(METERS.lane, CAMERA_DEPTH, H)).toBeCloseTo(0.75, 6)
+    // A three-times-wider car would be 2,25 lanes wide.
+    expect(car.w / pxAt(METERS.lane, CAMERA_DEPTH, H)).toBeLessThanOrEqual(0.8)
+    expect(vehicleBox('bike', H).w).toBeCloseTo(103.6, 6)
+  })
+
+  it('draws the adult and the child pedestrian at their METERS heights', () => {
+    expect(pedBox('adult', H).h).toBeCloseTo(251.6, 6)
+    expect(pedBox('child', H).h).toBeCloseTo(177.6, 6)
+    expect(pedBox('adult', H).w).toBeCloseTo(113.22, 6)
+    expect(pedBox('adult', H).h / pedBox('child', H).h).toBeCloseTo(1.7 / 1.2, 6)
+  })
+
+  it('draws the sign plate and a 2,0 m pole at the stop depth', () => {
+    expect(signPlatePx(H)).toBeCloseTo(55.3006, 3)
+    expect(signPolePx(H).h).toBeCloseTo(184.335, 3)
+    expect(signPolePx(H).w).toBeCloseTo(8.2951, 3)
+    // In metres at the stop depth, so the CSS fallback and the JS cannot drift.
+    expect(signPlatePx(H) / pxPerMAt(SIGN_STOP_D, H)).toBeCloseTo(METERS.sign.plate, 6)
+    expect(signPolePx(H).h / pxPerMAt(SIGN_STOP_D, H)).toBeCloseTo(2.0, 6)
+  })
+})
+
+describe('the rendered scene writes those boxes into the DOM', () => {
+  const original = { w: window.innerWidth, h: window.innerHeight }
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: original.w })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: original.h })
+    vi.unstubAllGlobals()
+  })
+
+  it('sizes the hero, props, dashes, sign and traffic from the metres table at 360×800', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 360 })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 })
+    // jsdom has no frame clock; the loop may start, but no frame has to run —
+    // `measure()` and the first `draw()` happen in the layout effect.
+    vi.stubGlobal('requestAnimationFrame', () => 1)
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+
+    const { container } = render(createElement(WalkScene, { step: 0, onOpen: () => {} }))
+
+    const px = (selector: string) => {
+      const el = container.querySelector<HTMLElement>(selector)
+      if (!el) throw new Error(`missing ${selector}`)
+      return { el, w: parseFloat(el.style.width), h: parseFloat(el.style.height) }
+    }
+    const scaleOf = (transform: string) => {
+      const match = /scale\(([-\d.]+)\)/.exec(transform)
+      if (!match) throw new Error(`no scale in "${transform}"`)
+      return Number(match[1])
+    }
+
+    // The hero: 1,35 m at the focal plane, 140 × 260 art box.
+    // jsdom normalises inline style numbers to six significant digits, so the
+    // literals below are exact to 3 decimals and the ratio checks keep the
+    // precision honest (a fraction pipeline cannot satisfy both).
+    const hero = px('.wk-hero')
+    expect(hero.h).toBeCloseTo(199.8, 3)
+    expect(hero.w).toBeCloseTo(107.585, 3)
+    expect(hero.w / hero.h).toBeCloseTo(140 / 260, 4)
+    expect(scaleOf(hero.el.style.transform)).toBe(1)
+
+    // The 6,5 m house: nominal box in `style`, depth scale in the transform.
+    const house = px('.wk-prop--house')
+    expect(house.h).toBeCloseTo(962, 3)
+    expect(house.w).toBeCloseTo(1068.89, 3)
+    expect(house.w / house.h).toBeCloseTo(200 / 180, 4)
+    const houseScale = scaleOf(house.el.style.transform)
+    expect(houseScale).toBeCloseTo(0.285, 6) // roundScale(propDepth(0.7, 0))
+    // The pixels the phone actually paints for the house at scroll 0.
+    expect(house.w * houseScale).toBeCloseTo(304.63, 2)
+
+    // The bus stop is on the pavement and 1,8 m tall (see meters.ts).
+    const bus = px('.wk-prop--busstop')
+    expect(bus.h).toBeCloseTo(266.4, 3)
+    expect(bus.w).toBeCloseTo(284.16, 3)
+    expect(bus.w / bus.h).toBeCloseTo(160 / 150, 4)
+
+    // The loop's painted opacity and z-index, not just the nominal box: at
+    // scroll 0 the house sits at depth 0,7, where the width guard is already
+    // fading it, so a guard that stopped running would show up here too.
+    const houseSpec = LAYOUT.find((s) => s.art === 'house')!
+    const housePaint = placeProp(houseSpec, propDepth(houseSpec.base, 0), 360, 800)
+    expect(parseFloat(house.el.style.opacity)).toBeCloseTo(housePaint.opacity, 3)
+    expect(house.el.style.zIndex).toBe(String(housePaint.z))
+    expect(housePaint.opacity).toBeLessThan(1)
+
+    const dash = px('.wk-dash')
+    expect(dash.w).toBeCloseTo(66.6, 3)
+    expect(dash.h).toBeCloseTo(20.72, 3)
+
+    const plate = px('.wk-sign-plate')
+    expect(plate.w).toBeCloseTo(55.301, 3)
+    expect(plate.h).toBeCloseTo(55.301, 3)
+    expect(plate.w).toBeCloseTo(plate.h, 3)
+
+    const pole = px('.wk-sign-pole')
+    expect(pole.h).toBeCloseTo(184.335, 3)
+    expect(pole.w).toBeCloseTo(8.295, 3)
+    // The pole and the plate share one projector, so the ratio is 2,0 m / 0,6 m.
+    expect(pole.h / plate.w).toBeCloseTo(METERS.sign.pole / METERS.sign.plate, 3)
+
+    const car = px('.wk-veh--car')
+    expect(car.w).toBeCloseTo(266.4, 3)
+    expect(car.h).toBeCloseTo(149.85, 3)
+    expect(car.w / car.h).toBeCloseTo(160 / 90, 4)
+
+    const adult = px('.wk-ped--adult')
+    expect(adult.h).toBeCloseTo(251.6, 3)
+    expect(adult.w).toBeCloseTo(113.22, 3)
+    expect(adult.w / adult.h).toBeCloseTo(90 / 200, 4)
+  })
+})
+
+/**
+ * The visible frame coverage of a building through the phases it is really
+ * painted in (the near and horizon fades excluded), as "min–max %".
+ */
+function frameRange(b: BuildingPhases): string {
+  const painted = b.phases.filter((p) => p.depthOpacity >= 0.5).map((p) => p.frame)
+  if (painted.length === 0) return '-'
+  return `${(Math.min(...painted) * 100).toFixed(0)}–${(Math.max(...painted) * 100).toFixed(0)}%`
+}
+
+describe('framing across viewports', () => {
   for (const { label, w, h } of VIEWPORTS) {
     describe(label, () => {
       const m = measureViewport(w, h)
 
-      it('reports the measured numbers', () => {
-        // Printed on purpose: the Task 11 report quotes this line.
+      it('reports the measured framing', () => {
         console.log(
-          `[scale] ${label} pxPerM=${pxPerM(h).toFixed(2)} ` +
-            `house:child=${m.houseToChild.toFixed(2)} ` +
-            `car:lane=${m.carToLane.toFixed(3)} ` +
-            `maxPropCover=${(m.maxPropCoverage * 100).toFixed(1)}% (${m.worstProp}) ` +
-            `maxRawCover=${(m.maxRawVisiblePropCoverage * 100).toFixed(1)}% ` +
-            `childVisible=${(m.childVisible * 100).toFixed(1)}% ` +
-            `plate=${m.plateMetres.toFixed(3)}m ` +
-            `plateClearance=${m.plateVsChildGap.toFixed(1)}px`,
+          `[framing] ${label} hero=${m.heroW.toFixed(1)}×${m.heroH.toFixed(1)}px@${m.heroCx.toFixed(1)} ` +
+            `ink=${m.inkLeft.toFixed(0)}..${m.inkRight.toFixed(0)} ` +
+            `childVis=${(m.childVisible * 100).toFixed(0)}% ` +
+            `marks≥${m.marksMinPerPhase}/phase nearest@${m.marksNearestDepth.toFixed(2)} ` +
+            `raw=${(m.maxRawDepthCoverage * 100).toFixed(0)}% painted=${(m.maxPaintedCoverage * 100).toFixed(0)}% ` +
+            `guardFades=${m.guardFades} ` +
+            `house=${m.building.house.shown}/9@${(m.building.house.minShare * 100).toFixed(0)}% ` +
+            `frame=${frameRange(m.building.house)} ` +
+            `shop=${m.building.shop.shown}/9@${(m.building.shop.minShare * 100).toFixed(0)}% ` +
+            `frame=${frameRange(m.building.shop)} ` +
+            `oncoming=${m.opposingNearest === Infinity ? '-' : m.opposingNearest.toFixed(2)}@${(
+              m.opposingBest * 100
+            ).toFixed(0)}% ` +
+            `signGap=${m.signGap.toFixed(0)}px`,
         )
-        expect(m).toBeDefined()
+        expect(Number.isFinite(m.maxRawDepthCoverage)).toBe(true)
       })
 
-      it('keeps the 6,5 m house at least 4× the 1,35 m child at equal depth', () => {
-        expect(m.houseToChild).toBeGreaterThanOrEqual(4.0)
+      it('keeps the child on the pavement, inside the frame and clear of the sign', () => {
+        // Her line is a metre from the kerb, and the sign stands on the kerb.
+        expect(SIDEWALK_CENTRE).toBeGreaterThan(SIDEWALK_LEFT)
+        expect(SIDEWALK_CENTRE).toBeLessThan(KERB_X)
+        expect(KERB_X - SIDEWALK_CENTRE).toBeCloseTo(1.0, 6)
+        // Her drawn body, not just the box: the ink stays on screen.
+        expect(m.inkLeft).toBeGreaterThan(0)
+        expect(m.inkRight).toBeLessThan(w)
+        // The plate never sits over her silhouette, on any z-order.
+        expect(m.signGap).toBeGreaterThan(0)
       })
 
-      it('keeps the 1,8 m car under 0,8 of the 3,5 m lane', () => {
-        expect(m.carToLane).toBeLessThanOrEqual(0.8)
+      it('paints every prop behind the hero and above the road', () => {
+        for (const scroll of PHASES) {
+          for (const spec of LAYOUT) {
+            const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+            expect(p.z).toBeGreaterThan(0)
+            expect(p.z).toBeLessThan(SIGN_Z)
+          }
+        }
+        // Near pieces stack above far ones, and the hero stays on top of all
+        // of them; that is why only the sign and the HUD can ever occlude her.
+        expect(propZ(0.02)).toBeGreaterThan(propZ(0.9))
+        expect(propZ(0.02)).toBeLessThan(HERO_Z)
+        expect(SIGN_Z).toBeLessThan(HERO_Z)
+        expect(HERO_Z).toBeLessThan(HUD_Z)
+        // The HUD pill is above her head, not over it.
+        expect(HUD.bottom).toBeLessThan(yAt(HERO_DEPTH) * h - m.heroH)
       })
 
-      it('lets no painted prop cover more than half the viewport width', () => {
-        expect(m.maxPropCoverage).toBeLessThanOrEqual(0.5)
-      })
-
-      it('keeps at least 60 % of the child’s silhouette visible', () => {
+      it('keeps at least 60 % of the child’s silhouette visible, frame clipping included', () => {
         expect(m.childVisible).toBeGreaterThanOrEqual(0.6)
+        // Sanity: the sample is humanoid, not a rectangle.
+        expect(BODY.length).toBeGreaterThan(200)
       })
 
-      it('draws the sign plate at 0,60 m ± 10 %', () => {
-        expect(Math.abs(m.plateMetres - METERS.sign.plate)).toBeLessThanOrEqual(
-          METERS.sign.plate * 0.1,
-        )
+      it('lets no painted prop cover more than half the frame', () => {
+        expect(m.maxPaintedCoverage).toBeLessThanOrEqual(0.5)
+        if (w <= 390) {
+          // On a phone the guard is load-bearing, not decorative: the bus stop
+          // passes the camera and would otherwise wipe the screen.
+          expect(m.guardFades).toBeGreaterThan(0)
+        }
       })
 
-      it('never lets the sign plate sit on the child’s silhouette', () => {
-        expect(m.plateVsChildGap).toBeGreaterThan(0)
+      it('keeps every prop’s raw geometry under 80 % of the frame while the depth fades paint it', () => {
+        // The guard cannot hide a sprite that is three times too wide: with
+        // the house ×3 this number goes past 1.0 on the phone.
+        expect(m.maxRawDepthCoverage).toBeLessThanOrEqual(0.8)
+      })
+
+      it('shows both garden-side buildings through most of a leg', () => {
+        for (const art of ['house', 'shop'] as const) {
+          const spec = LAYOUT.find((s) => s.art === art)!
+          // The anchor stands behind the pavement, and the sprite never
+          // crosses the kerb into the road.
+          expect(spec.x).toBeLessThan(SIDEWALK_LEFT)
+          expect(spec.x + propBox(art, h).w / 2 / pxPerM(h)).toBeLessThan(KERB_X)
+
+          // A sliver of a sprite at 10 % opacity is not "in view": an eighth
+          // of the sprite at a readable opacity, at most phases of the loop.
+          const readable = m.building[art].phases.filter(
+            (p) => p.share >= 0.08 && p.opacity >= 0.25,
+          )
+          expect(readable.length).toBeGreaterThanOrEqual(5)
+
+          // At least once they are fully opaque, not just a ghost.
+          expect(m.building[art].best).toBeGreaterThanOrEqual(0.9)
+
+          // The depth fades alone leave them at full strength on four phases
+          // (the hero's near fade still dims the closest pass). Any extra
+          // dimming comes from the width guard; the painted assertions below
+          // account for that separately.
+          const full = m.building[art].phases.filter((p) => p.depthOpacity >= 0.9)
+          expect(full.length).toBeGreaterThanOrEqual(4)
+        }
+
+        if (w <= 390) {
+          // The plan's phone rule, in pixels of sprite: both buildings still
+          // show a readable piece at half opacity or better, on five phases.
+          for (const art of ['house', 'shop'] as const) {
+            const shown = m.building[art].phases.filter(
+              (p) => p.share >= 0.08 && p.opacity >= 0.5,
+            )
+            expect(shown.length).toBeGreaterThanOrEqual(5)
+          }
+
+          // The garden side has to read as a building, not a 3 px edge. The
+          // house fills a third of the frame through six phases (34–45 % in
+          // the seven it is painted); the shop a sixth through five.
+          const house = m.building.house.phases.filter(
+            (p) => p.frame >= 0.3 && p.opacity >= 0.25,
+          )
+          expect(house.length).toBeGreaterThanOrEqual(6)
+          const shop = m.building.shop.phases.filter(
+            (p) => p.frame >= 0.15 && p.opacity >= 0.25,
+          )
+          expect(shop.length).toBeGreaterThanOrEqual(5)
+        }
+      })
+
+      it('keeps both buildings’ raw boxes under half the phone frame', () => {
+        // The width guard may fade a building, never hide one that is simply
+        // too wide. On a phone the safe band ends at −4,0 m: one more metre
+        // right turns the house box into 65 % of the frame.
+        if (w > 390) return
+        for (const art of ['house', 'shop'] as const) {
+          const painted = m.building[art].phases
+            .filter((p) => p.depthOpacity >= 0.5)
+            .map((p) => p.frame)
+          expect(Math.max(...painted)).toBeLessThanOrEqual(0.5)
+        }
+      })
+
+      it('paints at least two legible centre-line marks on every phase, well inside the leg', () => {
+        expect(m.marksMinPerPhase).toBeGreaterThanOrEqual(2)
+        // The nearest legible dash is in the middle of the leg, not a 17 px
+        // smudge at the horizon: the old split (4,3 m) never came below 0,72.
+        expect(m.marksNearestDepth).toBeLessThanOrEqual(0.55)
+        // The marking belongs to the road side of the kerb.
+        expect(LANE_SPLIT_X).toBeGreaterThan(KERB_X)
+      })
+
+      it('puts oncoming traffic inside the frame, on the road, during the leg', () => {
+        expect(m.opposingNearest).toBeLessThanOrEqual(0.6)
+        expect(m.opposingBest).toBeGreaterThanOrEqual(0.2)
+        // The oncoming lane is beyond the kerb, never over the pavement.
+        expect(LANES.laneR - METERS.car.width / 2).toBeGreaterThan(KERB_X)
+      })
+
+      it('keeps the whole bus-stop sprite on the pavement', () => {
+        const spec = LAYOUT.find((s) => s.art === 'busstop')!
+        const metres = propBox('busstop', h).w / pxPerM(h)
+        expect(spec.x - metres / 2).toBeGreaterThanOrEqual(SIDEWALK_LEFT)
+        expect(spec.x + metres / 2).toBeLessThanOrEqual(KERB_X)
+        // Same invariant in the pixels the scene paints, at every phase.
+        for (const scroll of PHASES) {
+          const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+          expect(p.x - p.width / 2).toBeGreaterThanOrEqual(offsetX(SIDEWALK_LEFT, p.depth, w, h))
+          expect(p.x + p.width / 2).toBeLessThanOrEqual(offsetX(KERB_X, p.depth, w, h))
+        }
+      })
+
+      it('paints at least one opposing vehicle for half a second during a leg', () => {
+        const spawns = trafficDuringLeg()
+        expect(spawns.length).toBeGreaterThan(0)
+        const opposing = spawns.filter((s) => s.lane === 'laneR')
+        expect(opposing.length).toBeGreaterThan(0)
+        const visible = opposing.map((spawn) => opposingVisibleSeconds(spawn, w, h))
+        expect(Math.max(...visible)).toBeGreaterThanOrEqual(0.5)
       })
     })
   }
 
-  it('uses the same metres for every viewport (pxPerM only depends on height)', () => {
-    // 360×800 and 1280×800 share a height, so a metre is the same size; the
-    // framing differs only through the viewport width.
-    expect(pxPerM(800)).toBeCloseTo(pxPerM(800), 12)
-    expect(pxPerM(844)).toBeGreaterThan(pxPerM(800))
-    expect(pxAt(METERS.child, HERO_DEPTH, 800)).toBeCloseTo(199.8, 6)
-    expect(pxAt(METERS.child, HERO_DEPTH, 844)).toBeCloseTo(210.789, 6)
+  it('does not change the hero’s size between a phone and a desktop of equal height', () => {
+    // Framing changes with width; a metre does not. 360×800 and 1280×800 are
+    // the two review viewports and share a height. Concrete pixels, not the
+    // production function compared with itself.
+    expect(heroBox(800).h).toBeCloseTo(199.8, 6)
+    expect(heroBox(800).w).toBeCloseTo(107.585, 3)
+    expect(pxPerM(800)).toBeCloseTo(148, 12)
+    // The width is framing, the height is a metre: compare the two viewports.
+    const phone = offsetX(SIDEWALK_CENTRE, HERO_DEPTH, 360, 800)
+    const desktop = offsetX(SIDEWALK_CENTRE, HERO_DEPTH, 1280, 800)
+    expect(phone).toBeCloseTo(76.4, 3)
+    expect(desktop).toBeCloseTo(536.4, 3)
+    expect(desktop - phone).toBeCloseTo((1280 - 360) / 2, 6)
+    // 844 px is above 800, inside the 640..1000 clamp band.
+    expect(heroBox(844).h).toBeCloseTo(210.789, 6)
+    expect(heroBox(844).h / heroBox(800).h).toBeCloseTo(844 / 800, 6)
   })
 })
+
+type Spawn = {
+  t: number
+  lane: 'laneL' | 'laneR'
+  kind: 'car' | 'bike'
+  speed: number
+  dir: 1 | -1
+  depth: number
+}
+
+/**
+ * The first leg's traffic, as the scene's loop spawns it: same seed, same
+ * `spawnTraffic`/`shouldSpawn`, same wait band, same three slots. Only the
+ * transform writes are left out — this test needs the cast, not the pixels.
+ */
+function trafficDuringLeg(): Spawn[] {
+  const rng = createRng(SPAWN_SEED)
+  const slots: Array<Spawn | null> = [null, null, null]
+  const spawns: Spawn[] = []
+  let id = 1
+  let since = 0
+  let wait = 0
+  let t = 0
+  const dt = 1 / 60
+
+  while (t < LEG_SECONDS) {
+    for (let i = 0; i < slots.length; i += 1) {
+      const vehicle = slots[i]
+      if (!vehicle) continue
+      vehicle.depth += vehicle.dir * vehicle.speed * dt
+      if (vehicle.depth < NEAR_EDGE || vehicle.depth > FAR_EDGE) slots[i] = null
+    }
+
+    if (wait <= 0) wait = TRAFFIC_WAIT.min + rng() * (TRAFFIC_WAIT.max - TRAFFIC_WAIT.min)
+    if (shouldSpawn(dt, since, TRAFFIC_WAIT.min, wait)) {
+      const slot = slots.indexOf(null)
+      if (slot >= 0) {
+        const traffic = spawnTraffic(rng, id)
+        id += 1
+        const spawn: Spawn = {
+          t,
+          lane: traffic.lane,
+          kind: traffic.kind,
+          speed: traffic.speed,
+          dir: traffic.dir,
+          depth: traffic.dir === 1 ? NEAR_EDGE : traffic.depth,
+        }
+        slots[slot] = spawn
+        spawns.push(spawn)
+      }
+      since = 0
+      wait = TRAFFIC_WAIT.min + rng() * (TRAFFIC_WAIT.max - TRAFFIC_WAIT.min)
+    } else {
+      since += dt
+    }
+    t += dt
+  }
+
+  return spawns
+}
+
+/**
+ * Seconds of the leg during which this laneR vehicle is painted on screen:
+ * at least a fifth of a 1,8 m car sprite inside the frame, half opacity or
+ * better. Uses the car box even for a bike (a bike is narrower, so this is the
+ * conservative reading).
+ */
+function opposingVisibleSeconds(spawn: Spawn, w: number, h: number): number {
+  let near = 1
+  let far = 0
+  for (let depth = 0.16; depth <= 0.92; depth += 0.002) {
+    const car = placeVehicle('laneR', 'car', depth, w, h)
+    if (spriteShare(car.x, car.width, w) >= 0.2 && car.opacity >= 0.5) {
+      near = Math.min(near, depth)
+      far = Math.max(far, depth)
+    }
+  }
+  if (near > far) return 0
+  // laneR traffic enters at depth 1 and comes towards the camera.
+  const enter = spawn.t + (1 - far) / spawn.speed
+  const leave = spawn.t + (1 - near) / spawn.speed
+  return Math.max(0, Math.min(leave, LEG_SECONDS) - Math.max(enter, 0))
+}
