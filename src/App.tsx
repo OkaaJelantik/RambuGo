@@ -163,10 +163,10 @@ const STOP_BEATS: StoryId[] = ['stop-1', 'stop-2', 'stop-3']
 const LEG_BEAT_MS = 3000
 
 /**
- * Setelah lembar ditutup, CTA "Tutup" bisa berada tepat di atas baris tombol
- * panel (360×640: CTA berakhir y=580,2, baris panel mulai y=580). Ketukan
- * kedua dari ketuk ganda yang cepat akan mendarat di "Lanjut jalan" dan
- * melewati rambu. Abaikan aksi panel selama 300 ms sesudah lembar tutup.
+ * Lapis kedua setelah celah CSS: sheet kini berhenti ±35 px di atas baris
+ * tombol panel (360×640), tetapi ketukan jempol bisa melebar. Abaikan aksi
+ * panel selama 300 ms sesudah lembar tutup supaya ketuk ganda tidak
+ * mendarat di "Lanjut jalan" dan melewati rambu.
  */
 const SHEET_GUARD_MS = 300
 

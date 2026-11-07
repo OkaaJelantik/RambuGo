@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import Crossroad from './Crossroad'
-import { QUESTIONS, WALK_SIGNS, type Question } from './data'
+import { QUESTIONS, SIGNS, WALK_SIGNS, type Question } from './data'
 import { METERS } from './scene/meters'
 import { LEG_SECONDS } from './scene/world'
 import { INTRO_LINE } from './story'
@@ -396,11 +396,9 @@ describe('alur aplikasi', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ke kuis' }))
     expect(screen.getByText('Soal 1/5')).toBeTruthy()
 
-    // Deskripsi visual (bentuk + isi) ikut pertanyaan, bukan per soal.
+    // Deskripsi visual (bentuk + gambar) ikut pertanyaan, bukan per soal.
     const prompt = document.querySelector('.question-card .prompt') as HTMLElement
-    expect(prompt.textContent).toContain(
-      'Rambu segitiga kuning yang menunjukkan banyak anak menyeberang',
-    )
+    expect(prompt.textContent).toContain(`Rambu ${WALK_SIGNS[0].visual}`)
 
     fireEvent.click(screen.getByRole('button', { name: 'Banyak anak menyeberang' }))
     const next = screen.getByRole('button', { name: 'Soal berikutnya →' })
@@ -415,6 +413,35 @@ describe('alur aplikasi', () => {
     fireEvent.click(next)
     expect(screen.getByText('Soal 2/5')).toBeTruthy()
     expect(document.activeElement).toBe(document.querySelector('.question-card .prompt'))
+  })
+
+  it('kuis: deskripsi gambarnya tidak memuat teks jawaban', async () => {
+    await reachCrossroad()
+    fireEvent.click(screen.getByRole('button', { name: 'Ke kuis' }))
+
+    QUESTIONS.forEach((q, i) => {
+      expect(screen.getByText(`Soal ${i + 1}/${QUESTIONS.length}`)).toBeTruthy()
+      const prompt = document.querySelector('.question-card .prompt') as HTMLElement
+      const text = prompt.textContent ?? ''
+
+      if (q.signId) {
+        const sign = SIGNS.find((s) => s.id === q.signId)
+        expect(sign).toBeTruthy()
+        // Rute kuis harus memakai `visual`, bukan `name`/`meaning`. Assertion
+        // ini yang gagal kalau seseorang mengembalikan describeSign ke `name`,
+        // termasuk pada soal yang teks jawabannya kebetulan tidak persis
+        // terkandung di nama rambu (q2/q3).
+        expect(text).toContain(sign!.visual)
+
+        const answer = q.options[q.answer].toLowerCase()
+        expect(text.toLowerCase()).not.toContain(answer)
+      }
+
+      fireEvent.click(screen.getByRole('button', { name: q.options[q.answer] }))
+      if (i + 1 < QUESTIONS.length) {
+        fireEvent.click(screen.getByRole('button', { name: 'Soal berikutnya →' }))
+      }
+    })
   })
 
   it('beat leg tetap tampil saat prefers-reduced-motion', () => {

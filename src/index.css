@@ -121,20 +121,6 @@ button {
   box-shadow: 0 2px 0 var(--shade), 0 6px 12px rgba(42, 35, 32, 0.16);
 }
 
-.btn.orange {
-  background: var(--orange);
-}
-
-.btn.green {
-  background: var(--green);
-}
-
-.btn.ghost {
-  background: #fff;
-  color: var(--ink);
-  box-shadow: 0 6px 0 #d9cdb8, 0 12px 22px rgba(42, 35, 32, 0.12);
-}
-
 @keyframes bob {
   0%,
   100% {
@@ -248,7 +234,10 @@ button {
   background: rgba(38, 32, 28, 0.5);
   display: grid;
   place-items: center;
-  padding: 5vh 4vw;
+  /* Ruang bawah menyisakan baris tombol panel (48 px tombol + 12 px padding).
+     Sheet dipusatkan di sisa ruang itu, jadi tepi bawah CTA berhenti ±35 px
+     di atas tombol; guard 300 ms di App.tsx tetap lapis kedua. */
+  padding: 5vh 4vw calc(5vh + 60px);
   z-index: 40;
   animation: fade 0.25s ease-out;
 }
@@ -264,7 +253,9 @@ button {
 
 .sheet {
   width: min(520px, 100%);
-  max-height: 90dvh;
+  /* Sama dengan sisa ruang overlay di atas: 90dvh dikurangi 60 px baris
+     tombol panel. */
+  max-height: calc(90dvh - 60px);
   overflow-y: auto;
   background: var(--paper);
   border-radius: 32px;

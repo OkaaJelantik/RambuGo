@@ -15,6 +15,12 @@ export type Sign = {
   name: string
   meaning: string
   tip: string
+  /**
+   * Deskripsi **gambar** untuk pembaca layar: bentuk, warna, dan apa yang
+   * digambar. Tidak boleh memuat `name`/`meaning` — di kuis, keduanya adalah
+   * jawabannya.
+   */
+  visual: string
 }
 
 /** Bentuk & warna tiap jenis rambu — dipakai untuk kartu dan label. */
@@ -33,6 +39,7 @@ export const SIGNS: Sign[] = [
     name: 'Banyak Anak Menyeberang',
     meaning: 'Di jalan ini banyak anak yang menyeberang.',
     tip: 'Kendaraan harus pelan-pelan dan hati-hati.',
+    visual: 'segitiga kuning bergambar dua anak berjalan di jalan',
   },
   {
     id: 'zebra',
@@ -41,6 +48,7 @@ export const SIGNS: Sign[] = [
     name: 'Tempat Menyeberang',
     meaning: 'Di sini tempat yang aman untuk menyeberang.',
     tip: 'Menyeberang di sini, jangan di sembarang tempat.',
+    visual: 'persegi biru bergambar garis-garis putih seperti zebra dan orang berjalan',
   },
   {
     id: 'dilarang-masuk',
@@ -49,6 +57,7 @@ export const SIGNS: Sign[] = [
     name: 'Dilarang Masuk',
     meaning: 'Kendaraan tidak boleh lewat jalan ini.',
     tip: 'Jalan itu dipakai kendaraan dari arah sebaliknya.',
+    visual: 'bulat merah dengan garis putih mendatar di tengah',
   },
   {
     id: 'belok-kiri',
@@ -57,6 +66,7 @@ export const SIGNS: Sign[] = [
     name: 'Wajib Belok Kiri',
     meaning: 'Kendaraan harus belok ke kiri.',
     tip: 'Ikuti arah yang diperintahkan rambu.',
+    visual: 'bulat biru bergambar panah putih menunjuk ke kiri',
   },
   {
     id: 'hati-hati',
@@ -65,6 +75,7 @@ export const SIGNS: Sign[] = [
     name: 'Hati-hati',
     meaning: 'Ada bahaya di depan.',
     tip: 'Kurangi kecepatan dan lihat sekeliling.',
+    visual: 'segitiga kuning bergambar tanda seru hitam',
   },
   {
     id: 'dilarang-parkir',
@@ -73,6 +84,7 @@ export const SIGNS: Sign[] = [
     name: 'Dilarang Parkir',
     meaning: 'Kendaraan tidak boleh parkir di sini.',
     tip: 'Jalan harus tetap lapang, tidak dipakai parkir.',
+    visual: 'bulat putih bergaris merah bergambar huruf P yang dicoret',
   },
 ]
 

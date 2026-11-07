@@ -230,9 +230,9 @@ ceritanya adalah `docs/superpowers/specs/2026-11-07-naskah-cerita.md`, dan
 `src/story.ts` menerjemahkannya menjadi **11 beat** bertipe: `intro`, `leg-1`,
 `stop-1`, `leg-2`, `stop-2`, `leg-3`, `stop-3`, `crossroad`, `materi`, `kuis`,
 `home`. Naskah adalah otoritas kata; kode tidak boleh mengarang kalimat baru di JSX.
-Satu catatan kecil: tabel peta adegan di naskah masih menulis tombol "Lanjut jalan"
-pada baris `leg-*`, padahal "Catatan desain" di dokumen yang sama dan `story.ts`
-menetapkan `leg-*` tanpa tombol; yang berlaku adalah catatan desain + kode.
+Tabel peta adegan di naskah sudah selaras: baris `leg-*` tidak lagi mencantumkan
+tombol "Lanjut jalan" (diperbaiki di `1c68804`), dan hanya `stop-*` yang menunggu
+tombol, sesuai "Catatan desain" di dokumen yang sama dan `src/story.ts`.
 
 - `leg-*` tampil otomatis dan hilang setelah `LEG_BEAT_MS = 3000` ms
   (`src/App.tsx:163,224-231`). Timer memakai updater fungsional supaya tidak
@@ -451,7 +451,7 @@ tertangkap guard dan harus diperiksa dengan tangkapan/rect di peramban.
 type Kind = 'peringatan' | 'larangan' | 'perintah' | 'petunjuk'
 type Art  = 'anak' | 'zebra' | 'dilarang-masuk' | 'belok-kiri' | 'hati-hati' | 'dilarang-parkir'
 
-type Sign = { id: string; art: Art; kind: Kind; name: string; meaning: string; tip: string }
+type Sign = { id: string; art: Art; kind: Kind; name: string; meaning: string; tip: string; visual: string }
 
 type Question = {
   id: string
@@ -484,9 +484,13 @@ Aturan konten yang sudah dipakai dan sebaiknya dipertahankan:
 - `name` = nama rambu apa adanya ("Banyak Anak Menyeberang"); `meaning` = satu
   kalimat untuk anak; `tip` = satu kalimat *tindakan* ("Kendaraan harus pelan-pelan
   dan hati-hati.").
+- `visual` = deskripsi **gambar** untuk pembaca layar: bentuk, warna, dan apa
+  yang digambar, tanpa `name`/`meaning`. Dipakai kuis sebagai deskripsi aksesibel
+  (`describeSign` di `src/SignArt.tsx`) supaya jawaban tidak bisa dicocokkan kata
+  tanpa melihat rambu.
 - Tiap soal punya `why`, dan `why` menjelaskan **jenis** rambu, bukan cuma
   mengulang jawaban benar. Aturan ini belum konsisten: 4 dari 5 soal memenuhinya;
-  `q2` (`data.ts:103`) hanya menjelaskan zebra cross tanpa menyebut jenisnya.
+  `q2` (`data.ts:115`) hanya menjelaskan zebra cross tanpa menyebut jenisnya.
 - `WALK_SIGNS` = `SIGNS.slice(0, 3)` — tiga rambu pertama yang dilewati saat
   berjalan; sisanya baru muncul di jalur materi. Ini disengaja: anak sudah kenal
   tiga rambu sebelum masuk materi, jadi layar materi tidak terasa asing.
