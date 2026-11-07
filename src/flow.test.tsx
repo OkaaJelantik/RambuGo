@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { QUESTIONS, WALK_SIGNS, type Question } from './data'
+import { KINDS, QUESTIONS, WALK_SIGNS, type Question } from './data'
 import { LEG_SECONDS } from './scene/world'
 
 /**
@@ -85,6 +85,8 @@ function clearWalk() {
 
     fireEvent.click(signPlate(sign.name))
     expect(screen.getByRole('dialog', { name: `Rambu ${sign.name}` })).toBeTruthy()
+    // Bentuk rambu diajarkan di lembar dan selalu berasal dari KINDS.
+    expect(screen.getByText(`Bentuk: ${KINDS[sign.kind].shape}`)).toBeTruthy()
     expect(screen.getByText(sign.meaning)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Mengerti, lanjut jalan' }))
     // Closing advances the leg (or ends the walk): the sheet is gone again.

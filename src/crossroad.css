@@ -288,3 +288,15 @@
     font-size: 1.05rem;
   }
 }
+
+/* Kurangi gerak: hentikan goyangan anak dan transisi sorotan cabang jalan.
+   Tampilan pada kondisi motion normal tidak berubah. */
+@media (prefers-reduced-motion: reduce) {
+  .fx-kid {
+    animation: none;
+  }
+
+  .fx-branch .fx-road {
+    transition: none;
+  }
+}

@@ -87,6 +87,7 @@ function SignSheet({ sign, onClose, cta }: { sign: Sign; onClose: () => void; ct
         <span className="kind-chip" style={{ background: KINDS[sign.kind].color }}>
           Rambu {KINDS[sign.kind].label}
         </span>
+        <p className="kind-shape">Bentuk: {KINDS[sign.kind].shape}</p>
 
         <div className="chat-row">
           <div className="chat-avatar" aria-hidden="true">

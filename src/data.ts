@@ -123,7 +123,7 @@ export const QUESTIONS: Question[] = [
     prompt: 'Rambu dengan bentuk bulat dan warna dasar merah termasuk jenis?',
     options: ['Rambu petunjuk', 'Rambu larangan', 'Rambu peringatan'],
     answer: 1,
-    why: 'Bulat merah dipakai untuk larangan. Peringatan berwarna kuning bersegitiga, petunjuk berwarna biru atau hijau.',
+    why: 'Bulat merah dipakai untuk larangan. Peringatan berwarna kuning bersegitiga, perintah berwarna biru, dan petunjuk berwarna hijau.',
   },
 ]
 
