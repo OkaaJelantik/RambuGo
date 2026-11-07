@@ -29,8 +29,8 @@
   }
 }
 
-/* Rumput memakai tangga warna bukit yang sama dengan layar lain (#8cdb70 → #74c957 → --grass),
-   dipertahankan terang di bagian atas supaya tidak lebih pekat dari layar lain. */
+/* Rumput memakai tangga warna hijau terang (#8cdb70 → #74c957 → --grass) yang hanya ada
+   di layar persimpangan ini, dijaga terang di bagian atas supaya tidak lebih pekat dari dasarnya. */
 .fx-grass {
   position: absolute;
   inset: 0;

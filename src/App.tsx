@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { KINDS, QUESTIONS, SIGNS, WALK_SIGNS, type Sign } from './data'
 import { SignArt } from './SignArt'
 import Classroom from './Classroom'
@@ -29,50 +28,51 @@ function SignSheet({ sign, onClose, cta }: { sign: Sign; onClose: () => void; ct
   const sheetRef = useRef<HTMLDivElement>(null)
 
   // Pindahkan fokus ke dalam lembar saat dibuka, kembalikan saat ditutup.
-  // Pemicu bisa saja sudah lepas dari DOM (mis. rambu berikutnya), jadi
-  // jatuh kembali ke <body> daripada meninggalkan fokus di elemen hantu.
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
     ctaRef.current?.focus()
     return () => {
-      if (previous && previous.isConnected) previous.focus()
-      else document.body.focus()
+      // Pemicu bisa saja sudah lepas dari DOM; <body> mengambil alih.
+      if (previous?.isConnected) previous.focus()
     }
   }, [])
 
-  // Tab tidak boleh keluar dari lembar selama lembar masih terbuka.
-  const keepFocusInside = (e: ReactKeyboardEvent) => {
-    if (e.key !== 'Tab' || !sheetRef.current) return
-    const items = Array.from(
-      sheetRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
-    )
-    if (items.length === 0) return
-    const first = items[0]
-    const last = items[items.length - 1]
-    const active = document.activeElement
-    const inside = sheetRef.current.contains(active)
-    if (e.shiftKey ? active === first || !inside : active === last || !inside) {
-      const target = e.shiftKey ? last : first
-      e.preventDefault()
-      target.focus()
+  // Escape dan Tab ditangani di document agar tetap berlaku walau fokus
+  // sudah lepas ke <body> (mis. setelah klik teks di dalam lembar).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab' || !sheetRef.current) return
+      const items = Array.from(
+        sheetRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      )
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      // Fokus di luar lembar: tarik kembali ke ujung sesuai arah Tab.
+      if (!items.includes(active as HTMLElement)) {
+        e.preventDefault()
+        ;(e.shiftKey ? last : first).focus()
+        return
+      }
+      if (e.shiftKey ? active === first : active === last) {
+        e.preventDefault()
+        ;(e.shiftKey ? last : first).focus()
+      }
     }
-  }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   return (
-    <div
-      className="overlay"
-      onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.stopPropagation()
-          onClose()
-          return
-        }
-        keepFocusInside(e)
-      }}
-    >
+    <div className="overlay" onClick={onClose}>
       <div
         className="sheet chat"
         role="dialog"

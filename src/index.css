@@ -514,8 +514,7 @@ button {
   max-width: 980px;
   margin: 0 auto;
   display: grid;
-  /* mobile-first: satu kolom sampai ada ruang untuk kolom berikutnya */
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: clamp(12px, 2vw, 20px);
 }
 
@@ -913,12 +912,4 @@ button {
   font-size: clamp(0.9rem, 2.2vw, 0.98rem);
   line-height: 1.5;
   color: #4a4038;
-}
-
-/* ---------- layar lebar (mobile-first: penyesuaian hanya di atas 700px) ---------- */
-
-@media (min-width: 700px) {
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  }
 }
