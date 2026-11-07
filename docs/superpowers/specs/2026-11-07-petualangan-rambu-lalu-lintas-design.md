@@ -141,11 +141,11 @@ seperti versi prototipe dulu.
 
 ### 7.2 Lembar arti rambu (overlay)
 
-Dipakai dua tempat (saat berjalan dan saat materi) — `SignSheet` di `src/App.tsx:26`:
+Dipakai dua tempat (saat berjalan dan saat materi) — `SignSheet` di `src/App.tsx:34`:
 
 ```
 [ gambar rambu ]
-[ chip jenis: Rambu Peringatan ]
+[ chip jenis: Rambu Peringatan · segitiga ]
 ( avatar anak ) ( h4: nama rambu
                   p : arti )
 [ tip singkat ]
@@ -156,29 +156,33 @@ Alasan memakai balon percakapan dengan avatar anak: rambu dijelaskan **oleh toko
 yang sama** yang ditemui anak di tiap adegan, sehingga terasa seperti teman yang
 berbicara, bukan kotak info teknis.
 
+Lembar hanya ditutup lewat CTA atau `Escape`; ketukan di latar tidak menutup. Di
+jalur walk, menutup berarti maju ke rambu berikutnya dan rambu itu tidak bisa
+dikunjungi lagi, jadi ketukan jempol di area latar tidak boleh menjadi keputusan.
+
 ---
 
 ## 8. Baseline: apa yang sudah ada
 
 Prototipe berjalan dan mencakup keenam stage. Scene berjalan sudah diganti versi 2.5D
-lewat Task 1–8 plan `2026-11-07-walk-scene-2.5d.md`. Teks Task 5 plan
+lewat Task 1–10 plan `2026-11-07-walk-scene-2.5d.md`. Teks Task 5 plan
 (`2026-11-07-walk-scene-2.5d.md:275-276`) menyebut arah lajur yang **berlawanan**
 dengan kode terkirim: `src/scene/spawner.ts:27-32` adalah otoritasnya (`laneL`
 menjauh, `laneR` mendatangi kamera), dan plan sudah tersuperseded di titik itu.
-Verifikasi 2026-11-07:
-`pnpm test` **6 file / 54 test hijau**, `tsc -b` exit 0, dan `vite build` sukses —
-**33 modul**, JS 289,96 kB / **gzip 84,79 kB**, CSS 30,40 kB / gzip 7,72 kB,
+Verifikasi setelah fix wave `3e71e9c`:
+`pnpm test` **6 file / 55 test hijau**, `tsc -b` exit 0, dan `vite build` sukses —
+**33 modul**, JS 290,57 kB / **gzip 85,00 kB**, CSS 30,95 kB / gzip 7,84 kB,
 HTML 0,79 kB / gzip 0,43 kB. Gzip JS masih di bawah batas G5 (< 120 kB).
 
 | File | Peran | Catatan |
 |------|-------|---------|
 | `src/main.tsx` | bootstrap React 19 + StrictMode | 10 baris |
-| `src/App.tsx` | state machine 6 stage + `Quiz` + layar `materi` + `home` + `SignSheet` | 323 baris |
+| `src/App.tsx` | state machine 6 stage + `Quiz` + layar `materi` + `home` + `SignSheet` | 367 baris |
 | `src/data.ts` | sumber data tunggal: `KINDS`, 6 `SIGNS`, 5 `QUESTIONS`, `WALK_SIGNS` | 131 baris |
 | `src/Classroom.tsx` + `classroom.css` | adegan kelas (SVG meja, papan, jendela, rak, jam, peta) | 614 / 473 baris |
-| `src/Crossroad.tsx` + `crossroad.css` | adegan persimpangan 2 cabang | 55 / 290 baris |
-| `src/WalkScene.tsx` | adegan berjalan 2.5D: satu loop rAF, `LAYOUT`, rambu, HUD | 662 baris |
-| `src/walk.css` | CSS scene berjalan (`wk-`), hero (`hw-`), pejalan (`wk-ped-`) | 640 baris |
+| `src/Crossroad.tsx` + `crossroad.css` | adegan persimpangan 2 cabang | 66 / 308 baris |
+| `src/WalkScene.tsx` | adegan berjalan 2.5D: satu loop rAF, `LAYOUT`, rambu, HUD | 677 baris |
+| `src/walk.css` | CSS scene berjalan (`wk-`), hero (`hw-`), pejalan (`wk-ped-`) | 646 baris |
 | `src/scene/projection.ts` | geometri murni: `HORIZON`, `DEPTH_K`, `ROAD_HALF`, `WALK_W`, `LANES`, `scaleAt`, `yAt`, `xAt`, `fadeAt`, `nearFadeAt`, `roadHalfAt`, `walkHalfAt` | 79 baris |
 | `src/scene/world.ts` | reducer murni `stepWorld` untuk mode `walking`/`stopped` | 65 baris |
 | `src/scene/GroundScene.tsx` | lapisan tanah statis (langit, bukit, verge, trotoar, jalan, garis tepi) dari proyeksi | 113 baris |
@@ -189,9 +193,9 @@ HTML 0,79 kB / gzip 0,43 kB. Gzip JS masih di bawah batas G5 (< 120 kB).
 | `src/art/people.tsx` | `Pedestrian` dewasa/anak, depan/belakang | 292 baris |
 | `src/Kid.tsx` | tokoh utama (SVG) untuk kelas, persimpangan, dan avatar lembar | 80 baris |
 | `src/SignArt.tsx` | 6 gambar rambu sebagai SVG, satu `Record<Art, ReactNode>` | 115 baris |
-| `src/index.css` | token warna + tombol + shell + materi + kuis + home + overlay | 915 baris |
+| `src/index.css` | token warna + tombol + shell + materi + kuis + home + overlay | 951 baris |
 
-Test (vitest + jsdom, 6 file / 54 test): `src/flow.test.tsx` (184 baris),
+Test (vitest + jsdom, 6 file / 55 test): `src/flow.test.tsx` (236 baris),
 `src/scene/projection.test.ts` (151), `src/scene/spawner.test.ts` (140),
 `src/scene/GroundScene.test.tsx` (86), `src/art/HeroWalk.test.tsx` (79),
 `src/scene/world.test.ts` (74), plus `src/test/setup.ts` (7).
@@ -296,20 +300,24 @@ Aturan konten yang sudah dipakai dan sebaiknya dipertahankan:
 - `WALK_SIGNS` = `SIGNS.slice(0, 3)` — tiga rambu pertama yang dilewati saat
   berjalan; sisanya baru muncul di jalur materi. Ini disengaja: anak sudah kenal
   tiga rambu sebelum masuk materi, jadi layar materi tidak terasa asing.
+- Aturan bentuk-warna yang berlaku: peringatan **segitiga kuning**, larangan
+  **bulat merah**, perintah **bulat biru**, petunjuk **persegi biru**. Perintah
+  dan petunjuk sama-sama biru; bentuknya yang membedakan, sesuai keputusan
+  controller pada fix wave `3e71e9c`. Rambu petunjuk di jalan memang biru, bukan hijau.
 
 ---
 
 ## 11. Celah & cacat yang ditemukan (dengan bukti)
 
-Status per 2026-11-07 setelah Task 1–8. ✅ = tertutup, ⚠️ = sebagian, tanpa tanda =
-masih terbuka. Nomor T dipertahankan supaya rujukan lama tetap sah; T3 sudah dicabut
-dan keputusannya ada di §16.
+Status per 2026-11-07 setelah Task 1–10 dan fix wave `3e71e9c`. ✅ = tertutup,
+⚠️ = sebagian, tanpa tanda = masih terbuka. Nomor T dipertahankan supaya rujukan
+lama tetap sah; T3 sudah dicabut dan keputusannya ada di §16.
 
 **✅ T1 — Teks layar rumah selalu salah satu versi.** Dulu `App.tsx` menyetel
 `via = 'materi'`, lalu menimpanya jadi `'kuis'` sebelum pindah ke `home`, sehingga
 cabang `via === 'materi'` tidak pernah tampil. Selesai di `4a873ad`: `via` sekarang
-hanya ditulis sekali saat meninggalkan `crossroad` (`src/App.tsx:166-173`) dan dibaca
-apa adanya di layar rumah (`src/App.tsx:227-231`). `src/flow.test.tsx:146` mengunci
+hanya ditulis sekali saat meninggalkan `crossroad` (`src/App.tsx:206-213`) dan dibaca
+apa adanya di layar rumah (`src/App.tsx:271-275`). `src/flow.test.tsx:198` mengunci
 teks jalur materi.
 
 **✅ T2 — ±433 baris kode mati.** Dulu `StreetScenery.tsx` + `street.css` tidak
@@ -321,21 +329,24 @@ di `4a873ad`: semuanya dihapus bersama `WALK_X`. Verifikasi:
 lewat klik latar, tanpa `Escape`, tanpa fokus masuk, dan tanpa menahan Tab. Selesai di
 `4a873ad` (dialog + fokus + Tab) dan `e6d7241` (Escape/Tab lewat listener `document`,
 fokus kembali ke pemicu): `role="dialog"`, `aria-modal="true"`, `Escape`, fokus ke CTA,
-restore `document.activeElement`, dan Tab dikurung (`src/App.tsx:26-72`).
+restore `document.activeElement`, dan Tab dikurung (`src/App.tsx:34-102`). Fix wave
+`3e71e9c` menambahkan dua hal: latar tidak lagi menutup lembar, dan di jalur walk fokus
+tidak dipulihkan ke rambu yang sedang dinonaktifkan — lihat T13.
 
-**⚠️ T5 — `prefers-reduced-motion` baru separuh.** Dulu hanya `classroom.css` dan
+**✅ T5 — `prefers-reduced-motion` baru separuh.** Dulu hanya `classroom.css` dan
 `street.css` yang punya guard, sementara `journey.css`, `index.css`, dan
-`crossroad.css` belum. Kemajuan: semua animasi berulang scene baru sudah dijaga di
-`walk.css` — hero `:205` (`ac5c4ae`), rambu `:466` (`c30af0a`), pejalan `:634`
-(`9d0a9e4`) — dan `journey.css`/`street.css` sudah tidak ada. **Masih terbuka:**
-`index.css` (`drift`, `bob`, `pulse`; mis. `:114`, `:316`, `:399`) dan
-`crossroad.css` (`fx-bob`, `:236`) belum punya guard. Jadi DoD §14.5 belum
-seluruhnya terpenuhi.
+`crossroad.css` belum. Selesai di `b80c1d0`: guard `@media (prefers-reduced-motion:
+reduce)` di `index.css` mematikan animasi tanpa henti `drift`, `bob`, dan `pulse`,
+dan guard di `crossroad.css` mematikan `fx-bob`; semua animasi berulang scene baru
+sudah dijaga di `walk.css` — hero `:205` (`ac5c4ae`), rambu `:466` (`c30af0a`),
+pejalan `:634` (`9d0a9e4`). `journey.css`/`street.css` sudah tidak ada. Diverifikasi
+ulang pada fix wave `3e71e9c`; DoD §14.5 terpenuhi.
 
 **✅ T6 — Tidak ada test sama sekali.** Dulu tidak ada runner maupun smoke test.
-Selesai: vitest + jsdom (`aac63b4`), lalu 6 suite / 54 test (53 test + test batas
-4/5) — flow (`21b78a1`), projection (`aac63b4`), GroundScene (`2397d0c`), HeroWalk
-(`ac5c4ae`), world (`c30af0a`), spawner (`9d0a9e4`). `pnpm test` hijau.
+Selesai: vitest + jsdom (`aac63b4`), lalu 6 suite / 55 test (termasuk test batas
+4/5 dan test fokus/backdrop pada fix wave ini) — flow (`21b78a1`), projection
+(`aac63b4`), GroundScene (`2397d0c`), HeroWalk (`ac5c4ae`), world (`c30af0a`),
+spawner (`9d0a9e4`). `pnpm test` hijau.
 
 **✅ T7 — Parameter dev ikut ke produksi.** `?s=`, `?step=`, `?still` dulu selalu
 dibaca. Selesai di `4a873ad`: ketiganya hanya aktif bila `import.meta.env.DEV`
@@ -355,13 +366,16 @@ Bintang 3 (tepat di ambang), 3/5 → Bintang 2, 0/5 → Bintang 1
 **✅ T10 — `WALK_X` tidak terpakai.** Konstanta sisa tata letak lama dihapus di
 `4a873ad`; tidak ada lagi referensi di `src/`.
 
-**T11 — Aturan "bentuk & warna → jenis" tidak pernah diajarkan, dan satu `why`
-menyalahinya.** `KINDS[].shape` ("segitiga kuning", "bulat biru", "persegi hijau")
-ada di `data.ts:22-25` tapi tidak pernah dirender di layar mana pun. Lebih jauh,
-`why` q5 (`data.ts:126`) menulis "petunjuk berwarna biru atau hijau", sementara
-`KINDS` memetakan biru → `perintah` dan hijau → `petunjuk`. Anak yang membaca
-keduanya mendapat dua aturan berbeda untuk warna yang sama. Ini menyentuh G2
-langsung: aturan bentuk-warna adalah inti materi, bukan hiasan. **Belum dikerjakan.**
+**✅ T11 — Aturan "bentuk & warna → jenis" tidak pernah diajarkan, dan satu `why`
+menyalahinya.** Dulu `KINDS[].shape` ada di `data.ts:22-25` tetapi tidak dirender,
+dan `why` q5 (`data.ts:126`) menulis "petunjuk berwarna biru atau hijau" sementara
+`KINDS` memetakan biru → `perintah` dan hijau → `petunjuk`. Selesai di `b80c1d0`
+(baris `Bentuk: …` dirender dari `KINDS`) dan dikoreksi di `3e71e9c`: controller
+memutuskan rambu petunjuk adalah **persegi biru** (bukan hijau), jadi
+`KINDS.petunjuk` sekarang `#2E7BE0` / `persegi biru`, `why` q5 berbunyi "perintah
+bulat biru, dan petunjuk persegi biru", dan `src/flow.test.tsx:101` memakai literal
+`'Bentuk: persegi biru'` untuk rambu zebra (bukan turunan `KINDS` yang bisa ikut
+salah). Ini menyentuh G2 langsung: aturan bentuk-warna adalah inti materi.
 
 **✅ T12 — `journey.css` tidak punya media query sama sekali.** Dulu adegan berjalan
 memakai koordinat desktop-first (`50 + 31·s`%, `50 ± 46·s`%) tanpa media query.
@@ -370,18 +384,26 @@ mobile-first dengan baseline 360×640 dan tanpa media query lebar. Posisi rambu/
 proyeksi dan lebarnya `clamp`, jadi tidak ada lagi elemen yang dipatok ke persentase
 layar lebar. Verifikasi visual 360×640 tetap bagian dari DoD §14.1.
 
+**✅ T13 — Fokus hilang ke `<body>` setiap lembar walk ditutup.** Dulu `SignSheet`
+memulihkan `document.activeElement` di cleanup, tetapi langkah walk berikutnya sudah
+menonaktifkan rambu pemicu, sehingga `.focus()` gagal dan fokus jatuh ke `<body>`
+(tiga kali per run). Selesai di `3e71e9c`: jalur walk memakai wadah `.wk-scene`
+(`tabIndex={-1}`) sebagai fokus cadangan, lalu memindahkannya ke rambu berikutnya
+begitu rambu itu aktif (`src/WalkScene.tsx:490-497`); lembar ketiga memfokuskan judul
+persimpangan (`src/Crossroad.tsx:12-17`). Materi tetap kembali ke kartu pemicu.
+Diverifikasi dengan `Escape` sungguhan di Chromium 360×640.
+
 ---
 
 ## 12. Pendekatan untuk fase berikutnya
 
 Prototipe sudah menutup seluruh alur, dan arah A sudah dijalankan lewat plan 2.5D:
-scene berjalan diganti dan T1, T2, T4, T6, T7, T9, T10, T12 tertutup. Yang tersisa
-bukan "bangun dari nol", tapi memilih ke mana tenaga diarahkan. Tiga arah yang
-realistis:
+scene berjalan diganti dan T1, T2, T4, T5, T6, T7, T9, T10, T11, T12, T13 tertutup.
+Yang tersisa bukan "bangun dari nol", tapi memilih ke mana tenaga diarahkan. Tiga
+arah yang realistis:
 
 **A. Rampungkan & verifikasi (hampir selesai).**
-Sisa arah A: T5 (guard `prefers-reduced-motion` di `index.css`/`crossroad.css`),
-T8 (font CDN), T11 (aturan bentuk-warna), lalu uji ke beberapa anak/guru. Cakupan:
+Sisa arah A: T8 (font CDN), lalu uji ke beberapa anak/guru. Cakupan:
 sedikit kode baru, banyak penguatan. Hasilnya versi yang **layak dipakai di kelas**
 dan bisa dinilai apa adanya.
 *Trade-off:* tidak menambah materi baru; jumlah rambu tetap 6.
@@ -389,7 +411,7 @@ dan bisa dinilai apa adanya.
 **B. Perluas konten (rambu & soal).**
 Tambah rambu (petunjuk arah, dilarang berhenti, lampu lalu lintas, marka), tambah
 soal, mungkin bank soal acak agar bisa diulang tanpa hafal urutan.
-*Trade-off:* menambah beban baca dan durasi sesi; tanpa sisa A, cacat T5/T8/T11 ikut
+*Trade-off:* menambah beban baca dan durasi sesi; tanpa sisa A, cacat T8 ikut
 terbawa ke lebih banyak layar. Bank soal acak juga menuntut penulisan `why` yang
 tetap masuk akal untuk kombinasi mana pun.
 
@@ -401,9 +423,8 @@ abstraksi sekarang kemungkinan besar cuma memindahkan kompleksitas. Baru masuk a
 kalau ada rencana beberapa tema/jalur berbeda.
 
 **Rekomendasi: sisa A, lalu B.** Alasannya: alur dan scene yang sudah ada adalah
-asetnya; tiga cacat tersisa (gerak berulang yang belum tunduk reduced-motion, font
-CDN, aturan bentuk-warna) lebih murah ditutup sekarang daripada setelah konten
-bertambah. Menambah 6 rambu lagi sebelum itu hanya memperbanyak permukaan yang harus
+asetnya; cacat tersisa (font CDN) lebih murah ditutup sekarang daripada setelah
+konten bertambah. Menambah 6 rambu lagi sebelum itu hanya memperbanyak permukaan yang harus
 diperbaiki nanti.
 
 ---
@@ -447,8 +468,9 @@ diperbaiki nanti.
 2. Teks layar rumah menyebut jalur yang benar-benar ditempuh (T1 tertutup).
 3. Tidak ada modul, file CSS, maupun blok CSS yang tidak dirujuk JSX; `tsc -b` dan
    `vite build` bersih (T2, T10).
-4. Overlay bisa ditutup dengan `Escape`, fokus masuk saat dibuka dan kembali ke
-   pemicunya saat ditutup (T4).
+4. Overlay ditutup dengan CTA atau `Escape` (bukan ketukan latar), fokus masuk saat
+   dibuka, lalu kembali ke pemicu (materi), ke rambu berikutnya/scene (walk), atau ke
+   judul persimpangan saat walk selesai — tidak pernah ke `<body>` (T4, T13).
 5. Seluruh animasi berulang berhenti di `prefers-reduced-motion` (T5).
 6. Satu test otomatis untuk urutan stage + perhitungan skor; `pnpm test` hijau (T6).
 7. Parameter `?s=/?step=/?still` hanya aktif di mode dev (T7).
@@ -463,13 +485,13 @@ diperbaiki nanti.
 
 ## 15. Urutan kerja yang diusulkan (bahan untuk plan)
 
-Status: butir 1, butir 2 (sebagian), dan butir 5 sudah dieksekusi lewat plan 2.5D;
-butir 4 dibatalkan (§16). Butir 3, 6, dan 7 masih relevan.
+Status: butir 1, 2, 3, dan 5 sudah dieksekusi lewat plan 2.5D + fix wave `3e71e9c`;
+butir 4 dibatalkan (§16). Butir 6 dan 7 masih relevan.
 
 1. Perbaikan murah & aman: T1, T2, T7, T10. ✅
-2. Aksesibilitas, gerak, dan layar sempit: T4, T5, T12. ✅ T4/T12, ⚠️ T5.
+2. Aksesibilitas, gerak, dan layar sempit: T4, T5, T12. ✅ T4/T5/T12.
 3. Koherensi materi bentuk-warna: T11 (render `KINDS[].shape`, samakan aturan warna
-   di `why` q5).
+   di `why` q5). ✅ Selesai `b80c1d0` + `3e71e9c`.
 4. ~~Konten suara~~ **dibatalkan**: tidak ada implementasi audio di fase ini (§16).
 5. Test alur + skor (T6) — ditaruh setelah perilaku stabil supaya test tidak
    mengunci bug. ✅
@@ -506,6 +528,6 @@ ulang.
    4/5 → 3 bintang (tepat di ambang), 3/5 → 2 bintang, dan 0/5 → 1 bintang.
    Menaikkan ambang Bintang 3 menjadi `>= 5` sekarang menggagalkan test 4/5.
 
-**Masih terbuka (pekerjaan, bukan pertanyaan produk):** T5 (guard
-`prefers-reduced-motion` di `index.css`/`crossroad.css`), T8 (font CDN — wajib kalau
-kelas offline), dan T11 (aturan bentuk-warna). Semuanya dicatat di §11.
+**Masih terbuka (pekerjaan, bukan pertanyaan produk):** T8 (font CDN — wajib kalau
+kelas offline). T5, T11, dan T13 sudah tertutup di `b80c1d0` + fix wave `3e71e9c`; semuanya
+dicatat di §11.
