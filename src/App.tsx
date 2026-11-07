@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { KINDS, QUESTIONS, SIGNS, WALK_SIGNS, type Sign } from './data'
 import { SignArt } from './SignArt'
 import Classroom from './Classroom'
-import Journey from './Journey'
+import WalkScene from './WalkScene'
 import Crossroad from './Crossroad'
 import Kid from './Kid'
 
@@ -101,7 +101,7 @@ export default function App() {
 
       {stage === 'walk' && (
         <section className="screen" key="walk">
-          <Journey step={walked} onOpen={setOpen} />
+          <WalkScene step={walked} onOpen={setOpen} />
           {open && <SignSheet sign={open} onClose={finishWalk} cta="Mengerti, lanjut jalan" />}
         </section>
       )}

@@ -209,3 +209,271 @@
     animation: none;
   }
 }
+
+/* ============================================================
+   WalkScene — pita dunia yang bergerak, rambu, hero, HUD.
+   Bagian ini hanya MENAMBAH aturan baru di bawah file.
+   ============================================================ */
+
+/* ---------- kanvas adegan ---------- */
+
+.wk-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Wadah tumpukan sendiri: z-index internal (HUD 400, rambu 160, hero 200)
+     tetap di bawah overlay lembar rambu (z-index 40 di index.css). Tanpa ini
+     rambu dan HUD menembus overlay saat sheet terbuka. */
+  isolation: isolate;
+  font-family: 'Nunito', system-ui, sans-serif;
+}
+
+/* Pita dunia: marka dan latar. Posisi + ukuran ditulis loop rAF,
+   jadi tidak ada transisi CSS yang boleh menimpanya. */
+.wk-dashes,
+.wk-props {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.wk-dash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  border-radius: 3px;
+  background: var(--road-line);
+}
+
+.wk-prop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+/* Ukuran wrapper diisi dari proyeksi; art mengisi kotak itu. */
+.wk-prop > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- hero dan balon ---------- */
+
+/* Titik jangkar di kaki hero. Bubble sengaja di luar .wk-hero supaya
+   tidak ikut terskala oleh transform proyeksi. */
+.wk-hero-zone {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 200;
+  pointer-events: none;
+}
+
+.wk-hero {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+.wk-hero > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wk-bubble {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--wk-hero-h, 160px) + 10px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(52vw, 240px);
+  padding: 0.6rem 0.9rem;
+  border-radius: 18px 18px 6px 18px;
+  background: var(--paper);
+  border: 3px solid #fff;
+  box-shadow: 0 6px 0 rgba(42, 35, 32, 0.1), 0 12px 22px rgba(42, 35, 32, 0.16);
+  color: var(--ink);
+  font-size: clamp(0.76rem, 1.9vw, 0.92rem);
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: left;
+  animation: wk-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  z-index: 1;
+}
+
+.wk-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -13px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  background: var(--paper);
+  border-right: 3px solid #fff;
+  border-bottom: 3px solid #fff;
+  border-radius: 0 0 4px 0;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+@keyframes wk-pop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+/* ---------- rambu aktif ---------- */
+
+/* Posisi (left/top) diisi dari proyeksi; tampil/sembunyi lewat
+   transisi CSS ini, bukan lewat loop rAF. */
+.wk-sign {
+  position: absolute;
+  z-index: 160;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: clamp(72px, 19vw, 96px);
+  padding: 0;
+  border: 0;
+  background: none;
+  transform: translate(-50%, -92%) scale(0.88);
+  transform-origin: 50% 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.24s ease,
+    transform 0.32s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.wk-sign--in {
+  transform: translate(-50%, -100%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.wk-sign-plate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 7px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 6px 0 rgba(42, 35, 32, 0.16), 0 12px 20px rgba(42, 35, 32, 0.2);
+}
+
+.wk-sign-plate > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wk-sign-pole {
+  width: 11px;
+  height: clamp(58px, 9vh, 84px);
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--road) 40%, var(--paper)),
+    color-mix(in srgb, var(--road) 80%, var(--ink))
+  );
+}
+
+.wk-sign-plate::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  border: 4px dashed var(--yellow);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.wk-sign--in .wk-sign-plate {
+  animation: wk-pulse 1.7s ease-in-out infinite;
+}
+
+.wk-sign--in .wk-sign-plate::after {
+  opacity: 1;
+  animation: wk-spin 9s linear infinite;
+}
+
+@keyframes wk-pulse {
+  0%,
+  100% {
+    box-shadow: 0 6px 0 rgba(42, 35, 32, 0.16), 0 12px 20px rgba(42, 35, 32, 0.2);
+  }
+  50% {
+    box-shadow: 0 8px 0 rgba(42, 35, 32, 0.12), 0 18px 26px rgba(42, 35, 32, 0.24);
+  }
+}
+
+@keyframes wk-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* ---------- HUD ---------- */
+
+.wk-hud {
+  position: absolute;
+  top: clamp(12px, 2.4vh, 24px);
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 249, 238, 0.92);
+  box-shadow: 0 5px 16px rgba(42, 35, 32, 0.14);
+  font-size: clamp(0.7rem, 1.7vw, 0.86rem);
+  font-weight: 800;
+  color: var(--ink);
+  white-space: nowrap;
+  z-index: 400;
+}
+
+.wk-pips {
+  display: flex;
+  gap: 5px;
+}
+
+.wk-pips i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d6cdbd;
+}
+
+.wk-pips i.on {
+  background: var(--orange);
+}
+
+/* Gerak berulang dimatikan; rambu tetap langsung bisa ditekan. */
+@media (prefers-reduced-motion: reduce) {
+  .wk-sign {
+    transition: none;
+  }
+
+  .wk-sign--in .wk-sign-plate,
+  .wk-sign--in .wk-sign-plate::after {
+    animation: none;
+  }
+
+  .wk-bubble {
+    animation: none;
+  }
+}
