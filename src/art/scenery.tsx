@@ -90,6 +90,7 @@ export function Tree() {
       viewBox="0 0 120 160"
       aria-hidden="true"
     >
+      <ellipse cx="60" cy="156" rx="30" ry="5" fill={INK} opacity="0.14" />
       {/* batang + cabang */}
       <path
         d="M56 157v-61h8v61Z"
@@ -122,6 +123,7 @@ export function StreetLamp() {
       viewBox="0 0 60 200"
       aria-hidden="true"
     >
+      <ellipse cx="30" cy="196" rx="19" ry="4" fill={INK} opacity="0.14" />
       {/* halo kuning berlapis, bukan filter blur */}
       <circle cx="30" cy="70" r="16" fill={YELLOW} opacity="0.14" />
       <circle cx="30" cy="70" r="10" fill={YELLOW} opacity="0.24" />
@@ -191,6 +193,7 @@ export function Shop() {
 export function Fence() {
   return (
     <svg className="wk-fence" viewBox="0 0 180 70" aria-hidden="true">
+      <ellipse cx="90" cy="66" rx="86" ry="4" fill={INK} opacity="0.12" />
       {/* rel belakang: piket menutupi sebagian, jadi rel mengintip di sela */}
       <rect x="6" y="30" width="168" height="10" rx="3" fill={WOOD} stroke={INK} strokeWidth="4" />
       <rect x="6" y="54" width="168" height="10" rx="3" fill={WOOD} stroke={INK} strokeWidth="4" />
@@ -361,6 +364,7 @@ export function BusStop() {
 export function PowerPole() {
   return (
     <svg className="wk-powerpole" viewBox="0 0 50 230" aria-hidden="true">
+      <ellipse cx="26" cy="226" rx="16" ry="4" fill={INK} opacity="0.14" />
       {/* kabel: dua lengkung tipis di belakang palang */}
       <path d="M0 38q12 8 25 0t25 0" fill="none" stroke={INK} strokeWidth="4" strokeLinecap="round" />
       <path d="M0 66q12 8 25 0t25 0" fill="none" stroke={INK} strokeWidth="4" strokeLinecap="round" />
