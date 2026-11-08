@@ -1,13 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, RefObject } from 'react'
-import { KINDS, QUESTIONS, SIGNS, WALK_SIGNS, type Kind, type Sign } from './data'
+import { KINDS, QUESTIONS, SIGNS, type Kind, type Sign } from './data'
+import { advanceRun, batchOf, createRun, initialSeed, type Run } from './run'
 import { SignArt, describeSign } from './SignArt'
 import Classroom from './Classroom'
 import WalkScene from './WalkScene'
 import Crossroad from './Crossroad'
 import Kid from './Kid'
 import DialoguePanel from './DialoguePanel'
-import { beatById, openingFor, type StoryButton, type StoryId } from './story'
+import { beatById, openingFor, stopBeat, type StoryButton, type StoryId } from './story'
 
 type Stage = 'intro' | 'walk' | 'crossroad' | 'materi' | 'kuis' | 'home'
 
@@ -157,7 +158,8 @@ const initial: Stage = start && STAGES.includes(start) ? start : 'intro'
 
 /** Beat untuk tiap leg dan tiap rambu; urutannya mengikat (naskah). */
 const LEG_BEATS: StoryId[] = ['leg-1', 'leg-2', 'leg-3']
-const STOP_BEATS: StoryId[] = ['stop-1', 'stop-2', 'stop-3']
+/** Satu id perhentian; kalimatnya diturunkan dari rambu yang berdiri di depan. */
+const STOP_BEAT: StoryId = 'stop'
 
 /** Kalimat leg tampil otomatis lalu hilang sendiri; ±3 detik. */
 const LEG_BEAT_MS = 3000
@@ -204,6 +206,8 @@ export default function App() {
     const step = Number.isFinite(v) && v > 0 ? Math.min(v, 2) : 0
     return startBeat(initial, step)
   })
+  const [run, setRun] = useState<Run>(() => createRun(initialSeed()))
+  const batch = batchOf(run)
   const [open, setOpen] = useState<Sign | null>(null)
   const [materiOpen, setMateriOpen] = useState<Sign | null>(null)
   const walkSceneRef = useRef<HTMLDivElement | null>(null)
@@ -276,7 +280,7 @@ export default function App() {
     }
     if (stage !== 'walk') return
 
-    if (walked + 1 >= WALK_SIGNS.length) {
+    if (walked + 1 >= batch.length) {
       // Persimpangan memfokuskan judulnya sendiri saat terpasang.
       setStage('crossroad')
       setBeatId('crossroad')
@@ -300,7 +304,15 @@ export default function App() {
         continueWalk()
         return
       case 'learn':
-        if (stage === 'walk') setOpen(WALK_SIGNS[walked])
+        if (stage === 'walk') setOpen(batch[walked])
+        return
+      case 'explore':
+        // Lurus: perjalanan kaki berikutnya dengan antrean yang diacak ulang.
+        pendingFocusRef.current = 'walk'
+        setRun((current) => advanceRun(current))
+        setWalked(0)
+        setStage('walk')
+        setBeatId(beatAt(LEG_BEATS, 0))
         return
       case 'materi':
         pendingFocusRef.current = 'materi'
@@ -355,8 +367,8 @@ export default function App() {
           <WalkScene
             step={walked}
             onOpen={(sign) => setOpen(sign)}
-            onStop={() => setBeatId(beatAt(STOP_BEATS, walked))}
-            onSignTap={() => setBeatId(beatAt(STOP_BEATS, walked))}
+            onStop={() => setBeatId(STOP_BEAT)}
+            onSignTap={() => setBeatId(STOP_BEAT)}
             sceneRef={walkSceneRef}
           />
           {open && (
@@ -487,7 +499,13 @@ export default function App() {
         kelas sudah memuat kalimat intro dan tombol "Keluar kelas"-nya sendiri.
       */}
       <DialoguePanel
-        beat={stage === 'intro' ? null : beatById(beatId)}
+        beat={
+          stage === 'intro'
+            ? null
+            : beatId === STOP_BEAT
+              ? stopBeat(batch[walked])
+              : beatById(beatId)
+        }
         onAction={handleAction}
       />
     </div>

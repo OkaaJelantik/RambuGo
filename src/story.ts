@@ -9,8 +9,17 @@
  * panel hanya menggambar `text` dan `buttons`.
  */
 
+import { KINDS, type Sign } from './data'
+
 /** Aksi yang dikenal App. Panel tidak tahu artinya, hanya meneruskan. */
-export type StoryAction = 'continue' | 'learn' | 'materi' | 'kuis' | 'home' | 'restart'
+export type StoryAction =
+  | 'continue'
+  | 'explore'
+  | 'learn'
+  | 'materi'
+  | 'kuis'
+  | 'home'
+  | 'restart'
 
 export type StoryButton = {
   label: string
@@ -21,11 +30,10 @@ export type StoryButton = {
 export type StoryId =
   | 'intro'
   | 'leg-1'
-  | 'stop-1'
   | 'leg-2'
-  | 'stop-2'
   | 'leg-3'
-  | 'stop-3'
+  /** Satu id untuk ketiga perhentian; kalimatnya diturunkan dari rambu. */
+  | 'stop'
   | 'crossroad'
   | 'materi'
   | 'kuis'
@@ -58,27 +66,10 @@ export const STORY: StoryBeat[] = [
     buttons: [],
   },
   {
-    id: 'stop-1',
-    // Naskah menulis tiga kalimat; dipisah em dash supaya tetap ≤2 kalimat.
-    text: 'Eh, ada rambu segitiga kuning. Gambarnya anak-anak — artinya apa, ya?',
-    buttons: [
-      { label: 'Apa ini?', action: 'learn' },
-      { label: 'Lanjut jalan', action: 'continue' },
-    ],
-  },
-  {
     id: 'leg-2',
     text: 'Rumah-rumah berderet di kiri. Pohonnya ramai dan senang.',
     // Naskah: kalimat leg tampil otomatis, tanpa tombol, hilang sendiri.
     buttons: [],
-  },
-  {
-    id: 'stop-2',
-    text: 'Persegi biru, ada garis-garis putih. Ini tempat menyeberang!',
-    buttons: [
-      { label: 'Apa ini?', action: 'learn' },
-      { label: 'Lanjut jalan', action: 'continue' },
-    ],
   },
   {
     id: 'leg-3',
@@ -87,18 +78,10 @@ export const STORY: StoryBeat[] = [
     buttons: [],
   },
   {
-    id: 'stop-3',
-    // Naskah menulis tiga kalimat; dipisah em dash supaya tetap ≤2 kalimat.
-    text: 'Bulat merah, ada garis putih. Berarti tidak boleh masuk — aku jalan kaki, jadi boleh, ya?',
-    buttons: [
-      { label: 'Apa ini?', action: 'learn' },
-      { label: 'Lanjut jalan', action: 'continue' },
-    ],
-  },
-  {
     id: 'crossroad',
-    text: 'Sampai di persimpangan. Aku mau baca rambu lagi, atau langsung kuis?',
+    text: 'Sampai di persimpangan. Lurus jalan lagi, kiri belajar, kanan kuis.',
     buttons: [
+      { label: 'Jalan lagi', action: 'explore' },
       { label: 'Ke materi', action: 'materi' },
       { label: 'Ke kuis', action: 'kuis' },
     ],
@@ -138,9 +121,33 @@ export const SIGN_OPENINGS: Record<string, string> = {
   anak: 'Aku kecil, jadi aku paling suka rambu ini.',
   zebra: 'Kalau mau ke seberang, lewat garis putih itu.',
   'dilarang-masuk': 'Tapi aku jalan kaki. Sepeda dan mobil yang tidak boleh.',
+  'belok-kiri': 'Bulat biru dengan panah. Kendaraan harus ikut arah panah.',
+  'hati-hati': 'Tanda seru di segitiga kuning. Ada yang harus kuhindari di depan.',
+  'dilarang-parkir': 'Huruf P dicoret. Mobil tidak boleh berhenti di sini.',
 }
 
 /** Baris pembuka untuk satu rambu, atau `undefined` kalau naskah tidak punya. */
 export function openingFor(signId: string): string | undefined {
   return SIGN_OPENINGS[signId]
+}
+
+/**
+ * Kalimat berhenti, diturunkan dari rambu yang benar-benar berdiri di depan
+ * anak. Dulu teksnya mati ("Eh, ada rambu segitiga kuning…"), sehingga run
+ * yang diacak bisa membuat kalimat itu bohong.
+ */
+export function stopLine(sign: Sign): string {
+  return `Eh, ada rambu ${KINDS[sign.kind].shape}. Artinya apa, ya?`
+}
+
+/** Beat berhenti: kalimat + dua tombol, sama untuk setiap rambu. */
+export function stopBeat(sign: Sign): StoryBeat {
+  return {
+    id: 'stop',
+    text: stopLine(sign),
+    buttons: [
+      { label: 'Apa ini?', action: 'learn' },
+      { label: 'Lanjut jalan', action: 'continue' },
+    ],
+  }
 }

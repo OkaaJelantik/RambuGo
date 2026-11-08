@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import Crossroad from './Crossroad'
-import { QUESTIONS, SIGNS, WALK_SIGNS, type Question } from './data'
+import { QUESTIONS, SIGNS, type Question } from './data'
 import { METERS } from './scene/meters'
 import { LEG_SECONDS } from './scene/world'
 import { INTRO_LINE } from './story'
@@ -99,6 +99,9 @@ const WALK_SHAPES: Record<string, string> = {
   anak: 'segitiga kuning',
   zebra: 'persegi biru',
   'dilarang-masuk': 'bulat merah',
+  'belok-kiri': 'bulat biru',
+  'hati-hati': 'segitiga kuning',
+  'dilarang-parkir': 'bulat merah',
 }
 
 /**
@@ -111,19 +114,33 @@ const LEG_LINES = [
   'Rambu berikutnya di dekat ujung trotoar. Tinggal satu!',
 ]
 
-const STOP_LINES = [
-  'Eh, ada rambu segitiga kuning. Gambarnya anak-anak — artinya apa, ya?',
-  'Persegi biru, ada garis-garis putih. Ini tempat menyeberang!',
-  'Bulat merah, ada garis putih. Berarti tidak boleh masuk — aku jalan kaki, jadi boleh, ya?',
-]
+/** Kalimat berhenti, literal per rambu: urutannya kini diacak, jadi kunci = id. */
+const STOP_LINES: Record<string, string> = {
+  anak: 'Eh, ada rambu segitiga kuning. Artinya apa, ya?',
+  zebra: 'Eh, ada rambu persegi biru. Artinya apa, ya?',
+  'dilarang-masuk': 'Eh, ada rambu bulat merah. Artinya apa, ya?',
+  'belok-kiri': 'Eh, ada rambu bulat biru. Artinya apa, ya?',
+  'hati-hati': 'Eh, ada rambu segitiga kuning. Artinya apa, ya?',
+  'dilarang-parkir': 'Eh, ada rambu bulat merah. Artinya apa, ya?',
+}
+
+/** Baris mana pun yang sah untuk berhenti; urutannya tidak dipin. */
+function expectAnyStopLine() {
+  const text = panel().textContent ?? ''
+  expect(Object.values(STOP_LINES).some((line) => text.includes(line))).toBe(true)
+}
 
 const OPENINGS: Record<string, string> = {
   anak: 'Aku kecil, jadi aku paling suka rambu ini.',
   zebra: 'Kalau mau ke seberang, lewat garis putih itu.',
   'dilarang-masuk': 'Tapi aku jalan kaki. Sepeda dan mobil yang tidak boleh.',
+  'belok-kiri': 'Bulat biru dengan panah. Kendaraan harus ikut arah panah.',
+  'hati-hati': 'Tanda seru di segitiga kuning. Ada yang harus kuhindari di depan.',
+  'dilarang-parkir': 'Huruf P dicoret. Mobil tidak boleh berhenti di sini.',
 }
 
-const CROSSROAD_LINE = 'Sampai di persimpangan. Aku mau baca rambu lagi, atau langsung kuis?'
+const CROSSROAD_LINE =
+  'Sampai di persimpangan. Lurus jalan lagi, kiri belajar, kanan kuis.'
 const MATERI_LINE = 'Rambu yang tadi kulihat, aku kenali satu-satu.'
 const KUIS_LINE = 'Kalau benar, aku dapat bintang.'
 const HOME_LINE = 'Sampai di rumah. Rambu itu kawan di jalan — besok aku cerita ke Bu Guru.'
@@ -156,9 +173,9 @@ function expectPanelLine(line: string) {
  * Tunggu satu leg selesai, lalu pastikan panel sudah memuat kalimat rambu
  * yang ditemui. Dunia berhenti tepat di rambu; panel menyusul.
  */
-async function arriveAtSign(index: number) {
+async function arriveAtSign() {
   await frames.advance(FRAMES_PER_LEG)
-  expectPanelLine(STOP_LINES[index])
+  expectAnyStopLine()
   expect(screen.getByRole('button', { name: 'Apa ini?' })).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
 }
@@ -174,11 +191,15 @@ async function passSheetGuard() {
  * Buka lembar lewat tombol panel, baca bentuk + arti + pembuka naskah, lalu
  * "Tutup". Beat stop yang sama harus masih menunggu setelah lembar ditutup.
  */
-async function readSign(index: number) {
-  const sign = WALK_SIGNS[index]
-
+async function readSign() {
   fireEvent.click(screen.getByRole('button', { name: 'Apa ini?' }))
-  expect(screen.getByRole('dialog', { name: `Rambu ${sign.name}` })).toBeTruthy()
+  const dialog = screen.getByRole('dialog')
+  const label = dialog.getAttribute('aria-label') ?? ''
+  // Siapa pun yang berdiri di depan anak minggu ini: urutannya diacak, jadi
+  // rambunya dibaca dari lembarnya, bukan dari indeks.
+  const sign = SIGNS.find((s) => label.includes(s.name))
+  expect(sign, label).toBeTruthy()
+  if (!sign) throw new Error('lembar tanpa rambu')
   // Baris pembuka Aku ada di atas arti, bukan menggantikannya.
   expect(screen.getByText(OPENINGS[sign.id])).toBeTruthy()
   expect(screen.getByText(sign.meaning)).toBeTruthy()
@@ -187,7 +208,7 @@ async function readSign(index: number) {
   fireEvent.click(screen.getByRole('button', { name: 'Tutup' }))
   expect(screen.queryByRole('dialog')).toBeNull()
   // Kembali ke beat yang sama: kalimat dan kedua tombolnya masih ada.
-  expectPanelLine(STOP_LINES[index])
+  expectPanelLine(STOP_LINES[sign.id])
   expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
 
   // Guard menahan aksi panel 300 ms setelah lembar tutup; tes melewatinya.
@@ -200,13 +221,14 @@ async function readSign(index: number) {
  * menawarkan kedua rute.
  */
 async function clearWalk() {
-  for (let i = 0; i < WALK_SIGNS.length; i += 1) {
-    await arriveAtSign(i)
-    await readSign(i)
+  const BATCH = 3
+  for (let i = 0; i < BATCH; i += 1) {
+    await arriveAtSign()
+    await readSign()
 
     fireEvent.click(screen.getByRole('button', { name: 'Lanjut jalan' }))
 
-    if (i < WALK_SIGNS.length - 1) {
+    if (i < BATCH - 1) {
       // Leg berikutnya hanya bercerita: tidak ada tombol di panel.
       expectPanelLine(LEG_LINES[i + 1])
       expect(screen.queryByRole('button', { name: 'Lanjut jalan' })).toBeNull()
@@ -320,7 +342,7 @@ describe('alur aplikasi', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
 
-    await arriveAtSign(0)
+    await arriveAtSign()
     const stopLine = panel().textContent
 
     fireEvent.click(screen.getByRole('button', { name: 'Apa ini?' }))
@@ -353,7 +375,7 @@ describe('alur aplikasi', () => {
   it('ketukan kedua setelah lembar ditutup tidak melewati rambu', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
-    await arriveAtSign(0)
+    await arriveAtSign()
 
     fireEvent.click(screen.getByRole('button', { name: 'Apa ini?' }))
     expect(screen.getByRole('dialog')).toBeTruthy()
@@ -363,7 +385,7 @@ describe('alur aplikasi', () => {
     // Ketuk ganda: tap kedua mendarat di "Lanjut jalan" <300 ms kemudian.
     // Tanpa jeda, dunia maju ke leg-2 dan rambu pertama terlewat.
     fireEvent.click(screen.getByRole('button', { name: 'Lanjut jalan' }))
-    expectPanelLine(STOP_LINES[0])
+    expectAnyStopLine()
     expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
 
     // Setelah jeda, tombol yang sama berfungsi normal.
@@ -377,7 +399,7 @@ describe('alur aplikasi', () => {
   it('mengetuk teks panel tidak melepas fokus ke <body>', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
-    await arriveAtSign(0)
+    await arriveAtSign()
 
     const text = document.querySelector<HTMLElement>('.dlg-text') as HTMLElement
     const scene = document.querySelector<HTMLElement>('.wk-scene') as HTMLElement
@@ -398,7 +420,9 @@ describe('alur aplikasi', () => {
 
     // Deskripsi visual (bentuk + gambar) ikut pertanyaan, bukan per soal.
     const prompt = document.querySelector('.question-card .prompt') as HTMLElement
-    expect(prompt.textContent).toContain(`Rambu ${WALK_SIGNS[0].visual}`)
+    const q0Sign = SIGNS.find((s) => s.id === QUESTIONS[0].signId)
+    expect(q0Sign).toBeTruthy()
+    if (q0Sign) expect(prompt.textContent).toContain(`Rambu ${q0Sign.visual}`)
 
     fireEvent.click(screen.getByRole('button', { name: 'Banyak anak menyeberang' }))
     const next = screen.getByRole('button', { name: 'Soal berikutnya →' })
@@ -467,7 +491,7 @@ describe('alur aplikasi', () => {
     expect(screen.getByRole('dialog', { name: 'Rambu Banyak Anak Menyeberang' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Tutup' }))
-    expectPanelLine(STOP_LINES[0])
+    expectAnyStopLine()
     expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
   })
 

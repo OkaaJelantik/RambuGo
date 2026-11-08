@@ -1,22 +1,35 @@
 import { describe, expect, it } from 'vitest'
-import { INTRO_LINE, SIGN_OPENINGS, STORY, beatById, openingFor, type StoryAction } from './story'
-import { WALK_SIGNS } from './data'
+import {
+  INTRO_LINE,
+  SIGN_OPENINGS,
+  STORY,
+  beatById,
+  openingFor,
+  stopBeat,
+  type StoryAction,
+} from './story'
+import { KINDS, SIGNS } from './data'
 
 /** Hitung kalimat dari tanda akhir yang diikuti spasi atau akhir teks. */
 function countSentences(text: string): number {
   return (text.match(/[.!?]+(?=\s|$)/g) ?? []).length
 }
 
-const ACTIONS: StoryAction[] = ['continue', 'learn', 'materi', 'kuis', 'home', 'restart']
+const ACTIONS: StoryAction[] = [
+  'continue',
+  'explore',
+  'learn',
+  'materi',
+  'kuis',
+  'home',
+  'restart',
+]
 
 const EXPECTED_IDS = [
   'intro',
   'leg-1',
-  'stop-1',
   'leg-2',
-  'stop-2',
   'leg-3',
-  'stop-3',
   'crossroad',
   'materi',
   'kuis',
@@ -24,8 +37,8 @@ const EXPECTED_IDS = [
 ]
 
 describe('naskah cerita', () => {
-  it('memuat 11 beat dengan urutan naskah', () => {
-    expect(STORY).toHaveLength(11)
+  it('memuat 9 beat statis dengan urutan naskah (perhentian diturunkan dari rambu)', () => {
+    expect(STORY).toHaveLength(8)
     expect(STORY.map((beat) => beat.id)).toEqual(EXPECTED_IDS)
   })
 
@@ -66,20 +79,29 @@ describe('naskah cerita', () => {
     expect(labels('leg-2')).toEqual([])
     expect(labels('leg-3')).toEqual([])
 
-    for (const id of ['stop-1', 'stop-2', 'stop-3']) {
-      expect(labels(id)).toEqual(['Apa ini?', 'Lanjut jalan'])
+    for (const sign of SIGNS) {
+      // Satu beat perhentian, kalimatnya diturunkan dari rambu yang berdiri.
+      expect(stopBeat(sign).buttons.map((button) => button.label)).toEqual([
+        'Apa ini?',
+        'Lanjut jalan',
+      ])
     }
 
-    expect(labels('crossroad')).toEqual(['Ke materi', 'Ke kuis'])
+    expect(labels('crossroad')).toEqual(['Jalan lagi', 'Ke materi', 'Ke kuis'])
     expect(labels('materi')).toEqual(['Sudah paham, coba kuis'])
     expect(labels('kuis')).toEqual(['Selesai'])
     expect(labels('home')).toEqual(['Pulang', 'Main lagi'])
   })
 
   it('tombol stop menawarkan belajar dan lanjut; leg tidak punya tombol', () => {
-    for (const id of ['stop-1', 'stop-2', 'stop-3']) {
-      const buttons = beatById(id)?.buttons ?? []
-      expect(buttons.map((button) => button.action)).toEqual(['learn', 'continue'])
+    for (const sign of SIGNS) {
+      expect(stopBeat(sign).buttons.map((button) => button.action)).toEqual([
+        'learn',
+        'continue',
+      ])
+      // Kalimat perhentian menyebut bentuk rambu yang benar-benar berdiri.
+      expect(stopBeat(sign).text).toContain(KINDS[sign.kind].shape)
+      expect(stopBeat(sign).text.length).toBeLessThanOrEqual(90)
     }
     for (const id of ['leg-1', 'leg-2', 'leg-3']) {
       expect(beatById(id)?.buttons).toEqual([])
@@ -92,24 +114,27 @@ describe('naskah cerita', () => {
     }
   })
 
-  it('punya baris pembuka untuk tiga rambu walk, dan hanya itu', () => {
-    for (const sign of WALK_SIGNS) {
+  it('punya baris pembuka untuk setiap rambu, dan hanya itu', () => {
+    for (const sign of SIGNS) {
       const opening = openingFor(sign.id)
       expect(opening, `pembuka ${sign.id} hilang`).toBeTruthy()
       expect(opening!.length).toBeLessThanOrEqual(90)
       expect(countSentences(opening!)).toBeLessThanOrEqual(2)
     }
 
-    expect(Object.keys(SIGN_OPENINGS).sort()).toEqual(WALK_SIGNS.map((sign) => sign.id).sort())
-    expect(openingFor('belok-kiri')).toBeUndefined()
+    expect(Object.keys(SIGN_OPENINGS).sort()).toEqual(SIGNS.map((sign) => sign.id).sort())
+    // Albania: tidak ada rambu yang bisa tampil tanpa pembuka.
+    expect(openingFor('tidak-ada-rambu-ini')).toBeUndefined()
   })
 })
 
 describe('beatById', () => {
-  it('mengembalikan beat untuk setiap id', () => {
+  it('mengembalikan beat untuk setiap id statis', () => {
     for (const id of EXPECTED_IDS) {
       expect(beatById(id)?.id).toBe(id)
     }
+    // Perhentian tidak lagi statis: kalimatnya datang dari `stopBeat`.
+    expect(beatById('stop')).toBeNull()
   })
 
   it('mengembalikan null untuk id kosong atau asing', () => {
