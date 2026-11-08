@@ -1,5 +1,10 @@
 # PRD & Spec Teknis — "Petualangan Rambu-Rambu Lalu Lintas"
 
+> **Dokumen ini sekarang historis.** Sumber kebenaran yang hidup ada di akar repo:
+> [`AGENTS.md`](../../../AGENTS.md) (cara kerja + aturan), [`PRODUCT.md`](../../../PRODUCT.md) (PRD),
+> dan [`DESIGN.md`](../../../DESIGN.md) (sistem visual + proyeksi). Yang tersisa berguna di sini:
+> riwayat keputusan, utang verifikasi, dan catatan proses di §7.
+
 Dokumen serah-terima. Ditulis 8 November 2026 untuk melanjutkan pekerjaan di sesi lain.
 
 **Branch:** `main` · **commit terakhir:** `bcce7c7` · **repo:** `/home/lann/Projects/Ina`
