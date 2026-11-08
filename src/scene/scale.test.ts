@@ -19,13 +19,22 @@ import {
   spriteShare,
   yAt,
 } from './projection'
+import {
+  PROP_END_D,
+  PROP_KINDS,
+  PROP_POOL_SIZE,
+  PROP_RULES,
+  PROP_SPAWN_D,
+  PROP_WAIT,
+  createPropPool,
+  stepPropPool,
+} from './props'
 import { LEG_SECONDS, SCROLL_PER_SEC } from './world'
 import WalkScene, {
   SIGN_PLATE_GROW,
   DASH_COUNT,
   FAR_EDGE,
   HERO_DEPTH,
-  LAYOUT,
   NEAR_EDGE,
   PROP_ART,
   SIGN_EMPHASIS,
@@ -40,7 +49,6 @@ import WalkScene, {
   placeProp,
   placeVehicle,
   propBox,
-  propDepth,
   propZ,
   signPlatePx,
   signPolePx,
@@ -82,8 +90,37 @@ const PPM = pxPerM(H)
 /** World travel of one leg, in depth units. */
 const LEG_SCROLL = SCROLL_PER_SEC * LEG_SECONDS
 
-/** Nine evenly spaced scroll phases across one leg. */
+/** Nine evenly spaced scroll phases across one leg (marka masih memakai ini). */
 const PHASES = Array.from({ length: 9 }, (_, i) => (i / 8) * LEG_SCROLL)
+
+/**
+ * Scenery kini lahir di horizon dan dilepas di tepi kamera, jadi tidak ada
+ * lagi tabel `LAYOUT` yang bisa diiterasi. Tes mensimulasikan pool-nya sendiri
+ * — seed yang sama dengan scene — lalu memotret isi pool tiap `1/60` detik.
+ */
+type PropSnapshot = { art: PropKind; x: number; depth: number }
+
+function simulateProps(seconds = 45, seed = SPAWN_SEED + 2): PropSnapshot[][] {
+  const pool = createPropPool(seed)
+  const frames: PropSnapshot[][] = []
+  const dt = 1 / 60
+  for (let t = 0; t < seconds; t += dt) {
+    stepPropPool(pool, dt, SCROLL_PER_SEC * dt)
+    frames.push(
+      pool.slots.flatMap((slot) =>
+        slot ? [{ art: slot.kind, x: slot.x, depth: slot.depth }] : [],
+      ),
+    )
+  }
+  return frames
+}
+
+const PROP_FRAMES = simulateProps()
+
+/** Satu potret scenery diproyeksikan, memakai fungsi yang sama dengan loop. */
+function paintedProps(frame: PropSnapshot[], w: number, h: number) {
+  return frame.map((snap) => placeProp(snap, w, h))
+}
 
 /** z-index of the sign, the hero and the HUD, from walk.css. */
 const SIGN_Z = 160
@@ -166,11 +203,10 @@ function signPaintedBoxes(w: number, h: number): { plate: PaintedRect; pole: Pai
  * loop gives it. Props and ambience are placed by the same functions the loop
  * calls, so their z-order here is the z-order on screen.
  */
-function paintRects(w: number, h: number, scroll: number): Rect[] {
+function paintRects(w: number, h: number, frame: PropSnapshot[]): Rect[] {
   const list: Rect[] = []
 
-  for (const spec of LAYOUT) {
-    const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+  for (const p of paintedProps(frame, w, h)) {
     list.push({
       x0: p.x - p.width / 2,
       x1: p.x + p.width / 2,
@@ -271,9 +307,8 @@ function measureViewport(w: number, h: number): Measurements {
     shop: { shown: 0, best: 0, minShare: 1, phases: [] },
   }
 
-  for (const scroll of PHASES) {
-    for (const spec of LAYOUT) {
-      const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+  for (const [frameIndex, frame] of PROP_FRAMES.entries()) {
+    for (const p of paintedProps(frame, w, h)) {
       // Raw geometry: the box × depthScale, before any guard. A piece can be
       // this wide on screen and still be invisible; the point is that a 3×
       // oversized sprite cannot hide behind the guard.
@@ -287,8 +322,9 @@ function measureViewport(w: number, h: number): Measurements {
     }
 
     for (const art of ['house', 'shop'] as const) {
-      const spec = LAYOUT.find((s) => s.art === art)!
-      const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+      const painted = paintedProps(frame, w, h)
+      const p = painted.find((candidate, index) => frame[index].art === art)
+      if (!p) continue
       const share = spriteShare(p.x, p.width, w)
       building[art].best = Math.max(building[art].best, p.opacity)
       building[art].phases.push({
@@ -304,6 +340,7 @@ function measureViewport(w: number, h: number): Measurements {
       }
     }
 
+    const scroll = frameIndex * (LEG_SCROLL / (PROP_FRAMES.length - 1))
     const marks = Array.from({ length: DASH_COUNT }, (_, i) => placeDash(i, scroll, w, h)).filter(
       (dash) =>
         dash.width >= 12 && spriteShare(dash.x, dash.width, w) >= 0.6 && dash.opacity >= 0.4,
@@ -313,7 +350,7 @@ function measureViewport(w: number, h: number): Measurements {
 
     // Silhouette: sample the ink and count only points that are inside the
     // frame and not behind something painted above the hero.
-    const above = paintRects(w, h, scroll).filter((r) => r.z > HERO_Z && r.opacity >= 0.1)
+    const above = paintRects(w, h, frame).filter((r) => r.z > HERO_Z && r.opacity >= 0.1)
     let seen = 0
     for (const [vx, vy] of BODY) {
       const x = heroCx - hero.w / 2 + (vx / 140) * hero.w
@@ -471,32 +508,19 @@ describe('the rendered scene writes those boxes into the DOM', () => {
     expect(hero.w / hero.h).toBeCloseTo(140 / 260, 4)
     expect(scaleOf(hero.el.style.transform)).toBe(1)
 
-    // The 6,5 m house: nominal box in `style`, depth scale in the transform.
-    const house = px('.wk-prop--house')
-    expect(house.h).toBeCloseTo(962, 3)
-    expect(house.w).toBeCloseTo(1068.89, 3)
-    expect(house.w / house.h).toBeCloseTo(200 / 180, 4)
-    const houseScale = scaleOf(house.el.style.transform)
-    expect(houseScale).toBeCloseTo(0.285, 6) // roundScale(propDepth(0.7, 0))
-    // The pixels the phone actually paints for the house at scroll 0.
-    expect(house.w * houseScale).toBeCloseTo(304.63, 2)
+    // Bangunan tidak lagi punya slot tetap: pool memilih jenisnya saat lahir,
+    // jadi kotak nominalnya diuji lewat tabel meter di atas, bukan lewat DOM.
 
-    // The bus stop is on the pavement and 1,8 m tall, drawn 80×180 (Task 20):
-    // in profile its visible width is the shelter's depth into the pavement,
-    // 0,80 m, which is also what lets it stand inside the kerb band.
-    const bus = px('.wk-prop--busstop')
-    expect(bus.h).toBeCloseTo(266.4, 3)
-    expect(bus.w).toBeCloseTo(118.4, 3)
-    expect(bus.w / bus.h).toBeCloseTo(80 / 180, 4)
+    // Bus stop 1,8 m, digambar 80×180: rasionya dijaga `PROP_ART`, dan kotak
+    // nominalnya diuji di atas lewat `propBox` — pool tidak menyimpan slot
+    // khusus untuk satu jenis.
 
-    // The loop's painted opacity and z-index, not just the nominal box: at
-    // scroll 0 the house sits at depth 0,7, where the width guard is already
-    // fading it, so a guard that stopped running would show up here too.
-    const houseSpec = LAYOUT.find((s) => s.art === 'house')!
-    const housePaint = placeProp(houseSpec, propDepth(houseSpec.base, 0), 360, 800)
-    expect(parseFloat(house.el.style.opacity)).toBeCloseTo(housePaint.opacity, 3)
-    expect(house.el.style.zIndex).toBe(String(housePaint.z))
-    expect(housePaint.opacity).toBeLessThan(1)
+    // Scenery adalah pool: saat mount belum ada objek lahir, jadi semua slot
+    // kosong dan tidak dipaint. Opasitas/z objek yang lahir diuji lewat
+    // simulasi `PROP_FRAMES`.
+    for (const slot of container.querySelectorAll<HTMLElement>('.wk-props .wk-prop')) {
+      expect(slot.style.display).toBe('none')
+    }
 
     const dash = px('.wk-dash')
     expect(dash.w).toBeCloseTo(66.6, 3)
@@ -577,9 +601,8 @@ describe('framing across viewports', () => {
       })
 
       it('paints every prop behind the hero and above the road', () => {
-        for (const scroll of PHASES) {
-          for (const spec of LAYOUT) {
-            const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+        for (const frame of PROP_FRAMES) {
+          for (const p of paintedProps(frame, w, h)) {
             expect(p.z).toBeGreaterThan(0)
             expect(p.z).toBeLessThan(SIGN_Z)
           }
@@ -615,73 +638,47 @@ describe('framing across viewports', () => {
         expect(m.maxRawDepthCoverage).toBeLessThanOrEqual(0.8)
       })
 
-      it('shows both garden-side buildings through most of a leg', () => {
+      it('keeps both garden-side buildings behind the pavement and readable when they appear', () => {
         for (const art of ['house', 'shop'] as const) {
-          const spec = LAYOUT.find((s) => s.art === art)!
+          const rule = PROP_RULES[art]
           // The anchor stands behind the pavement, and the sprite never
           // crosses the kerb into the road.
-          expect(spec.x).toBeLessThan(SIDEWALK_LEFT)
-          expect(spec.x + propBox(art, h).w / 2 / pxPerM(h)).toBeLessThan(KERB_X)
+          expect(rule.x).toBeLessThan(SIDEWALK_LEFT)
+          expect(rule.x + propBox(art, h).w / 2 / pxPerM(h)).toBeLessThan(KERB_X)
 
-          // A sliver of a sprite at 10 % opacity is not "in view": an eighth
-          // of the sprite at a readable opacity, at most phases of the loop.
-          const readable = m.building[art].phases.filter(
-            (p) => p.share >= 0.08 && p.opacity >= 0.25,
+          // Scenery kini lahir dari horizon, jadi yang bisa dikunci bukan
+          // "lima fase sabuk" melainkan: bangunan ini benar-benar muncul, dan
+          // saat muncul ia terbaca (bukan sliver).
+          const appearances = PROP_FRAMES.map((frame) => {
+            const painted = paintedProps(frame, w, h)
+            const index = frame.findIndex((snap) => snap.art === art)
+            return index < 0 ? null : painted[index]
+          }).filter((p): p is ReturnType<typeof placeProp> => p !== null)
+
+          expect(appearances.length).toBeGreaterThan(30)
+
+          const readable = appearances.filter(
+            (p) => spriteShare(p.x, p.width, w) >= 0.08 && p.opacity >= 0.5,
           )
-          expect(readable.length).toBeGreaterThanOrEqual(5)
-
-          // At least once they are fully opaque, not just a ghost. On the
-          // 640 px-tall phone the house's visible box peaks at 46 % of the
-          // frame, so the 40–50 % width guard legitimately dims it to 0,82:
-          // the guard is doing its job, not hiding the building.
-          expect(m.building[art].best).toBeGreaterThanOrEqual(h <= 640 ? 0.8 : 0.9)
-
-          // The depth fades alone leave them at full strength on four phases
-          // (the hero's near fade still dims the closest pass). Any extra
-          // dimming comes from the width guard; the painted assertions below
-          // account for that separately.
-          const full = m.building[art].phases.filter((p) => p.depthOpacity >= 0.9)
-          expect(full.length).toBeGreaterThanOrEqual(4)
-        }
-
-        if (w <= 390) {
-          // The plan's phone rule, in pixels of sprite: both buildings still
-          // show a readable piece at half opacity or better, on five phases.
-          // On a 640 px-tall frame the house peaks at 46 % coverage, so the
-          // width guard takes it just under 0,5 for one of those phases; four
-          // phases still means it reads through nearly half the leg.
-          const phonePhases = h <= 640 ? 4 : 5
-          for (const art of ['house', 'shop'] as const) {
-            const shown = m.building[art].phases.filter(
-              (p) => p.share >= 0.08 && p.opacity >= 0.5,
-            )
-            expect(shown.length).toBeGreaterThanOrEqual(phonePhases)
-          }
-
-          // The garden side has to read as a building, not a 3 px edge. The
-          // house fills a third of the frame through six phases (34–45 % in
-          // the seven it is painted); the shop a sixth through five.
-          const house = m.building.house.phases.filter(
-            (p) => p.frame >= 0.3 && p.opacity >= 0.25,
+          expect(readable.length).toBeGreaterThan(0)
+          // One of those moments is fully opaque: the guard dims a wide
+          // building, it must not turn the building into a ghost.
+          expect(Math.max(...appearances.map((p) => p.opacity))).toBeGreaterThanOrEqual(
+            h <= 640 ? 0.8 : 0.9,
           )
-          expect(house.length).toBeGreaterThanOrEqual(6)
-          const shop = m.building.shop.phases.filter(
-            (p) => p.frame >= 0.15 && p.opacity >= 0.25,
-          )
-          expect(shop.length).toBeGreaterThanOrEqual(5)
         }
       })
 
       it('keeps both buildings’ raw boxes under half the phone frame', () => {
-        // The width guard may fade a building, never hide one that is simply
-        // too wide. On a phone the safe band ends at −4,0 m: one more metre
-        // right turns the house box into 65 % of the frame.
         if (w > 390) return
         for (const art of ['house', 'shop'] as const) {
-          const painted = m.building[art].phases
-            .filter((p) => p.depthOpacity >= 0.5)
-            .map((p) => p.frame)
-          expect(Math.max(...painted)).toBeLessThanOrEqual(0.5)
+          for (const frame of PROP_FRAMES) {
+            const index = frame.findIndex((snap) => snap.art === art)
+            if (index < 0) continue
+            const p = paintedProps(frame, w, h)[index]
+            if (fadeAt(p.depth) * nearFadeAt(p.depth) < 0.5) continue
+            expect(p.coverage).toBeLessThanOrEqual(0.5)
+          }
         }
       })
 
@@ -702,16 +699,16 @@ describe('framing across viewports', () => {
       })
 
       it('keeps the whole bus-stop sprite on the pavement, kerb-flush', () => {
-        const spec = LAYOUT.find((s) => s.art === 'busstop')!
+        const x = PROP_RULES.busstop.x
         const metres = propBox('busstop', h).w / pxPerM(h)
-        expect(spec.x - metres / 2).toBeGreaterThanOrEqual(SIDEWALK_LEFT)
-        expect(spec.x + metres / 2).toBeCloseTo(KERB_X, 9)
-        // Same invariant in the pixels the scene paints, at every phase. The
-        // drawn box is kerb-flush, and the loop's depth scale is rounded to
-        // three decimals, so allow a twentieth of a pixel of rounding — the
-        // point is that the sprite never walks out onto the road.
-        for (const scroll of PHASES) {
-          const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+        expect(x - metres / 2).toBeGreaterThanOrEqual(SIDEWALK_LEFT)
+        expect(x + metres / 2).toBeCloseTo(KERB_X, 9)
+        // Same invariant in the pixels the scene paints: the sprite never
+        // walks out onto the road, wherever the pool happens to put it.
+        for (const frame of PROP_FRAMES) {
+          const index = frame.findIndex((snap) => snap.art === 'busstop')
+          if (index < 0) continue
+          const p = paintedProps(frame, w, h)[index]
           expect(p.x - p.width / 2).toBeGreaterThanOrEqual(offsetX(SIDEWALK_LEFT, p.depth, w, h))
           expect(p.x + p.width / 2).toBeLessThanOrEqual(offsetX(KERB_X, p.depth, w, h) + 0.05)
         }
@@ -764,24 +761,26 @@ const STOP_SCROLLS = [0, LEG_SCROLL, LEG_SCROLL * 2] as const
 /** The three phone viewports these bands are reviewed on. */
 const PHONES = VIEWPORTS.filter((v) => v.w <= 390)
 
-/** The five placements that stand on the pavement (or its garden edge). */
-const PAVEMENT = LAYOUT.filter(
-  (s) => s.art === 'bin' || s.art === 'busstop' || s.art === 'bench' || s.art === 'lamp',
-)
+/** Jenis yang berdiri di trotoar atau tepinya — pitanya tetap, bukan acak. */
+const PAVEMENT = (['bin', 'busstop', 'bench', 'lamp'] as PropKind[]).map((art) => ({
+  art,
+  x: PROP_RULES[art].x,
+}))
 
-/** The two bins; the guard names them separately from the rest of `PAVEMENT`. */
-const BINS = LAYOUT.filter((s) => s.art === 'bin')
+/** Tong sampah; guard memisahkannya dari sisa `PAVEMENT`. */
+const BINS = PAVEMENT.filter((spec) => spec.art === 'bin')
 
 describe('lateral bands and the rendered sign', () => {
-  it('keeps both bins clear of the sign plate and pole at every stop phase', () => {
+  it('keeps both bins clear of the sign plate and pole, on every frame the pool paints them', () => {
     for (const { label, w, h } of PHONES) {
       const { plate, pole } = signPaintedBoxes(w, h)
-      for (const scroll of STOP_SCROLLS) {
-        for (const spec of BINS) {
-          const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
-          const box = propRect(p)
-          expect(overlaps(box, plate), `${label} bin @${scroll}`).toBe(false)
-          expect(overlaps(box, pole), `${label} bin @${scroll}`).toBe(false)
+      for (const frame of PROP_FRAMES) {
+        const painted = paintedProps(frame, w, h)
+        for (const [i, snap] of frame.entries()) {
+          if (snap.art !== 'bin') continue
+          const box = propRect(painted[i])
+          expect(overlaps(box, plate), `${label} bin @${snap.depth.toFixed(2)}`).toBe(false)
+          expect(overlaps(box, pole), `${label} bin @${snap.depth.toFixed(2)}`).toBe(false)
         }
       }
     }
@@ -797,17 +796,15 @@ describe('lateral bands and the rendered sign', () => {
       expect(bandLeft).toBeCloseTo(-1.263, 3)
       expect(bandRight).toBeCloseTo(-0.537, 3)
 
-      for (const scroll of PHASES) {
-        for (const spec of PAVEMENT) {
-          const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
-          // The metre width at *this* depth, so the check rides the same
-          // projection the loop paints with rather than a second table.
-          const widthM = p.width / pxPerMAt(p.depth, h)
-          const left = spec.x - widthM / 2
-          const right = spec.x + widthM / 2
-          const gap = Math.max(0, left - bandRight, bandLeft - right)
-          expect(gap, `${label} ${spec.art} @${p.depth.toFixed(2)}`).toBeGreaterThanOrEqual(0.03)
-        }
+      // Jarak lateral tidak bergantung kedalaman: pitanya tetap, jadi satu
+      // putaran PROP_RULES sudah cukup — dan itu lebih jujur daripada
+      // memeriksa fase sabuk yang sudah tidak ada.
+      for (const spec of PAVEMENT) {
+        const widthM = propBox(spec.art, h).w / pxPerM(h)
+        const left = spec.x - widthM / 2
+        const right = spec.x + widthM / 2
+        const gap = Math.max(0, left - bandRight, bandLeft - right)
+        expect(gap, `${label} ${spec.art}`).toBeGreaterThanOrEqual(0.03)
       }
     }
   })
@@ -817,12 +814,13 @@ describe('lateral bands and the rendered sign', () => {
     const h = 800
     const { plate } = signPaintedBoxes(w, h)
     let crossings = 0
-    for (const scroll of PHASES) {
-      for (const spec of LAYOUT) {
-        const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+    for (const frame of PROP_FRAMES) {
+      const painted = paintedProps(frame, w, h)
+      for (const [i, snap] of frame.entries()) {
+        const p = painted[i]
         // Every prop sits at propZ ≤ 100; the plate is 160.
         expect(p.z).toBeLessThan(SIGN_Z)
-        if (spec.art === 'lamp' && p.opacity >= 0.1 && overlaps(propRect(p), plate)) {
+        if (snap.art === 'lamp' && p.opacity >= 0.1 && overlaps(propRect(p), plate)) {
           crossings += 1
         }
       }

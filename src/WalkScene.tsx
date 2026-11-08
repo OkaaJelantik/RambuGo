@@ -35,6 +35,12 @@ import {
 } from './scene/projection'
 import { createWorld, stepWorld, type Mode, type WorldState } from './scene/world'
 import {
+  PROP_POOL_SIZE,
+  createPropPool,
+  stepPropPool,
+  type PropPool,
+} from './scene/props'
+import {
   LANE_DIR,
   SPAWN_SEED,
   createRng,
@@ -145,76 +151,14 @@ export const PROP_ART = {
 
 export type PropKind = keyof typeof PROP_ART
 
-type PropSpec = {
+export type PropSpec = {
   /** Art key into `PROP_ART`. */
   art: PropKind
   /** Lateral position in metres from the camera line; negative is the left verge. */
   x: number
-  /** Depth at scroll 0, in [0, 1). */
-  base: number
+  /** Current depth, advanced by the pool every frame. */
+  depth: number
 }
-
-export type { PropSpec }
-
-/**
- * The belt, ordered from near to far. Ten placements cover the nine art
- * kinds, with `bin` used twice.
- *
- * Placement is a static table — never random — so two playthroughs of the
- * same leg show the same street. Objects are recycled by wrapping `base`
- * around `PROP_CYCLE`; both ends of the wrap land at opacity 0 (`nearFadeAt`
- * as a piece passes the camera, `fadeAt` as it reaches the horizon), so no
- * object pops in mid-screen or out of the sky.
- *
- * The camera walks the left sidewalk, so every placement is a lateral metre
- * from that line (verge < −1,7 m; sidewalk −1,7 … +0,3 m). The belt now keeps
- * four lateral bands, so a piece is never merely "somewhere on the pavement":
- *
- * | band        | x (m)        | contents |
- * |-------------|--------------|----------|
- * | child       | −0,90        | hero only; her ink −1,263 … −0,537 |
- * | garden edge | −1,85        | both bins, 0,55 m wide → −2,125 … −1,575 |
- * | garden      | ≤ −2,30      | bench −2,60, tree −2,8, power pole −2,9, fence −3,5, shop −3,8, house −4,0 |
- * | kerb        | −0,50 … +0,30| bus stop −0,10 (0,80 m wide → −0,50 … +0,30), lamp +0,25, sign +0,30 |
- *
- * The bins straddle the pavement's garden edge by 12,5 cm (they stand 0,30 m
- * into the verge) on purpose: the 2,0 m pavement cannot hold the child 0,73 +
- * the bus stop 0,80 + a bin 0,55, and a bin half in the verge reads far better
- * than one in the child's path. The bus stop's right edge is exactly the kerb,
- * so the child has 3,65 cm of clearance from it — `scale.test.ts` pins that as
- * a floor, not a coincidence.
- *
- * The two big buildings used to sit at −7,8 m and −6,0 m. On a 360 px phone
- * that showed 1–13 % of their sprite (3–40 px) through the haze, i.e. the
- * garden side of the street did not exist. They now stand at −4,0 m and
- * −3,8 m: still behind the pavement (their anchors are on the verge), but
- * close enough that the house's visible box covers 34–45 % of the phone
- * frame through the seven phases the near/horizon fades paint it, and the
- * shop still shows 10–58 % of its sprite on five — instead of a 3 px sliver.
- * Moving the house any further right pushes its unguarded box past half the
- * frame, so −4,0 m is the right edge of the safe band; `scale.test.ts` pins
- * both ends.
- *
- * On a 360 px phone the 6,5 m house is wider than the frame even at the
- * horizon. It is kept far enough to the left that the frame crops it instead
- * of it wiping the screen; a placement decision, never a rescaled object.
- * `scale.test.ts` locks the result: no prop may cover more than half the
- * viewport at any scroll phase, on any of the three test viewports, and both
- * buildings must still show at least 8 % of their sprite at five of the nine
- * phases.
- */
-export const LAYOUT: ReadonlyArray<PropSpec> = [
-  { art: 'tree', x: -2.8, base: 0.08 },
-  { art: 'bin', x: -1.85, base: 0.17 },
-  { art: 'shop', x: -3.8, base: 0.26 },
-  { art: 'fence', x: -3.5, base: 0.35 },
-  { art: 'busstop', x: -0.1, base: 0.52 },
-  { art: 'lamp', x: 0.25, base: 0.61 },
-  { art: 'house', x: -4.0, base: 0.7 },
-  { art: 'powerpole', x: -2.9, base: 0.79 },
-  { art: 'bench', x: -2.6, base: 0.88 },
-  { art: 'bin', x: -1.85, base: 0.97 },
-]
 
 export type Box = { w: number; h: number }
 
@@ -287,11 +231,6 @@ export function signPolePx(viewportH: number): Box {
     w: pxAt(METERS.sign.poleWidth * SIGN_EMPHASIS, SIGN_STOP_D, viewportH),
     h: pxAt(METERS.sign.pole * SIGN_EMPHASIS, SIGN_STOP_D, viewportH),
   }
-}
-
-/** Depth of a belt placement at `scroll`, wrapped into `[0, PROP_CYCLE)`. */
-export function propDepth(base: number, scroll: number): number {
-  return wrap(base - scroll, PROP_CYCLE)
 }
 
 /**
@@ -441,10 +380,10 @@ export function placeDash(
 /** One belt piece as drawn: metres, depth scale, frame crop and belt guard. */
 export function placeProp(
   spec: PropSpec,
-  depth: number,
   viewportW: number,
   viewportH: number,
 ): Placement {
+  const { depth } = spec
   const box = propBox(spec.art, viewportH)
   const scale = roundScale(depth)
   const width = box.w * scale
@@ -530,6 +469,12 @@ export default function WalkScene({
   const worldRef = useRef<WorldState>(reduced ? stoppedWorld(step) : createWorld(step))
   const dashRefs = useRef<Array<HTMLDivElement | null>>([])
   const propRefs = useRef<Array<HTMLDivElement | null>>([])
+  // Scenery lahir di horizon dan dilepas di tepi kamera (bukan sabuk yang
+  // berulang); pool-nya tetap, jadi tidak ada node yang dipasang/dilepas.
+  const propPoolRef = useRef<PropPool>(createPropPool(SPAWN_SEED + 2))
+  const [propKinds, setPropKinds] = useState<Array<PropKind | null>>(() =>
+    Array.from({ length: PROP_POOL_SIZE }, () => null),
+  )
   const heroRef = useRef<HTMLDivElement | null>(null)
   const heroZoneRef = useRef<HTMLDivElement | null>(null)
   const sizeRef = useRef({ w: 0, h: 0, heroW: 0, heroH: 0, heroNomW: 0, heroNomH: 0 })
@@ -619,7 +564,9 @@ export default function WalkScene({
 
     propRefs.current.forEach((el, i) => {
       if (!el) return
-      const box = propBox(LAYOUT[i].art, h)
+      const kind = propPoolRef.current.slots[i]?.kind
+      if (!kind) return
+      const box = propBox(kind, h)
       el.style.width = `${box.w}px`
       el.style.height = `${box.h}px`
     })
@@ -659,10 +606,17 @@ export default function WalkScene({
       setZ(el, dash.z)
     }
 
-    // Scenery: bottom-centred on its point on the verge/sidewalk.
+    // Scenery: bottom-centred on its point on the verge/sidewalk. Slot yang
+    // kosong disembunyikan, bukan dilepas dari DOM.
     propRefs.current.forEach((el, i) => {
       if (!el) return
-      const prop = placeProp(LAYOUT[i], propDepth(LAYOUT[i].base, world.scroll), w, h)
+      const slot = propPoolRef.current.slots[i]
+      if (!slot) {
+        setDisplay(el, false)
+        return
+      }
+      setDisplay(el, true)
+      const prop = placeProp({ art: slot.kind, x: slot.x, depth: slot.depth }, w, h)
       setTransform(
         el,
         roundHalf(prop.x - prop.width / 2),
@@ -883,6 +837,17 @@ export default function WalkScene({
       // Ambience never pauses: vehicles and pedestrians keep passing even
       // while the hero waits at a sign.
       stepAmbience(dt)
+
+      // Scenery hanya bergerak saat dunia berjalan: ia bagian dari jalan, bukan
+      // lalu lintas. Satu render React hanya ketika ada objek baru lahir.
+      if (next.mode === 'walking' && dt > 0) {
+        const scrolled = next.scroll - prev.scroll
+        if (stepPropPool(propPoolRef.current, dt, scrolled)) {
+          const pool = propPoolRef.current
+          setPropKinds(pool.slots.map((slot) => (slot ? slot.kind : null)))
+        }
+      }
+
       draw(next)
 
       // Report the stop once; the loop itself keeps running. No per-frame
@@ -949,17 +914,18 @@ export default function WalkScene({
       </div>
 
       <div className="wk-props" aria-hidden="true">
-        {LAYOUT.map((spec, i) => {
-          const Art = PROP_ART[spec.art].Art
+        {Array.from({ length: PROP_POOL_SIZE }, (_, i) => {
+          const kind = propKinds[i]
+          const Art = kind ? PROP_ART[kind].Art : null
           return (
             <div
-              key={`${spec.art}-${i}`}
-              className={`wk-prop wk-prop--${spec.art}`}
+              key={i}
+              className={kind ? `wk-prop wk-prop--${kind}` : 'wk-prop'}
               ref={(el) => {
                 propRefs.current[i] = el
               }}
             >
-              <Art />
+              {Art ? <Art /> : null}
             </div>
           )
         })}
