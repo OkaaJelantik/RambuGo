@@ -353,23 +353,20 @@
   box-shadow: none;
 }
 
-/* Pelat bulat: rambu larangan (merah) dan perintah (biru). */
+/* Tanpa kanvas: art-nya sudah menggambar papan rambunya sendiri (lingkaran
+   merah, persegi biru, segitiga kuning). Yang tersisa hanya bayangan yang
+   mengikuti bentuk itu — lingkaran untuk rambu bulat, kotak lembut untuk
+   persegi, dan tidak ada bayangan untuk segitiga (bayangan kotak di balik
+   segitiga itulah "kotak" yang kelihatan menonjol). */
 .wk-sign[data-kind='larangan'] .wk-sign-plate,
 .wk-sign[data-kind='perintah'] .wk-sign-plate {
-  padding: 6px;
-  border: 3px solid var(--ink);
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 5px 0 rgba(42, 35, 32, 0.26), 0 12px 18px rgba(42, 35, 32, 0.34);
+  box-shadow: 0 4px 0 rgba(42, 35, 32, 0.2), 0 10px 16px rgba(42, 35, 32, 0.24);
 }
 
-/* Pelat kotak: rambu petunjuk (biru). */
 .wk-sign[data-kind='petunjuk'] .wk-sign-plate {
-  padding: 5px;
-  border: 3px solid var(--ink);
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 5px 0 rgba(42, 35, 32, 0.26), 0 12px 18px rgba(42, 35, 32, 0.34);
+  border-radius: 16px;
+  box-shadow: 0 4px 0 rgba(42, 35, 32, 0.2), 0 10px 16px rgba(42, 35, 32, 0.24);
 }
 
 /* Peringatan: art segitiga mengisi kotaknya sendiri, sedikit diperbesar
@@ -402,46 +399,20 @@
   );
 }
 
-/* Cincin putus-putus: selalu terlihat selama rambu aktif (--in), bukan hanya
-   saat hover. opacity 0,9 supaya tetap kontras di langit, dan denyut 1,8 s
-   hanya mengubah opacity/scale — bukan rotasi — supaya tenang untuk anak.
-   pointer-events: none: cincin tidak boleh memperluas/menelan kotak ketuk. */
-.wk-sign-plate::after {
-  content: '';
-  position: absolute;
-  inset: -9px;
-  border-radius: 50%;
-  border: 4px dashed var(--yellow);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-
 .wk-sign--in .wk-sign-plate {
   animation: wk-pulse 1.7s ease-in-out infinite;
-}
-
-.wk-sign--in .wk-sign-plate::after {
-  opacity: 0.9;
-  animation: wk-ring 1.8s ease-in-out infinite;
 }
 
 @keyframes wk-pulse {
   0%,
   100% {
-    box-shadow: 0 5px 0 rgba(42, 35, 32, 0.26), 0 12px 18px rgba(42, 35, 32, 0.34);
+    box-shadow: 0 4px 0 rgba(42, 35, 32, 0.2), 0 10px 16px rgba(42, 35, 32, 0.24);
   }
   50% {
-    box-shadow: 0 8px 0 rgba(42, 35, 32, 0.18), 0 18px 26px rgba(42, 35, 32, 0.4);
+    box-shadow: 0 7px 0 rgba(42, 35, 32, 0.14), 0 16px 24px rgba(42, 35, 32, 0.32);
   }
 }
 
-@keyframes wk-ring {
-  0%,
-  100% {
-    opacity: 0.9;
-    transform: scale(1);
-  }
   50% {
     opacity: 0.55;
     transform: scale(1.05);
@@ -485,21 +456,14 @@
   background: var(--orange);
 }
 
-/* Gerak berulang dimatikan; rambu tetap langsung bisa ditekan. Cincin
-   putus-putus tetap terlihat (statis) supaya rambu aktif masih terbaca
-   sebagai ajakan mengetuk, bukan hilang bersama animasinya. */
+/* Gerak berulang dimatikan; rambu tetap langsung bisa ditekan. */
 @media (prefers-reduced-motion: reduce) {
   .wk-sign {
     transition: none;
   }
 
-  .wk-sign--in .wk-sign-plate,
-  .wk-sign--in .wk-sign-plate::after {
+  .wk-sign--in .wk-sign-plate {
     animation: none;
-  }
-
-  .wk-sign--in .wk-sign-plate::after {
-    opacity: 0.9;
   }
 }
 
