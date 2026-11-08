@@ -1,10 +1,18 @@
 /**
- * Art kit v1 untuk scene berjalan: rumah, pohon, dan lampu jalan.
+ * Art kit untuk scene berjalan.
  *
- * Semua dekoratif (`aria-hidden`), digambar dengan garis tinta tebal dan
- * isian rata dari token palet di `index.css`. Tidak ada filter atau gradien
- * yang berpura-pura jadi 3D — hanya bentuk gemuk yang mudah dibaca di layar
- * HP 360 px.
+ * Semua dekoratif (`aria-hidden`), digambar dengan garis tinta tebal dan isian
+ * rata dari token palet di `index.css`. Tidak ada filter atau gradien yang
+ * berpura-pura jadi 3D — hanya bentuk gemuk yang mudah dibaca di layar HP
+ * 360 px.
+ *
+ * Sudut pandang: kamera berjalan MENYUSURI jalan, jadi benda tepi jalan
+ * digambar 3-4 dari samping (halte, tong sampah, bangku) dengan perspektif
+ * dipanggang ke dalam gambar — atap/bidang atas menyusut ke atas-kanan karena
+ * benda berdiri di kiri titik hilang, sisi yang menjauh lebih kecil. `House`
+ * dan `Shop` sengaja tetap elevasi depan: fasadnya memang menghadap jalan,
+ * dan itu stilasi yang sah untuk bangunan. Jangan "memperbaiki" keduanya jadi
+ * 3-4 tanpa mengganti seluruh latar jadi satu titik hilang.
  */
 
 const INK = 'var(--ink)'
@@ -198,84 +206,153 @@ export function Fence() {
   )
 }
 
-/** Tong sampah: tutup dengan bidang atas elips, badan biru menyempit ke alas. */
+/**
+ * Tong sampah, 0,55 × 0,90 m (viewBox 55×90), dilihat 3-4: tutupnya elips
+ * miring ~20° (kamera menunduk, jadi bidang atasnya terlihat), satu sisi badan
+ * terlihat, dan rusuk depan terpendek karena menjauh.
+ */
 export function Bin() {
   return (
-    <svg className="wk-bin" viewBox="0 0 60 90" aria-hidden="true">
-      {/* tutup: bidang atas terlihat karena kamera menunduk */}
-      <ellipse cx="30" cy="16" rx="24" ry="7" fill={GREEN_DARK} stroke={INK} strokeWidth="4" />
-      <rect x="7" y="16" width="46" height="12" rx="5" fill={GREEN} stroke={INK} strokeWidth="4" />
-      <rect x="22" y="5" width="16" height="8" rx="3" fill={METAL} stroke={INK} strokeWidth="4" />
+    <svg className="wk-bin" viewBox="0 0 55 90" aria-hidden="true">
+      <ellipse cx="28" cy="86" rx="21" ry="3.5" fill={INK} opacity="0.16" />
 
-      {/* badan dan rusuk */}
-      <path d="M12 28h36l-4 54H16Z" fill={BLUE} stroke={INK} strokeWidth="4" strokeLinejoin="round" />
-      <path d="M24 36v38M36 36v38" stroke={INK} strokeWidth="4" strokeLinecap="round" />
-      <rect x="14" y="82" width="32" height="6" rx="3" fill={METAL} stroke={INK} strokeWidth="4" />
+      {/* tutup: elips miring, bukan simetris */}
+      <ellipse cx="28" cy="14" rx="20" ry="6.5" fill={GREEN_DARK} stroke={INK} strokeWidth="4" />
+      <polygon
+        points="8,14 14,22 46,20 48,14"
+        fill={GREEN}
+        stroke={INK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <rect x="24" y="4" width="10" height="6" rx="2" fill={METAL} stroke={INK} strokeWidth="3" />
+
+      {/* badan: sisi jauh lebih tinggi di layar, sisi dekat memendek */}
+      <polygon
+        points="12,22 45,20 41,82 16,84"
+        fill={BLUE}
+        stroke={INK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      {/* rusuk: makin ke kanan makin pendek (menjauh) */}
+      <path d="M20 28v52M28 27v53M36 26v52" stroke={INK} strokeWidth="4" strokeLinecap="round" />
+      <polygon
+        points="14,84 43,82 43,87 14,89"
+        fill={METAL}
+        stroke={INK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
 
-/** Bangku taman: sandaran dua bilah, dudukan dengan bidang atas, kaki besi. */
+/**
+ * Bangku taman, 0,67 × 0,85 m (viewBox 55×70), tergambar PROFIL: dudukan
+ * memanjang ke belakang sebagai jajaran genjang, sandaran bidang tipis yang
+ * naik, dan dua kaki dengan ukuran berbeda (dekat besar, jauh kecil) — bukan
+ * dua kaki kembar seperti elevasi depan.
+ */
 export function Bench() {
   return (
-    <svg className="wk-bench" viewBox="0 0 120 70" aria-hidden="true">
-      {/* penopang sandaran, menyambung bilah ke dudukan */}
-      <rect x="14" y="8" width="8" height="38" fill={WOOD_DARK} stroke={INK} strokeWidth="4" />
-      <rect x="98" y="8" width="8" height="38" fill={WOOD_DARK} stroke={INK} strokeWidth="4" />
+    <svg className="wk-bench" viewBox="0 0 55 70" aria-hidden="true">
+      <ellipse cx="27" cy="66" rx="22" ry="3.5" fill={INK} opacity="0.16" />
 
-      {/* sandaran */}
-      <rect x="10" y="8" width="100" height="9" rx="4" fill={WOOD} stroke={INK} strokeWidth="4" />
-      <rect x="10" y="22" width="100" height="9" rx="4" fill={WOOD} stroke={INK} strokeWidth="4" />
-
-      {/* kaki besi */}
-      <rect x="18" y="46" width="9" height="22" rx="3" fill={METAL} stroke={INK} strokeWidth="4" />
-      <rect x="93" y="46" width="9" height="22" rx="3" fill={METAL} stroke={INK} strokeWidth="4" />
-
-      {/* dudukan: bidang atas lalu bibir depan */}
+      {/* sandaran: bidang tipis naik ke belakang-kanan */}
       <polygon
-        points="4,38 116,38 120,46 0,46"
+        points="10,8 20,6 22,30 12,32"
+        fill={WOOD}
+        stroke={INK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+
+      {/* dudukan: jajaran genjang memanjang ke belakang */}
+      <polygon
+        points="10,32 42,28 46,38 12,42"
         fill={WOOD_LIGHT}
         stroke={INK}
         strokeWidth="4"
         strokeLinejoin="round"
       />
-      <rect x="0" y="46" width="120" height="8" rx="3" fill={WOOD} stroke={INK} strokeWidth="4" />
+      <polygon
+        points="12,42 46,38 46,44 12,48"
+        fill={WOOD_DARK}
+        stroke={INK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+
+      {/* kaki dekat (besar) dan kaki jauh (kecil) */}
+      <rect x="14" y="48" width="7" height="17" fill={METAL} stroke={INK} strokeWidth="4" />
+      <rect x="38" y="44" width="5" height="16" fill={METAL} stroke={INK} strokeWidth="3" />
     </svg>
   )
 }
 
-/** Halte bus: atap dengan bidang atas, dua tiang, papan ikon bus, bangku pendek. */
+/**
+ * Halte bus, 0,80 × 1,80 m (viewBox 80×180), dilihat 3-4 saat kita berjalan
+ * melewatinya: atapnya jajaran genjang yang menyusut ke atas-kanan karena halte
+ * berdiri di KIRI titik hilang, tiang dekat tebal dan tiang jauh lebih kecil,
+ * panel belakang miring, dan bangku di dalamnya tergambar menyamping sebagai
+ * bidang tipis. Garis tanah + bayangan kontak supaya tidak "ditempel".
+ */
 export function BusStop() {
   return (
-    <svg className="wk-busstop" viewBox="0 0 160 150" aria-hidden="true">
-      {/* atap: bidang atas lalu lis depan */}
+    <svg className="wk-busstop" viewBox="0 0 80 180" aria-hidden="true">
+      {/* bayangan kontak */}
+      <ellipse cx="42" cy="174" rx="34" ry="5" fill={INK} opacity="0.14" />
+
+      {/* atap: sisi depan pendek, sisi belakang menyusut ke atas-kanan */}
       <polygon
-        points="8,30 30,12 130,12 152,30"
+        points="6,40 20,20 62,20 74,40"
         fill={BLUE_LIGHT}
         stroke={INK}
-        strokeWidth="5"
+        strokeWidth="4"
         strokeLinejoin="round"
       />
-      <rect x="8" y="30" width="144" height="10" rx="4" fill={BLUE_DARK} stroke={INK} strokeWidth="4" />
+      <polygon
+        points="6,40 74,40 68,50 12,50"
+        fill={BLUE_DARK}
+        stroke={INK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
 
-      {/* tiang dan alas */}
-      <rect x="18" y="40" width="10" height="104" fill={METAL} stroke={INK} strokeWidth="4" />
-      <rect x="132" y="40" width="10" height="104" fill={METAL} stroke={INK} strokeWidth="4" />
-      <rect x="12" y="142" width="22" height="8" rx="3" fill={METAL} stroke={INK} strokeWidth="4" />
-      <rect x="126" y="142" width="22" height="8" rx="3" fill={METAL} stroke={INK} strokeWidth="4" />
+      {/* tiang dekat (kiri) tebal, tiang jauh (kanan) lebih kecil */}
+      <rect x="12" y="50" width="9" height="120" fill={METAL} stroke={INK} strokeWidth="4" />
+      <rect x="60" y="48" width="6" height="112" fill={METAL} stroke={INK} strokeWidth="3" />
 
-      {/* papan halte dengan ikon bus kecil, menggantung di lis atap */}
-      <rect x="42" y="40" width="76" height="42" rx="5" fill={YELLOW} stroke={INK} strokeWidth="4" />
-      <rect x="54" y="53" width="52" height="20" rx="5" fill={BLUE} stroke={INK} strokeWidth="4" />
-      <rect x="61" y="58" width="13" height="9" rx="2" fill={SKY} stroke={INK} strokeWidth="4" />
-      <rect x="80" y="58" width="13" height="9" rx="2" fill={SKY} stroke={INK} strokeWidth="4" />
-      <circle cx="66" cy="76" r="4" fill={INK} />
-      <circle cx="94" cy="76" r="4" fill={INK} />
+      {/* panel belakang: jajaran genjang miring mengikuti garis jalan */}
+      <polygon
+        points="20,56 58,54 56,120 22,122"
+        fill={PAPER_LINE}
+        stroke={INK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
 
-      {/* bangku di bawah papan */}
-      <rect x="46" y="112" width="68" height="8" rx="3" fill={WOOD} stroke={INK} strokeWidth="4" />
-      <rect x="52" y="120" width="7" height="30" fill={METAL} stroke={INK} strokeWidth="4" />
-      <rect x="101" y="120" width="7" height="30" fill={METAL} stroke={INK} strokeWidth="4" />
+      {/* papan ikon bus menempel di panel, ikut miring sedikit */}
+      <polygon
+        points="26,64 52,63 51,84 27,85"
+        fill={YELLOW}
+        stroke={INK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <polygon points="30,69 48,68 48,80 30,81" fill={BLUE} stroke={INK} strokeWidth="3" />
+
+      {/* bangku: bidang dudukan menyamping (tipis), kaki dekat + kaki jauh */}
+      <polygon
+        points="22,128 56,126 60,132 24,135"
+        fill={WOOD}
+        stroke={INK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <rect x="26" y="134" width="6" height="38" fill={METAL} stroke={INK} strokeWidth="4" />
+      <rect x="52" y="131" width="5" height="40" fill={METAL} stroke={INK} strokeWidth="3" />
     </svg>
   )
 }
