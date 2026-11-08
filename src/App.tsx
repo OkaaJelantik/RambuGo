@@ -5,7 +5,7 @@ import { advanceRun, batchOf, createRun, initialSeed, type Run } from './run'
 import { SignArt, describeSign } from './SignArt'
 import Classroom from './Classroom'
 import WalkScene from './WalkScene'
-import Crossroad from './Crossroad'
+import Junction from './Junction'
 import Kid from './Kid'
 import DialoguePanel from './DialoguePanel'
 import { beatById, openingFor, stopBeat, type StoryButton, type StoryId } from './story'
@@ -215,6 +215,7 @@ export default function App() {
   const materiHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const homeHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const quizCardRef = useRef<HTMLDivElement | null>(null)
+  const crossroadHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const pendingFocusRef = useRef<FocusTarget | null>(null)
   // -Infinity: aksi panel sebelum lembar pertama pernah ditutup tidak ditahan.
   const sheetClosedAtRef = useRef(-Infinity)
@@ -385,7 +386,15 @@ export default function App() {
 
       {stage === 'crossroad' && (
         <section className="screen dlg-space" key="crossroad">
-          <Crossroad
+          <Junction
+            headingRef={crossroadHeadingRef}
+            onExplore={() => {
+              pendingFocusRef.current = 'walk'
+              setRun((current) => advanceRun(current))
+              setWalked(0)
+              setStage('walk')
+              setBeatId(beatAt(LEG_BEATS, 0))
+            }}
             onMateri={() => {
               pendingFocusRef.current = 'materi'
               setVia('materi')

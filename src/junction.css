@@ -1,0 +1,117 @@
+/* ============================================================
+   Persimpangan 2.5D (Task 23).
+
+   Posisi dan ukuran papan diisi dari proyeksi di `Junction.tsx`
+   (left/top/width/font-size dalam px), jadi CSS ini hanya rupa:
+   tiang, pelat, dan cincin fokus. Tidak ada media query
+   `max-width` — mobile-first, seperti sisa aplikasi.
+   ============================================================ */
+
+.jn {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--sky-2);
+}
+
+/* Jalan samping digambar di atas GroundScene, di bawah papan. */
+.jn-road {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.jn-title {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 400;
+  margin: 0;
+  padding: 6px 14px;
+  max-width: min(88vw, 420px);
+  text-align: center;
+  font-size: 1rem;
+  line-height: 1.25;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  box-shadow: 0 4px 0 rgba(42, 35, 32, 0.14);
+}
+
+.jn-boards {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * Satu papan = tombol. `left`/`top` adalah titik tanah papannya, jadi
+ * `translate(-50%, -100%)` menaruh pelat di atas tiang dan tiang di atas
+ * tanah — sama seperti rambu di scene berjalan.
+ */
+.jn-board {
+  position: absolute;
+  z-index: 160;
+  translate: -50% -100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.jn-board__plate {
+  order: -1;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: 84px;
+  min-height: 48px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  color: var(--ink);
+  box-shadow: 0 5px 0 rgba(42, 35, 32, 0.22);
+}
+
+.jn-board--materi .jn-board__plate {
+  background: color-mix(in srgb, var(--blue) 24%, var(--paper));
+}
+
+.jn-board--lurus .jn-board__plate {
+  background: color-mix(in srgb, var(--green) 30%, var(--paper));
+}
+
+.jn-board--kuis .jn-board__plate {
+  background: color-mix(in srgb, var(--yellow) 34%, var(--paper));
+}
+
+/* Tiang pendek: 1,1 m di ruang meter, discale lewat tinggi px papan. */
+.jn-board__post {
+  width: 8px;
+  height: 26px;
+  border: 3px solid var(--ink);
+  border-top: 0;
+  border-radius: 0 0 4px 4px;
+  background: color-mix(in srgb, var(--road) 70%, var(--paper));
+}
+
+.jn-board:focus-visible {
+  outline: 3px solid var(--blue-dark);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .jn-board:active .jn-board__plate {
+    translate: 0 2px;
+  }
+}

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import Crossroad from './Crossroad'
+import Junction from './Junction'
 import { QUESTIONS, SIGNS, type Question } from './data'
 import { METERS } from './scene/meters'
 import { LEG_SECONDS } from './scene/world'
@@ -292,29 +292,27 @@ async function reachCrossroad() {
 }
 
 describe('persimpangan', () => {
-  it('papan nama tiap jalur adalah bagian dari tombol jalurnya', () => {
+  it('tiga papan tujuan adalah tombol sungguhan, dan tiap papan memanggil aksinya', () => {
+    const onExplore = vi.fn()
     const onMateri = vi.fn()
     const onKuis = vi.fn()
-    render(<Crossroad onMateri={onMateri} onKuis={onKuis} />)
+    render(<Junction onExplore={onExplore} onMateri={onMateri} onKuis={onKuis} />)
 
-    const buttons = screen.getAllByRole('button')
-    expect(buttons).toHaveLength(2)
-    for (const button of buttons) {
-      const sign = button.querySelector<HTMLElement>('.fx-sign')
-      expect(sign).not.toBeNull()
-      // Papan digeser keluar kotak tombol; ia hanya bisa diklik kalau tetap
-      // menjadi keturunan tombol dan tidak mematikan pointer-events.
-      expect(sign!.closest('button')).toBe(button)
+    // Tiga jalur: lurus (jalan lagi), kiri (belajar), kanan (kuis).
+    const lurus = screen.getByRole('button', { name: /Jalan lagi/ })
+    const materi = screen.getByRole('button', { name: /Belajar rambu/ })
+    const kuis = screen.getByRole('button', { name: /Main kuis/ })
+
+    // Papan ada DI DALAM tombolnya: papan yang digeser keluar kotak tetap
+    // harus bisa diketuk (bug `.fx-sign` di layar lama).
+    for (const button of [lurus, materi, kuis]) {
+      expect(button.querySelector('.jn-board__plate')).not.toBeNull()
     }
 
-    // Aturan `.fx-sign` (bukan `.fx-sign-text`) tidak boleh mematikan hit-test.
-    const css = readFileSync('src/crossroad.css', 'utf8')
-    const rule = /\.fx-sign\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
-    expect(rule).not.toBe('')
-    expect(rule).not.toMatch(/pointer-events\s*:\s*none/)
-
-    fireEvent.click(buttons[0])
-    fireEvent.click(buttons[1])
+    fireEvent.click(lurus)
+    fireEvent.click(materi)
+    fireEvent.click(kuis)
+    expect(onExplore).toHaveBeenCalledTimes(1)
     expect(onMateri).toHaveBeenCalledTimes(1)
     expect(onKuis).toHaveBeenCalledTimes(1)
   })
