@@ -200,13 +200,17 @@ async function readSign() {
   const sign = SIGNS.find((s) => label.includes(s.name))
   expect(sign, label).toBeTruthy()
   if (!sign) throw new Error('lembar tanpa rambu')
-  // Baris pembuka Aku ada di atas arti, bukan menggantikannya.
-  expect(screen.getByText(OPENINGS[sign.id])).toBeTruthy()
+  // Lembar berisi keterangan resmi saja: arti, bentuk, tip. Narasi Aku
+  // sengaja TIDAK di sini — ia keluar sebagai balon ucapan setelah ditutup.
   expect(screen.getByText(sign.meaning)).toBeTruthy()
   expect(screen.getByText(`Bentuk: ${WALK_SHAPES[sign.id]}`)).toBeTruthy()
+  expect(screen.queryByText(OPENINGS[sign.id])).toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: 'Tutup' }))
   expect(screen.queryByRole('dialog')).toBeNull()
+
+  // Anak berbalik, mengangkat tangan, dan mengucapkan narasinya.
+  expect(screen.getByText(OPENINGS[sign.id])).toBeTruthy()
   // Kembali ke beat yang sama: kalimat dan kedua tombolnya masih ada.
   expectPanelLine(STOP_LINES[sign.id])
   expect(screen.getByRole('button', { name: 'Lanjut jalan' })).toBeTruthy()
@@ -522,12 +526,14 @@ describe('alur aplikasi', () => {
     expect(screen.getByRole('heading', { name: 'Jalur Materi' })).toBeTruthy()
     expectPanelLine(MATERI_LINE)
 
-    // Kartu membuka lembar yang sama, lengkap dengan pembuka naskah.
+    // Kartu membuka lembar keterangan resmi yang sama — tanpa narasi Aku,
+    // karena di jalur materi anak memang sedang membaca, bukan bercerita.
     const card = screen.getByRole('button', { name: /Banyak Anak Menyeberang/ })
     // jsdom tidak memindahkan fokus saat klik; browser sungguhan melakukannya.
     card.focus()
     fireEvent.click(card)
-    expect(screen.getByText(OPENINGS.anak)).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'Rambu Banyak Anak Menyeberang' })).toBeTruthy()
+    expect(screen.queryByText(OPENINGS.anak)).toBeNull()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(card)
@@ -608,5 +614,45 @@ describe('alur aplikasi', () => {
 
     const heading = screen.getByRole('heading', { name: 'Kamu sampai di rumah!' })
     expect(document.activeElement).toBe(heading)
+  })
+})
+
+describe('narasi sebagai balon ucapan (Task 24)', () => {
+  it('lembar berisi keterangan resmi; narasi baru muncul setelah lembar ditutup', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
+    await arriveAtSign()
+
+    // Sebelum dibuka: tidak ada balon narasi di scene.
+    expect(document.querySelector('.wk-bubble')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apa ini?' }))
+    const dialog = screen.getByRole('dialog')
+    const label = dialog.getAttribute('aria-label') ?? ''
+    const sign = SIGNS.find((s) => label.includes(s.name))
+    expect(sign).toBeTruthy()
+    if (!sign) throw new Error('lembar tanpa rambu')
+
+    // Isi lembar: rambu + arti + bentuk + tip. Tanpa narasi Aku.
+    expect(screen.getByText(sign.meaning)).toBeTruthy()
+    expect(screen.getByText(sign.tip)).toBeTruthy()
+    expect(screen.queryByText(OPENINGS[sign.id])).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tutup' }))
+
+    // Anak berbalik dan mengucapkan narasinya; balon bertahan.
+    const bubble = document.querySelector<HTMLElement>('.wk-bubble')
+    expect(bubble).not.toBeNull()
+    expect(bubble!.textContent).toContain(OPENINGS[sign.id])
+    // Pose bicara = menghadap kamera, bukan punggung.
+    expect(document.querySelector('.wk-kid-talk')).not.toBeNull()
+    expect(document.querySelector('.hw-walk, .hw-idle')).toBeNull()
+
+    await passSheetGuard()
+    fireEvent.click(screen.getByRole('button', { name: 'Lanjut jalan' }))
+
+    // "Lanjut jalan" menutup balon dan mengembalikan anak ke punggung.
+    expect(document.querySelector('.wk-bubble')).toBeNull()
+    expect(document.querySelector('.wk-kid-talk')).toBeNull()
   })
 })

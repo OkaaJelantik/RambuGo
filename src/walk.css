@@ -413,6 +413,80 @@
   }
 }
 
+/* ---------- balon ucapan narasi (Task 24) ---------- */
+
+/*
+ * Narasi Aku tidak lagi menumpuk di dalam lembar rambu. Lembar berisi
+ * keterangan resmi; narasinya keluar di sini, di atas kepala anak, setelah
+ * lembar ditutup, dan bertahan sampai "Lanjut jalan".
+ */
+.wk-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--wk-hero-h, 160px) * 0.62);
+  translate: -50% 0;
+  z-index: 300;
+  margin: 0;
+  max-width: min(62vw, 240px);
+  padding: 9px 12px;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 0 4px 0 rgba(42, 35, 32, 0.16);
+  pointer-events: none;
+}
+
+/* Ekor balon: dua segitiga bertumpuk — tinta di bawah, kertas di atas —
+   supaya garis tepi balon tetap menyambung ke ekornya. */
+.wk-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  translate: -50% 0;
+  border: 8px solid transparent;
+  border-top-color: var(--ink);
+}
+
+.wk-bubble::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  translate: -50% 0;
+  z-index: 1;
+  border: 6px solid transparent;
+  border-top-color: var(--paper);
+}
+
+/* Anak yang berbicara dilihat dari depan; ia tidak berjalan. */
+.wk-kid-talk {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wk-kid-talk .kid-arm-up {
+    transform-origin: 97px 96px;
+    animation: wk-wave 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes wk-wave {
+  0%,
+  100% {
+    rotate: -6deg;
+  }
+  50% {
+    rotate: 8deg;
+  }
+}
+
 /* ---------- HUD ---------- */
 
 .wk-hud {

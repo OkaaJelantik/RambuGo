@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties, RefObject } from 'react'
 import GroundScene from './scene/GroundScene'
 import HeroWalk from './art/HeroWalk'
+import Kid from './Kid'
 import {
   Bench,
   Bin,
@@ -49,6 +50,8 @@ import './walk.css'
 type Props = {
   /** Rambu perjalanan kaki ini, urutannya ditentukan `src/run.ts`. */
   signs: ReadonlyArray<Sign>
+  /** Narasi Aku yang tampil sebagai balon ucapan; `null` = balon tidak ada. */
+  narration?: string | null
   step: number
   onOpen: (sign: Sign) => void
   /** Dunia berhenti di rambu; App memakainya untuk memunculkan beat stop. */
@@ -502,6 +505,7 @@ function randomWait(rng: () => number, min: number, max: number): number {
  */
 export default function WalkScene({
   signs,
+  narration = null,
   step,
   onOpen,
   onStop,
@@ -1021,8 +1025,19 @@ export default function WalkScene({
 
       <div className="wk-hero-zone" style={heroStyle} ref={heroZoneRef}>
         <div className="wk-hero" ref={heroRef}>
-          <HeroWalk pose={mode === 'walking' ? 'walk' : 'idle'} />
+          {/* Berbicara: anak berbalik menghadap kamera dan mengangkat satu
+              tangan. Berjalan/berhenti: tetap dari belakang. */}
+          {narration ? (
+            <Kid className="wk-kid-talk" wave />
+          ) : (
+            <HeroWalk pose={mode === 'walking' ? 'walk' : 'idle'} />
+          )}
         </div>
+        {narration && (
+          <p className="wk-bubble" role="status">
+            {narration}
+          </p>
+        )}
       </div>
 
       <div className="wk-hud">

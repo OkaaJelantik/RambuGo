@@ -36,14 +36,11 @@ function kindChipText(kind: Kind) {
 
 function SignSheet({
   sign,
-  opening,
   onClose,
   cta,
   fallbackFocus,
 }: {
   sign: Sign
-  /** Baris pembuka Aku di atas arti; hanya rambu yang ada di naskah. */
-  opening?: string
   onClose: () => void
   cta: string
   /** Fokus cadangan bila pemicu asli tidak bisa difokuskan lagi. */
@@ -127,15 +124,11 @@ function SignSheet({
         </span>
         <p className="kind-shape">Bentuk: {KINDS[sign.kind].shape}</p>
 
-        <div className="chat-row">
-          <div className="chat-avatar" aria-hidden="true">
-            <Kid />
-          </div>
-          <div className="chat-bubble">
-            <h3>{sign.name}</h3>
-            {opening && <p className="sheet-opening">{opening}</p>}
-            <p>{sign.meaning}</p>
-          </div>
+        {/* Isi lembar = keterangan resmi saja. Narasi Aku pindah ke balon
+            ucapan di scene, muncul setelah lembar ditutup. */}
+        <div className="sheet-wiki">
+          <h3>{sign.name}</h3>
+          <p>{sign.meaning}</p>
         </div>
 
         <p className="tip">{sign.tip}</p>
@@ -209,6 +202,8 @@ export default function App() {
   const [run, setRun] = useState<Run>(() => createRun(initialSeed()))
   const batch = batchOf(run)
   const [open, setOpen] = useState<Sign | null>(null)
+  /** Narasi Aku yang tampil sebagai balon ucapan sesudah lembar ditutup. */
+  const [narration, setNarration] = useState<string | null>(null)
   const [materiOpen, setMateriOpen] = useState<Sign | null>(null)
   const walkSceneRef = useRef<HTMLDivElement | null>(null)
   const classroomHeadingRef = useRef<HTMLHeadingElement | null>(null)
@@ -225,6 +220,9 @@ export default function App() {
   /** Catat waktu tutup lembar; aksi panel sesudahnya ditahan sebentar. */
   const closeWalkSheet = () => {
     sheetClosedAtRef.current = performance.now()
+    // Lembar berisi keterangan resmi; setelah ditutup anak berbalik dan
+    // mengucapkan narasinya dalam balon, bertahan sampai "Lanjut jalan".
+    if (open) setNarration(openingFor(open.id) ?? null)
     setOpen(null)
   }
 
@@ -272,6 +270,8 @@ export default function App() {
   }, [stage, beatId])
 
   const continueWalk = () => {
+    // Balon narasi ditutup bersama jalan yang dimulai lagi.
+    setNarration(null)
     if (stage === 'intro') {
       pendingFocusRef.current = 'walk'
       setStage('walk')
@@ -369,14 +369,20 @@ export default function App() {
             signs={batch}
             step={walked}
             onOpen={(sign) => setOpen(sign)}
-            onStop={() => setBeatId(STOP_BEAT)}
-            onSignTap={() => setBeatId(STOP_BEAT)}
+            onStop={() => {
+              setNarration(null)
+              setBeatId(STOP_BEAT)
+            }}
+            onSignTap={() => {
+              setNarration(null)
+              setBeatId(STOP_BEAT)
+            }}
+            narration={narration}
             sceneRef={walkSceneRef}
           />
           {open && (
             <SignSheet
               sign={open}
-              opening={openingFor(open.id)}
               onClose={closeWalkSheet}
               cta="Tutup"
               fallbackFocus={walkSceneRef}
@@ -439,7 +445,6 @@ export default function App() {
           {materiOpen && (
             <SignSheet
               sign={materiOpen}
-              opening={openingFor(materiOpen.id)}
               onClose={closeMateriSheet}
               cta="Tutup"
             />

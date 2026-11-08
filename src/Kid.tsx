@@ -1,12 +1,17 @@
 import type { CSSProperties } from 'react'
 
-type Props = { className?: string; style?: CSSProperties }
+type Props = {
+  className?: string
+  style?: CSSProperties
+  /** Angkat satu tangan: dipakai saat anak berbalik dan berbicara. */
+  wave?: boolean
+}
 
 /**
  * Tokoh utama: murid kelas 2 SD (perempuan), seragam putih-merah,
  * tas punggung biru, rambut kuncir. Dipakai di semua scene.
  */
-export default function Kid({ className, style }: Props) {
+export default function Kid({ className, style, wave = false }: Props) {
   return (
     <svg
       viewBox="0 0 140 260"
@@ -52,11 +57,22 @@ export default function Kid({ className, style }: Props) {
       />
       <path d="M63 104l7 8 7-8" fill="none" stroke="#2a2320" strokeWidth="3" strokeLinejoin="round" />
 
-      {/* lengan + tangan */}
+      {/* lengan + tangan. Saat `wave`, lengan kanan diangkat: satu lengan
+          saja, supaya pose "berbalik dan menyapa" terbaca, bukan T-pose. */}
       <rect x="40" y="108" width="15" height="22" rx="7" fill="#fff9ee" stroke="#2a2320" strokeWidth="4" />
-      <rect x="85" y="108" width="15" height="22" rx="7" fill="#fff9ee" stroke="#2a2320" strokeWidth="4" />
+      {wave ? (
+        <g className="kid-arm-up">
+          <rect x="90" y="96" width="14" height="22" rx="7" fill="#fff9ee" stroke="#2a2320" strokeWidth="4" />
+          <rect x="92" y="70" width="13" height="30" rx="6" fill="#f7cba8" stroke="#2a2320" strokeWidth="4" />
+          <circle cx="98" cy="64" r="8" fill="#f7cba8" stroke="#2a2320" strokeWidth="4" />
+        </g>
+      ) : (
+        <>
+          <rect x="85" y="108" width="15" height="22" rx="7" fill="#fff9ee" stroke="#2a2320" strokeWidth="4" />
+          <rect x="86" y="126" width="13" height="32" rx="6" fill="#f7cba8" stroke="#2a2320" strokeWidth="4" />
+        </>
+      )}
       <rect x="41" y="126" width="13" height="32" rx="6" fill="#f7cba8" stroke="#2a2320" strokeWidth="4" />
-      <rect x="86" y="126" width="13" height="32" rx="6" fill="#f7cba8" stroke="#2a2320" strokeWidth="4" />
 
       {/* rambut belakang + kuncir */}
       <circle cx="70" cy="62" r="30" fill="#2b2320" />
