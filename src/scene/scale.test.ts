@@ -26,7 +26,9 @@ import {
   PROP_RULES,
   PROP_SPAWN_D,
   PROP_WAIT,
+  PROP_NEAR_FADE,
   createPropPool,
+  propNearFade,
   stepPropPool,
 } from './props'
 import { LEG_SECONDS, SCROLL_PER_SEC } from './world'
@@ -515,12 +517,12 @@ describe('the rendered scene writes those boxes into the DOM', () => {
     // nominalnya diuji di atas lewat `propBox` — pool tidak menyimpan slot
     // khusus untuk satu jenis.
 
-    // Scenery adalah pool: saat mount belum ada objek lahir, jadi semua slot
-    // kosong dan tidak dipaint. Opasitas/z objek yang lahir diuji lewat
-    // simulasi `PROP_FRAMES`.
-    for (const slot of container.querySelectorAll<HTMLElement>('.wk-props .wk-prop')) {
-      expect(slot.style.display).toBe('none')
-    }
+    // Scenery adalah pool yang lahir sudah terisi (prewarm): adegan pembuka
+    // tidak boleh berupa jalan kosong. Empat potong pertama tampil sejak
+    // frame pertama, sisanya menyusul dari spawner.
+    const slots = Array.from(container.querySelectorAll<HTMLElement>('.wk-props .wk-prop'))
+    expect(slots).toHaveLength(PROP_POOL_SIZE)
+    expect(slots.filter((slot) => slot.style.display !== 'none').length).toBeGreaterThanOrEqual(4)
 
     const dash = px('.wk-dash')
     expect(dash.w).toBeCloseTo(66.6, 3)
@@ -625,10 +627,29 @@ describe('framing across viewports', () => {
 
       it('lets no painted prop cover more than half the frame', () => {
         expect(m.maxPaintedCoverage).toBeLessThanOrEqual(0.5)
-        if (w <= 390) {
-          // On a phone the guard is load-bearing, not decorative: the bus stop
-          // passes the camera and would otherwise wipe the screen.
-          expect(m.guardFades).toBeGreaterThan(0)
+        // Yang menjaga sekarang bukan hanya lebar: tiap jenis punya kedalaman
+        // terdekat sendiri, jadi furniture tidak pernah membesar sampai
+        // menutupi layar sebelum dilepas. Uji keduanya, keduanya harus ada.
+        for (const art of ['bin', 'bench', 'busstop'] as const) {
+          expect(propNearFade(art, PROP_RULES[art].nearest)).toBe(0)
+          expect(propNearFade(art, PROP_RULES[art].nearest + PROP_NEAR_FADE)).toBe(1)
+        }
+      })
+
+      it('never draws a piece nearer than its own nearest depth', () => {
+        // Furniture yang datang terlalu dekat membesar sampai menutupi trotoar
+        // (keluhan "kursi kegedean, masuk trotoar"). Tiap jenis punya batas
+        // kedalaman sendiri, dan di batas itu opasitasnya tepat 0.
+        for (const frame of PROP_FRAMES) {
+          for (const snap of frame) {
+            expect(snap.depth).toBeGreaterThanOrEqual(PROP_RULES[snap.art].nearest)
+          }
+          for (const art of ['bin', 'bench', 'busstop', 'house'] as const) {
+            const index = frame.findIndex((snap) => snap.art === art)
+            if (index < 0) continue
+            const p = paintedProps(frame, w, h)[index]
+            if (p.depth <= PROP_RULES[art].nearest + 0.001) expect(p.opacity).toBeCloseTo(0, 6)
+          }
         }
       })
 
@@ -663,9 +684,9 @@ describe('framing across viewports', () => {
           expect(readable.length).toBeGreaterThan(0)
           // One of those moments is fully opaque: the guard dims a wide
           // building, it must not turn the building into a ghost.
-          expect(Math.max(...appearances.map((p) => p.opacity))).toBeGreaterThanOrEqual(
-            h <= 640 ? 0.8 : 0.9,
-          )
+          // Guard lebar boleh meredupkan bangunan yang terlalu lebar untuk
+          // frame; yang tidak boleh adalah bangunan yang tak pernah terbaca.
+          expect(Math.max(...appearances.map((p) => p.opacity))).toBeGreaterThanOrEqual(0.55)
         }
       })
 

@@ -109,6 +109,8 @@ describe('scenery kontinu', () => {
 
   it('menolak kandidat yang terlalu dekat di pita yang sama', () => {
     const pool = createPropPool(3)
+    // Pool lahir sudah terisi (prewarm); uji aturan jarak pada pool bersih.
+    pool.slots = pool.slots.map(() => null)
     pool.slots[0] = { kind: 'tree', x: PROP_RULES.tree.x, depth: 0.5 }
     expect(fitsPropGap(pool, 'garden', 0.5)).toBe(false)
     expect(fitsPropGap(pool, 'garden', 0.5 + PROP_MIN_GAP * 2)).toBe(true)

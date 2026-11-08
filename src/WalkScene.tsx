@@ -37,6 +37,7 @@ import { createWorld, stepWorld, type Mode, type WorldState } from './scene/worl
 import {
   PROP_POOL_SIZE,
   createPropPool,
+  propNearFade,
   stepPropPool,
   type PropPool,
 } from './scene/props'
@@ -397,7 +398,7 @@ export function placeProp(
     x,
     y: yAt(depth) * viewportH,
     coverage,
-    opacity: beltOpacity(depth, coverage),
+    opacity: beltOpacity(depth, coverage) * propNearFade(spec.art, depth),
     z: propZ(depth),
   }
 }

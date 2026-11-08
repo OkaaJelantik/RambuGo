@@ -39,16 +39,54 @@ export type Band = 'garden' | 'gardenEdge' | 'kerb'
  * kemunculan. Bobot meniru ritme jalan sungguhan — pohon dan lampu sering,
  * halte dan ruko jarang — supaya hasilnya tidak terasa acak-acakan.
  */
-export const PROP_RULES: Record<PropKind, { x: number; band: Band; weight: number }> = {
-  tree: { x: -2.8, band: 'garden', weight: 24 },
-  lamp: { x: 0.25, band: 'kerb', weight: 16 },
-  fence: { x: -3.5, band: 'garden', weight: 12 },
-  bin: { x: -1.85, band: 'gardenEdge', weight: 12 },
-  bench: { x: -2.6, band: 'garden', weight: 10 },
-  shop: { x: -3.8, band: 'garden', weight: 8 },
-  house: { x: -4.0, band: 'garden', weight: 8 },
-  powerpole: { x: -2.9, band: 'garden', weight: 6 },
-  busstop: { x: -0.1, band: 'kerb', weight: 4 },
+export const PROP_RULES: Record<
+  PropKind,
+  {
+    x: number
+    band: Band
+    weight: number
+    /**
+     * Kedalaman terdekat yang masih digambar. Objek yang lebih dekat dari ini
+     * sudah memudar habis dan dilepas: kursi 0,85 m pada kedalaman 0,10
+     * delapan kali lebih besar daripada saat ia berdiri di trotoar, dan itulah
+     * yang membuat furniture terasa "kegedean" lalu menutupi trotoar.
+     */
+    nearest: number
+  }
+> = {
+  tree: { x: -2.8, band: 'garden', weight: 24, nearest: 0.34 },
+  lamp: { x: 0.25, band: 'kerb', weight: 16, nearest: 0.3 },
+  fence: { x: -3.5, band: 'garden', weight: 12, nearest: 0.32 },
+  bin: { x: -1.85, band: 'gardenEdge', weight: 12, nearest: 0.26 },
+  bench: { x: -2.6, band: 'garden', weight: 10, nearest: 0.28 },
+  shop: { x: -4.2, band: 'garden', weight: 9, nearest: 0.4 },
+  house: { x: -5.0, band: 'garden', weight: 10, nearest: 0.42 },
+  powerpole: { x: -2.9, band: 'garden', weight: 6, nearest: 0.36 },
+  busstop: { x: -0.1, band: 'kerb', weight: 7, nearest: 0.38 },
+}
+
+/**
+ * Panjang fade keluar di ujung dekat, dalam satuan kedalaman. Objek memudar
+ * dari `nearest + PROP_NEAR_FADE` ke `nearest`, jadi tidak ada yang hilang
+ * mendadak di depan kamera.
+ */
+export const PROP_NEAR_FADE = 0.08
+
+/** Kedalaman terdekat sebuah jenis. */
+export function propNearest(kind: PropKind): number {
+  return PROP_RULES[kind].nearest
+}
+
+/**
+ * Opasitas tambahan karena objek mendekati kamera: 1 jauh, 0 di `nearest`.
+ * Dipakai bersama `fadeAt`/`nearFadeAt` supaya objek tidak pernah tampil
+ * sebesar rumah lalu lenyap.
+ */
+export function propNearFade(kind: PropKind, depth: number): number {
+  const nearest = PROP_RULES[kind].nearest
+  if (depth >= nearest + PROP_NEAR_FADE) return 1
+  if (depth <= nearest) return 0
+  return (depth - nearest) / PROP_NEAR_FADE
 }
 
 export const PROP_KINDS = Object.keys(PROP_RULES) as PropKind[]
@@ -102,15 +140,34 @@ export function pickPropKind(rng: () => number): PropKind {
   return PROP_KINDS[PROP_KINDS.length - 1]
 }
 
+/** Kedalaman awal yang sudah terisi saat adegan pertama tampil. */
+const PREWARM_DEPTHS = [0.86, 0.72, 0.58, 0.44] as const
+
 export function createPropPool(seed: number): PropPool {
   const rng = createRng(seed)
-  return {
+  const pool: PropPool = {
     slots: Array.from({ length: PROP_POOL_SIZE }, () => null),
     rng,
     since: 0,
     wait: PROP_WAIT.min,
     spawned: 0,
   }
+
+  // Jalan tidak boleh kosong pada detik pertama. Empat potong scenery
+  // ditanam di kedalaman yang tersebar, dengan aturan jarak yang sama seperti
+  // spawn biasa, jadi adegan pembuka langsung terasa seperti jalan.
+  PREWARM_DEPTHS.forEach((depth, index) => {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const kind = pickPropKind(rng)
+      const rule = PROP_RULES[kind]
+      if (!fitsPropGap(pool, rule.band, depth)) continue
+      pool.slots[index] = { kind, x: rule.x, depth }
+      pool.spawned += 1
+      break
+    }
+  })
+
+  return pool
 }
 
 /** Apakah ada slot kosong. */
@@ -151,7 +208,7 @@ export function stepPropPool(pool: PropPool, dt: number, scrollDelta: number): b
     // Mendekat ke kamera: kedalaman turun, sama seperti sabuk dulu
     // (`base - scroll`), hanya saja sekarang objek lahir di ujung jauh.
     const depth = slot.depth - scrollDelta
-    pool.slots[i] = depth <= PROP_END_D ? null : { ...slot, depth }
+    pool.slots[i] = depth <= propNearest(slot.kind) ? null : { ...slot, depth }
   }
 
   if (pool.wait <= 0) pool.wait = PROP_WAIT.min + pool.rng() * (PROP_WAIT.max - PROP_WAIT.min)
