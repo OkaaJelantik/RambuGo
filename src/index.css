@@ -554,50 +554,25 @@ button {
   transition: none !important;
 }
 
-/* ---------- kartu rambu gaya balon percakapan ---------- */
+/* ---------- kartu rambu: keterangan resmi ---------- */
 
-.chat-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
+/*
+ * Lembar rambu hanya memuat keterangan resmi (nama, arti, tip). Narasi Aku
+ * tidak lagi di sini — ia tampil sebagai balon ucapan di dalam scene sesudah
+ * lembar ditutup, jadi kartu ini tidak perlu avatar atau gelembung chat.
+ */
+.sheet-wiki {
   margin-top: 0.9rem;
   text-align: left;
 }
 
-.chat-avatar {
-  flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: #ffe9c9;
-  overflow: hidden;
-  display: grid;
-  justify-items: center;
-  box-shadow: 0 3px 0 rgba(42, 35, 32, 0.12);
-}
-
-.chat-avatar svg {
-  height: 156px;
-  width: auto;
-  margin-top: -12px;
-}
-
-.chat-bubble {
-  flex: 1;
-  position: relative;
-  background: #fff;
-  border-radius: 20px 20px 20px 6px;
-  padding: 0.85rem 1rem;
-  box-shadow: 0 4px 0 rgba(42, 35, 32, 0.07);
-}
-
-.chat-bubble h3 {
+.sheet-wiki h3 {
   font-size: clamp(1.05rem, 2.7vw, 1.3rem);
   margin: 0 0 0.25rem;
   line-height: 1.25;
 }
 
-.chat-bubble p {
+.sheet-wiki p {
   font-size: clamp(0.9rem, 2.2vw, 0.98rem);
   line-height: 1.5;
   color: #4a4038;

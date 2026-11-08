@@ -191,10 +191,3 @@
 }
 
 /* Baris pembuka Aku di dalam lembar "Apa ini?", di atas arti rambu. */
-.sheet-opening {
-  margin-bottom: 0.55rem;
-  font-size: 0.98rem;
-  font-weight: 800;
-  line-height: 1.45;
-  color: #8a5a12;
-}
