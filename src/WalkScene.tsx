@@ -577,6 +577,7 @@ export default function WalkScene({
     }
 
     heroZoneRef.current?.style.setProperty('--wk-hero-h', `${hero.h}px`)
+    heroZoneRef.current?.style.setProperty('--wk-hero-w', `${hero.w}px`)
 
     // One CSS variable carries the whole metre scale to walk.css, where the
     // ambience and sign fallbacks live. `--wk-sign-scale` is the perspective
