@@ -144,10 +144,10 @@ seperti versi prototipe dulu.
   Guard `keeps the child on the pavement, inside the frame` mengunci ini.
 - Rambu berdiri di **kerb yang sama**, `SIGN_X = KERB_X = +0,3 m`
   (`src/WalkScene.tsx`), dan berhenti di kedalaman `SIGN_STOP_D = 0,22`. Jadi plat
-  berada 1,40 m di kanan anak dan sedikit di depannya: keduanya berbagi trotoar, tidak
+  berada 1,20 m di kanan anak dan sedikit di depannya: keduanya berbagi trotoar, tidak
   ada jalan yang harus diseberangi untuk melihat rambu.
 - **Pelat digambar 1,5×, ukuran dunia tidak berubah.** `METERS.sign.plate = 0,60 m`
-  di atas tiang 2,0 m (`src/scene/meters.ts:50`) tetap ukuran dunia; yang dirender
+  di atas tiang 1,8 m (`src/scene/meters.ts:50`) tetap ukuran dunia; yang dirender
   adalah `SIGN_EMPHASIS = 1,5` kali pelat **dan** tiang saja
   (`src/WalkScene.tsx`; `signPlatePx`/`signPolePx`). Ini afordans game, bukan
   pengukuran: pelat 0,60 m hanya 44 px di 360×640 — terlalu kecil untuk menjadi
@@ -157,11 +157,11 @@ seperti versi prototipe dulu.
   sebanding, dan tombolnya tepat selebar pelat (tanpa `min-width`). Cincin
   putus-putus selalu terlihat saat `--in` (opacity 0,9, denyut 1,8 s; statis pada
   `prefers-reduced-motion`) dan `pointer-events: none`.
-- **Halte boleh menyapu di belakang rambu.** Halte 1,00 m berdiri kerb-flush
-  (−0,70 … +0,30), jadi kolom lateralnya menyentuh kolom rambu. Itu aman karena pelat
+- **Halte boleh menyapu di belakang rambu.** Halte 0,80 m berdiri kerb-flush
+  (−0,50 … +0,30), jadi kolom lateralnya menyentuh kolom rambu. Itu aman karena pelat
   dicat di `z-index: 160` sementara `propZ` maksimum 100 (`src/WalkScene.tsx`,
   `propZ`): setiap prop selalu di belakang pelat. Alasan yang sama membuat lampu
-  4,5 m (x +0,15, lebar 1,35) boleh melintasi kolom rambu; `scale.test.ts` mengunci
+  4,5 m (x +0,25, lebar 1,35) boleh melintasi kolom rambu; `scale.test.ts` mengunci
   "pelat di atas semua prop" dan "tidak ada tong yang menyentuh pelat/tiang pada
   ketiga fase berhenti".
 - **Sisi seberang tidak pernah digambar.** Jalan dicat dari `KERB_X` sampai
