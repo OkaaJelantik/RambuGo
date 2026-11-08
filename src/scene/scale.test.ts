@@ -41,6 +41,7 @@ import WalkScene, {
   SIGN_EMPHASIS,
   SIGN_STOP_D,
   SIGN_X,
+  SIGN_Z,
   TRAFFIC_WAIT,
   beltOpacity,
   dashBox,
@@ -124,7 +125,6 @@ function paintedProps(frame: PropSnapshot[], w: number, h: number) {
 }
 
 /** z-index of the sign, the hero and the HUD, from walk.css. */
-const SIGN_Z = 160
 const HERO_Z = 200
 const HUD_Z = 400
 
@@ -610,7 +610,8 @@ describe('the rendered scene writes those boxes into the DOM', () => {
       container.querySelectorAll('.wk-veh-slot').length +
       container.querySelectorAll('.wk-ped-slot').length +
       container.querySelectorAll('.wk-hero').length +
-      container.querySelectorAll('.wk-sign').length
+      container.querySelectorAll('.wk-sign').length +
+      container.querySelectorAll('.wk-birds').length
     expect(nodeCount).toBeLessThanOrEqual(30)
 
     const car = px('.wk-veh--car')
@@ -672,17 +673,23 @@ describe('framing across viewports', () => {
         expect(m.signGap).toBeGreaterThan(0)
       })
 
-      it('paints every prop behind the hero and above the road', () => {
+      it('paints every prop above the road and behind the hero', () => {
         for (const frame of PROP_FRAMES) {
           for (const p of paintedProps(frame, w, h)) {
             expect(p.z).toBeGreaterThan(0)
-            expect(p.z).toBeLessThan(SIGN_Z)
+            expect(p.z).toBeLessThan(HERO_Z)
           }
         }
         // Near pieces stack above far ones, and the hero stays on top of all
-        // of them; that is why only the sign and the HUD can ever occlude her.
+        // of them; that is why only the HUD can ever occlude her.
         expect(propZ(0.02)).toBeGreaterThan(propZ(0.9))
         expect(propZ(0.02)).toBeLessThan(HERO_Z)
+        // The sign is depth-sorted like everything else: at its stop depth a
+        // piece that walks in front of it (nearer) must paint over it, and one
+        // behind it (further) must not. That is the occlusion the eye expects.
+        expect(SIGN_Z).toBe(propZ(SIGN_STOP_D))
+        expect(propZ(SIGN_STOP_D - 0.05)).toBeGreaterThan(SIGN_Z)
+        expect(propZ(SIGN_STOP_D + 0.05)).toBeLessThan(SIGN_Z)
         expect(SIGN_Z).toBeLessThan(HERO_Z)
         expect(HERO_Z).toBeLessThan(HUD_Z)
         // The HUD pill is above her head, not over it.
@@ -900,7 +907,10 @@ describe('lateral bands and the rendered sign', () => {
     }
   })
 
-  it('paints the sign plate above every prop, including the lamp that crosses it', () => {
+  it('depth-sorts the sign against the furniture that crosses it', () => {
+    // Rambu dulu z 160, di atas segalanya: benda yang berjalan masuk ke
+    // depannya digambar di belakangnya, dan itu terbaca sebagai "rambu
+    // ditempel di kaca". Sekarang ia memakai `propZ(depth)` yang sama.
     const w = 360
     const h = 800
     const { plate } = signPaintedBoxes(w, h)
@@ -909,16 +919,30 @@ describe('lateral bands and the rendered sign', () => {
       const painted = paintedProps(frame, w, h)
       for (const [i, snap] of frame.entries()) {
         const p = painted[i]
-        // Every prop sits at propZ ≤ 100; the plate is 160.
-        expect(p.z).toBeLessThan(SIGN_Z)
+        // `propZ` membulatkan ke 1/80 kedalaman, jadi dua objek yang hanya
+        // 0,01 berjarak boleh seri; yang dikunci adalah arahnya.
+        if (snap.depth < SIGN_STOP_D) {
+          // Lebih dekat ke kamera daripada rambu → menutupi pelat.
+          expect(p.z).toBeGreaterThanOrEqual(SIGN_Z)
+        } else if (snap.depth > SIGN_STOP_D) {
+          expect(p.z).toBeLessThanOrEqual(SIGN_Z)
+        }
         if (snap.art === 'lamp' && p.opacity >= 0.1 && overlaps(propRect(p), plate)) {
           crossings += 1
         }
       }
     }
     expect(propZ(0)).toBeLessThanOrEqual(100)
-    // The rule is exercised, not vacuous: the lamp's 4,5 m box really does
-    // cross the plate's column during the leg.
+    // Yang benar-benar melintas DI DEPAN pelat bukan scenery (furniture kerb
+    // sudah dilepas di 0,26–0,34) melainkan pejalan di trotoar sisi kerb:
+    // `LANES.sidewalkR` hanya 0,25 m dari garis rambu dan mereka berjalan
+    // sampai kedalaman 0. Di situ z harus lebih besar dari rambu, kalau tidak
+    // pejalan itu digambar di belakang tiang.
+    expect(Math.abs(LANES.sidewalkR - SIGN_X)).toBeLessThan(0.5)
+    expect(propZ(0.1)).toBeGreaterThan(SIGN_Z)
+    expect(propZ(0.1)).toBeGreaterThan(propZ(SIGN_STOP_D))
+    // Arah sebaliknya juga terpakai, bukan hampa: furniture yang masih jauh
+    // (termasuk tiang lampu 4,5 m) memang melewati kolom pelat.
     expect(crossings).toBeGreaterThan(0)
   })
 

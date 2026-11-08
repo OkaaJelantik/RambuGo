@@ -405,3 +405,23 @@ export function PowerPole() {
     </svg>
   )
 }
+
+/**
+ * Sekawan burung di langit: tiga siluet "v" dengan ukuran berbeda.
+ *
+ * Digambar tanpa perspektif dengan sengaja — burung terbang jauh di atas
+ * kedalaman dunia, jadi memperkecilnya menurut kedalaman hanya akan membuat
+ * gerak linearnya salah. Satu SVG berisi ketiganya supaya seluruh kawanan
+ * hanya satu node yang dianimasikan CSS (`wk-birds-fly`).
+ */
+export function Birds() {
+  return (
+    <svg className="wk-birds-art" viewBox="0 0 160 60" aria-hidden="true">
+      <g fill="none" stroke={INK} strokeWidth="4" strokeLinecap="round" opacity="0.72">
+        <path d="M8 20 q7-8 14 0 q7-8 14 0" />
+        <path d="M52 42 q5-6 10 0 q5-6 10 0" opacity="0.8" />
+        <path d="M104 14 q6-7 12 0 q6-7 12 0" opacity="0.6" />
+      </g>
+    </svg>
+  )
+}

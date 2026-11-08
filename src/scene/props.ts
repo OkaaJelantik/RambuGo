@@ -62,23 +62,23 @@ export const PROP_RULES: Record<
     nearest: number
   }
 > = {
-  tree: { x: -2.8, band: 'garden', weight: 24, nearest: 0.14 },
-  lamp: { x: 0.25, band: 'kerb', weight: 16, nearest: 0.3 },
-  fence: { x: -3.5, band: 'garden', weight: 12, nearest: 0.14 },
-  bin: { x: -1.85, band: 'gardenEdge', weight: 12, nearest: 0.16 },
-  bench: { x: -2.6, band: 'garden', weight: 10, nearest: 0.14 },
-  shop: { x: -4.2, band: 'garden', weight: 9, nearest: 0.14 },
-  house: { x: -5.0, band: 'garden', weight: 10, nearest: 0.14 },
-  powerpole: { x: -2.9, band: 'garden', weight: 6, nearest: 0.14 },
-  busstop: { x: -0.1, band: 'kerb', weight: 7, nearest: 0.38 },
+  tree: { x: -2.8, band: 'garden', weight: 24, nearest: 0.1 },
+  lamp: { x: 0.25, band: 'kerb', weight: 16, nearest: 0.26 },
+  fence: { x: -3.5, band: 'garden', weight: 12, nearest: 0.1 },
+  bin: { x: -1.85, band: 'gardenEdge', weight: 12, nearest: 0.12 },
+  bench: { x: -2.6, band: 'garden', weight: 10, nearest: 0.1 },
+  shop: { x: -4.2, band: 'garden', weight: 9, nearest: 0.1 },
+  house: { x: -5.0, band: 'garden', weight: 10, nearest: 0.1 },
+  powerpole: { x: -2.9, band: 'garden', weight: 6, nearest: 0.1 },
+  busstop: { x: -0.1, band: 'kerb', weight: 7, nearest: 0.34 },
 }
 
 /**
  * Panjang fade keluar di ujung dekat, dalam satuan kedalaman. Objek memudar
  * dari `nearest + PROP_NEAR_FADE` ke `nearest`, jadi tidak ada yang hilang
- * mendadak di depan kamera. 0,06 ≈ 0,2 detik berjalan pada kecepatan 0,30.
+ * mendadak di depan kamera. 0,05 ≈ 0,17 detik berjalan pada kecepatan 0,30.
  */
-export const PROP_NEAR_FADE = 0.06
+export const PROP_NEAR_FADE = 0.05
 
 /** Kedalaman terdekat sebuah jenis. */
 export function propNearest(kind: PropKind): number {

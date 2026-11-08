@@ -332,13 +332,57 @@
   height: 100%;
 }
 
+/* ---------- burung di langit ---------- */
+
+/* Satu node berisi tiga burung, bergerak linear dari kiri ke kanan. Sengaja
+   tanpa skala kedalaman: burung terbang di atas dunia, bukan di trotoar.
+   Lebar dalam vw supaya sama terbaca di HP 360 px dan di desktop. */
+.wk-birds {
+  position: absolute;
+  top: calc(var(--wk-horizon, 38%) * 0.35);
+  left: 0;
+  z-index: 2;
+  width: 34vw;
+  pointer-events: none;
+  will-change: transform;
+  animation: wk-birds-fly 34s linear infinite;
+}
+
+.wk-birds-art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Lepas layar di kiri, keluar di kanan, dengan sedikit naik-turun di tengah. */
+@keyframes wk-birds-fly {
+  0% {
+    transform: translate(-40vw, 0);
+  }
+  45% {
+    transform: translate(48vw, 1.2vw);
+  }
+  100% {
+    transform: translate(112vw, -0.6vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wk-birds {
+    display: none;
+  }
+}
+
 /* ---------- rambu aktif ---------- */
 
 /* Posisi (left/top) diisi dari proyeksi; tampil/sembunyi lewat
    transisi CSS ini, bukan lewat loop rAF. */
 .wk-sign {
   position: absolute;
-  z-index: 160;
+  /* z-index ditulis loop rAF dari `propZ(depth)`: rambu diurutkan menurut
+     kedalaman seperti objek lain, jadi yang berjalan di depannya menutupinya.
+     Angka ini hanya cadangan sebelum JS jalan. */
+  z-index: 82;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -432,13 +476,16 @@
 }
 
 .wk-sign-pole {
-  /* Tiang 9 cm × 2,0 m pada kedalaman berhenti yang sama, ikut SIGN_EMPHASIS. */
+  /* Tiang 9 cm × 1,8 m pada kedalaman berhenti yang sama, ikut SIGN_EMPHASIS.
+     Angka ini WAJIB sama dengan METERS.sign.pole: rambu asli mendapat ukuran
+     inline dari measure(), tetapi ghost (rambu yang dilewati) hanya memakai
+     CSS ini, dan tiang 2,0 m membuat ghost 11 % lebih panjang dari aslinya. */
   width: calc(
     var(--wk-px-per-m, 148px) * 0.09 * var(--wk-sign-emphasis, 1.5) *
       var(--wk-sign-scale, 0.6979866)
   );
   height: calc(
-    var(--wk-px-per-m, 148px) * 2 * var(--wk-sign-emphasis, 1.5) *
+    var(--wk-px-per-m, 148px) * 1.8 * var(--wk-sign-emphasis, 1.5) *
       var(--wk-sign-scale, 0.6979866)
   );
   border-radius: 5px;
@@ -453,13 +500,24 @@
   animation: wk-pulse 1.7s ease-in-out infinite;
 }
 
+/* Afordansi "ketuk aku" tanpa mengubah bentuk. Dulu keyframe ini menulis
+   `box-shadow` untuk semua jenis, sehingga rambu segitiga (yang memang tanpa
+   kanvas dan tanpa sudut) tiba-tiba punya bayangan kotak di belakangnya —
+   "kotak canvas yang berusaha blend". Sekarang yang berdenyut adalah
+   transform pelat, yang bentuknya selalu mengikuti art-nya. */
 @keyframes wk-pulse {
   0%,
   100% {
-    box-shadow: 0 4px 0 rgba(42, 35, 32, 0.2), 0 10px 16px rgba(42, 35, 32, 0.24);
+    transform: translateY(0) scale(1);
   }
   50% {
-    box-shadow: 0 7px 0 rgba(42, 35, 32, 0.14), 0 16px 24px rgba(42, 35, 32, 0.32);
+    transform: translateY(-3px) scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wk-sign--in .wk-sign-plate {
+    animation: none;
   }
 }
 

@@ -6,6 +6,7 @@ import Kid from './Kid'
 import {
   Bench,
   Bin,
+  Birds,
   BusStop,
   Fence,
   House,
@@ -332,13 +333,21 @@ function setSignPose(el: HTMLElement, x: number, y: number, scale: number): void
 
 /**
  * Stacking index for the scenery belt and NPCs: the same depth formula for
- * both, so near pieces overlap far ones. The sign sits at 160 and the hero at
- * 200 (walk.css), above every prop and every passer-by.
+ * both, so near pieces overlap far ones.
+ *
+ * The sign uses this formula too, at its own depth. It used to sit at a fixed
+ * 160, i.e. above everything, so a passer-by or a lamp post that had walked in
+ * front of it was drawn behind it — the occlusion the eye reads as "the sign
+ * is a sticker on the glass". The hero stays at 200 and the HUD at 400
+ * (walk.css): she must never be hidden, and the sign never overlaps her ink.
  */
 export function propZ(depth: number): number {
   const d = Math.min(1, Math.max(0, depth))
   return 20 + Math.round((1 - d) * 80)
 }
+
+/** Stacking index of the sign while it waits at its stop depth. */
+export const SIGN_Z = propZ(SIGN_STOP_D)
 
 /** One projected object, exactly as the draw loop paints it. */
 export type Placement = {
@@ -726,6 +735,7 @@ export default function WalkScene({
     if (signEl) {
       setSignPose(signEl, offsetX(SIGN_X, signD, w, h), yAt(signD) * h, signScale(signD))
       setOpacity(signEl, fadeAt(signD) * nearFadeAt(signD))
+      setZ(signEl, propZ(signD))
     }
 
     // Ghost rambu yang sudah dilewati: keluar dari 0,22 menuju kamera, memudar
@@ -735,10 +745,16 @@ export default function WalkScene({
       // Jarak yang sudah ditempuh leg ini, bukan scroll total.
       const passedD = SIGN_STOP_D - (world.scroll - legStartScrollRef.current)
       const ghostOpacity = passedD > 0 ? fadeAt(passedD) * nearFadeAt(passedD) : 0
-      setDisplay(ghost, ghostOpacity > 0.01)
       if (ghostOpacity > 0.01) {
+        // Bukan `setDisplay` (yang menulis `block`): ghost adalah <span>, dan
+        // `display:block` membuat tiangnya jadi inline sehingga tinggi 309 px
+        // diabaikan dan pelat jatuh ke tanah. Biarkan CSS (flex) yang mengatur.
+        if (ghost.style.display !== '') ghost.style.display = ''
         setSignPose(ghost, offsetX(SIGN_X, passedD, w, h), yAt(passedD) * h, signScale(passedD))
         setOpacity(ghost, ghostOpacity)
+        setZ(ghost, propZ(passedD))
+      } else if (ghost.style.display !== 'none') {
+        ghost.style.display = 'none'
       }
     }
   }, [propPool])
@@ -982,6 +998,12 @@ export default function WalkScene({
   return (
     <div className="wk-scene" ref={sceneEl} tabIndex={-1}>
       <GroundScene width={viewport.w} height={viewport.h} />
+
+      {/* Satu node, satu kawanan: bergerak linear di langit lewat CSS, jadi
+          tidak menambah penulisan per frame dan tidak memakai kedalaman. */}
+      <div className="wk-birds" aria-hidden="true">
+        <Birds />
+      </div>
 
       {/* Kabut di kaki cakrawala. Sengaja di ATAS marka dan di BAWAH scenery:
           objek yang tinggi (rumah 6,5 m) akan terpotong garis kabut kalau
