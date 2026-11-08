@@ -16,7 +16,7 @@ import {
 import { Car, Motorcycle } from './art/vehicles'
 import { Pedestrian } from './art/people'
 import { SignArt } from './SignArt'
-import { WALK_SIGNS, type Sign } from './data'
+import type { Sign } from './data'
 import { METERS } from './scene/meters'
 import {
   CAMERA_DEPTH,
@@ -47,6 +47,8 @@ import {
 import './walk.css'
 
 type Props = {
+  /** Rambu perjalanan kaki ini, urutannya ditentukan `src/run.ts`. */
+  signs: ReadonlyArray<Sign>
   step: number
   onOpen: (sign: Sign) => void
   /** Dunia berhenti di rambu; App memakainya untuk memunculkan beat stop. */
@@ -491,7 +493,14 @@ function randomWait(rng: () => number, min: number, max: number): number {
  * and writes the resulting transforms straight to refs, so React never
  * re-renders per frame. Viewport size is measured only on mount/resize.
  */
-export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }: Props) {
+export default function WalkScene({
+  signs,
+  step,
+  onOpen,
+  onStop,
+  onSignTap,
+  sceneRef,
+}: Props) {
   const [reduced] = useState(prefersReducedMotion)
   const [mode, setMode] = useState<Mode>(() => (reduced ? 'stopped' : 'walking'))
   const [signStep, setSignStep] = useState(step)
@@ -899,7 +908,7 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
     }
   }, [reduced, draw, stepAmbience])
 
-  const sign = WALK_SIGNS[signStep]
+  const sign = signs[signStep]
   // The child walks her own lateral line (`SIDEWALK_CENTRE`), not the camera's
   // line, so she is drawn left of screen centre at every viewport. Her depth is
   // the focal plane, so `offsetX` here is also what pxAt() sizes her with. The
@@ -1010,7 +1019,7 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
       <div className="wk-hud">
         <span>Jalan ke jalan raya</span>
         <span className="wk-pips" aria-hidden="true">
-          {WALK_SIGNS.map((s, i) => (
+          {signs.map((s, i) => (
             <i key={s.id} className={i <= step ? 'on' : undefined} />
           ))}
         </span>

@@ -485,8 +485,12 @@ describe('alur aplikasi', () => {
 
     // Dunia sudah berhenti sejak awal di mode ini; ketukan plat adalah
     // sinyal cadangan yang eksplisit (onSignTap), bukan pantauan DOM.
-    fireEvent.click(screen.getByRole('button', { name: /Rambu Banyak Anak Menyeberang/ }))
-    expect(screen.getByRole('dialog', { name: 'Rambu Banyak Anak Menyeberang' })).toBeTruthy()
+    // Rambu yang berdiri ditentukan seed; baca namanya dari platnya sendiri.
+    const plate = screen.getByRole('button', { name: /^Rambu / })
+    const plateLabel = plate.getAttribute('aria-label') ?? ''
+    const signName = plateLabel.replace(/^Rambu /, '').replace(/, tekan untuk melihat artinya$/, '')
+    fireEvent.click(plate)
+    expect(screen.getByRole('dialog', { name: `Rambu ${signName}` })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Tutup' }))
     expectAnyStopLine()

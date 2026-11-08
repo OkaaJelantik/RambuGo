@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react'
 import { createElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { SIGNS } from '../data'
 import { METERS } from './meters'
 import {
   CAMERA_DEPTH,
@@ -409,11 +410,11 @@ describe('one metre, every object class', () => {
     expect(pedBox('adult', H).h / pedBox('child', H).h).toBeCloseTo(1.7 / 1.2, 6)
   })
 
-  it('draws the sign plate and a 2,0 m pole at the stop depth, 1,5× rendered', () => {
+  it('draws the sign plate and a 1,8 m pole at the stop depth, 1,5× rendered', () => {
     // SIGN_EMPHASIS = 1,5 is a game affordance: the world plate is still
     // 0,60 m, but the rendered one is 0,90 m (see SIGN_EMPHASIS).
     expect(signPlatePx(H)).toBeCloseTo(92.9718, 3)
-    expect(signPolePx(H).h).toBeCloseTo(309.906, 3)
+    expect(signPolePx(H).h).toBeCloseTo(278.915, 3)
     expect(signPolePx(H).w).toBeCloseTo(13.9458, 3)
     // In metres at the stop depth, after dividing the emphasis back out, so
     // the CSS fallback and the JS cannot drift from the metre table.
@@ -421,7 +422,10 @@ describe('one metre, every object class', () => {
       METERS.sign.plate,
       6,
     )
-    expect(signPolePx(H).h / pxPerMAt(SIGN_STOP_D, H) / SIGN_EMPHASIS).toBeCloseTo(2.0, 6)
+    expect(signPolePx(H).h / pxPerMAt(SIGN_STOP_D, H) / SIGN_EMPHASIS).toBeCloseTo(
+      METERS.sign.pole,
+      6,
+    )
   })
 })
 
@@ -442,7 +446,9 @@ describe('the rendered scene writes those boxes into the DOM', () => {
     vi.stubGlobal('requestAnimationFrame', () => 1)
     vi.stubGlobal('cancelAnimationFrame', () => {})
 
-    const { container } = render(createElement(WalkScene, { step: 0, onOpen: () => {} }))
+    const { container } = render(
+      createElement(WalkScene, { signs: SIGNS.slice(0, 3), step: 0, onOpen: () => {} }),
+    )
 
     const px = (selector: string) => {
       const el = container.querySelector<HTMLElement>(selector)
@@ -502,10 +508,10 @@ describe('the rendered scene writes those boxes into the DOM', () => {
     expect(plate.w).toBeCloseTo(plate.h, 3)
 
     const pole = px('.wk-sign-pole')
-    expect(pole.h).toBeCloseTo(309.906, 3)
+    expect(pole.h).toBeCloseTo(278.915, 3)
     expect(pole.w).toBeCloseTo(13.946, 3)
     // The pole and the plate share one projector and one emphasis, so the
-    // ratio is still the metre ratio 2,0 m / 0,6 m.
+    // ratio is still the metre ratio 1,8 m / 0,6 m.
     expect(pole.h / plate.w).toBeCloseTo(METERS.sign.pole / METERS.sign.plate, 3)
 
     const car = px('.wk-veh--car')

@@ -52,3 +52,14 @@ describe('run: antrean rambu teracak', () => {
     }
   })
 })
+
+describe('rambu yang benar-benar berdiri di jalan', () => {
+  it('scene memakai antrean run, bukan tiga rambu pertama SIGNS', () => {
+    // Batch dari seed mana pun boleh berisi rambu ke-4..6; itu inti fitur ini.
+    const ids = new Set<string>()
+    for (let seed = 1; seed <= 20; seed += 1) {
+      for (const sign of batchOf(createRun(seed))) ids.add(sign.id)
+    }
+    expect(ids.size).toBe(SIGNS.length)
+  })
+})

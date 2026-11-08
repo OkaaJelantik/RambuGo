@@ -47,7 +47,7 @@ export const METERS = {
    * tiang galvanis standar; angka ini yang membuat rambu tidak lagi memakai
    * lebar 11 px tetap di CSS.
    */
-  sign: { plate: 0.6, pole: 2.0, poleWidth: 0.09 },
+  sign: { plate: 0.6, pole: 1.8, poleWidth: 0.09 },
   /** Tinggi objek latar, semua dalam meter. */
   house: 6.5,
   shop: 4.0,

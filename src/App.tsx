@@ -366,6 +366,7 @@ export default function App() {
       {stage === 'walk' && (
         <section className="screen" key="walk">
           <WalkScene
+            signs={batch}
             step={walked}
             onOpen={(sign) => setOpen(sign)}
             onStop={() => setBeatId(STOP_BEAT)}
