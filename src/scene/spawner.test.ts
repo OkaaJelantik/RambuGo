@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BIKE_LANE_OFFSET_M,
+  createRng,
+  fitsLaneGap,
   LANE_DIR,
+  MIN_LANE_GAP,
   PED_SPEED,
+  shouldSpawn,
   SPAWN_DEPTH,
   SPAWN_SEED,
-  createRng,
   spawnPed,
   spawnTraffic,
-  shouldSpawn,
+  TRAFFIC_SPEED,
 } from './spawner'
 
 /** Number of RNG samples used when checking the output range. */
@@ -136,5 +140,43 @@ describe('shouldSpawn', () => {
     expect(shouldSpawn(-1, 0.5, 1, 2)).toBe(false)
     expect(shouldSpawn(-1, 3, 1, 2)).toBe(true)
     expect(shouldSpawn(0, 1.5, 1, 2)).toBe(false)
+  })
+})
+
+describe('denser traffic', () => {
+  it('sends ~65 % of spawns down the visible receding lane', () => {
+    const rng = createRng(SPAWN_SEED)
+    let nearLane = 0
+    for (let i = 0; i < 400; i += 1) {
+      if (spawnTraffic(rng, i).lane === 'laneL') nearLane += 1
+    }
+    const share = nearLane / 400
+    expect(share).toBeGreaterThan(0.55)
+    expect(share).toBeLessThan(0.75)
+  })
+
+  it('never lets two vehicles in one lane sit closer than MIN_LANE_GAP', () => {
+    const rng = createRng(SPAWN_SEED)
+    const a = { ...spawnTraffic(rng, 1), lane: 'laneL' as const, depth: 0.4 }
+    expect(fitsLaneGap(0.4 + MIN_LANE_GAP / 2, [a], 'laneL')).toBe(false)
+    expect(fitsLaneGap(0.4 + MIN_LANE_GAP * 2, [a], 'laneL')).toBe(true)
+    // Another lane is unaffected.
+    expect(fitsLaneGap(0.4, [a], 'laneR')).toBe(true)
+    expect(fitsLaneGap(0.4, [null, a], 'laneL')).toBe(false)
+  })
+
+  it('offsets motorcycles inside the lane and leaves cars centred', () => {
+    const rng = createRng(SPAWN_SEED)
+    let bikes = 0
+    for (let i = 0; i < 200; i += 1) {
+      const t = spawnTraffic(rng, i)
+      if (t.kind === 'bike') {
+        bikes += 1
+        expect(Math.abs(t.offsetM)).toBeLessThanOrEqual(BIKE_LANE_OFFSET_M)
+      } else {
+        expect(t.offsetM).toBe(0)
+      }
+    }
+    expect(bikes).toBeGreaterThan(0)
   })
 })

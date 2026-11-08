@@ -39,6 +39,7 @@ import {
   createRng,
   spawnPed,
   spawnTraffic,
+  fitsLaneGap,
   shouldSpawn,
   type Ped,
   type Traffic,
@@ -93,12 +94,12 @@ export const PROP_CYCLE = 1
 const MAX_FRAME_SECONDS = 0.1
 
 /** Hard caps for ambience: three vehicles and two pedestrians on screen. */
-const VEHICLE_SLOTS = 3
-const PED_SLOTS = 2
+const VEHICLE_SLOTS = 5
+const PED_SLOTS = 3
 
 /** Random spawn waits in seconds, `[min, max]`. */
-export const TRAFFIC_WAIT = { min: 1, max: 2.5 } as const
-const PED_WAIT = { min: 2, max: 4 } as const
+export const TRAFFIC_WAIT = { min: 0.5, max: 1.2 } as const
+const PED_WAIT = { min: 1.5, max: 3 } as const
 
 /**
  * Depth range objects live in. Oncoming traffic (and the left sidewalk)
@@ -159,17 +160,17 @@ export type { PropSpec }
  *
  * | band        | x (m)        | contents |
  * |-------------|--------------|----------|
- * | child       | −1,10        | hero only; her ink −1,463 … −0,737 |
+ * | child       | −0,90        | hero only; her ink −1,263 … −0,537 |
  * | garden edge | −1,85        | both bins, 0,55 m wide → −2,125 … −1,575 |
  * | garden      | ≤ −2,30      | bench −2,60, tree −2,8, power pole −2,9, fence −3,5, shop −3,8, house −4,0 |
- * | kerb        | −0,20 … +0,30| bus stop −0,20 (1,00 m wide → −0,70 … +0,30), lamp +0,15, sign +0,30 |
+ * | kerb        | −0,50 … +0,30| bus stop −0,10 (0,80 m wide → −0,50 … +0,30), lamp +0,25, sign +0,30 |
  *
  * The bins straddle the pavement's garden edge by 12,5 cm (they stand 0,30 m
  * into the verge) on purpose: the 2,0 m pavement cannot hold the child 0,73 +
- * the bus stop 1,00 + a bin 0,55, and a bin half in the verge reads far better
- * than one in the child's path. The bus stop is kerb-flush on *both* edges of
- * its band, so the child has 3,7 cm of clearance from it — `scale.test.ts` pins
- * that as a floor, not a coincidence.
+ * the bus stop 0,80 + a bin 0,55, and a bin half in the verge reads far better
+ * than one in the child's path. The bus stop's right edge is exactly the kerb,
+ * so the child has 3,65 cm of clearance from it — `scale.test.ts` pins that as
+ * a floor, not a coincidence.
  *
  * The two big buildings used to sit at −7,8 m and −6,0 m. On a 360 px phone
  * that showed 1–13 % of their sprite (3–40 px) through the haze, i.e. the
@@ -457,11 +458,12 @@ export function placeVehicle(
   depth: number,
   viewportW: number,
   viewportH: number,
+  offsetM = 0,
 ): Placement {
   const box = vehicleBox(kind, viewportH)
   const scale = roundScale(depth)
   const width = box.w * scale
-  const x = offsetX(LANES[lane], depth, viewportW, viewportH)
+  const x = offsetX(LANES[lane] + offsetM, depth, viewportW, viewportH)
   return {
     depth,
     scale,
@@ -665,7 +667,14 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
         setDisplay(el, false)
         return
       }
-      const placed = placeVehicle(vehicle.lane, vehicle.kind, vehicle.depth, w, h)
+      const placed = placeVehicle(
+        vehicle.lane,
+        vehicle.kind,
+        vehicle.depth,
+        w,
+        h,
+        vehicle.offsetM,
+      )
       setTransform(el, roundHalf(placed.x), roundHalf(placed.y), placed.scale)
       setOpacity(el, placed.opacity)
       setZ(el, placed.z)
@@ -696,8 +705,11 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
 
     // The spawner always names the horizon. Away-bound traffic enters from
     // the near edge instead: the camera is walking, so it overtakes us.
-    vehiclesRef.current[slot] =
-      traffic.dir === 1 ? { ...traffic, depth: NEAR_EDGE } : traffic
+    const entry = traffic.dir === 1 ? { ...traffic, depth: NEAR_EDGE } : traffic
+    // A vehicle too close to another in the same lane would paint as one wide
+    // sprite; skip this cycle instead of stacking them.
+    if (!fitsLaneGap(entry.depth, vehiclesRef.current, entry.lane)) return
+    vehiclesRef.current[slot] = entry
 
     const el = vehicleRefs.current[slot]
     if (!el) return

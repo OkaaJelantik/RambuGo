@@ -12,6 +12,26 @@ export const SPAWN_SEED = 20261107
 /** Depth an object starts at: the horizon, where the haze hides the pop-in. */
 export const SPAWN_DEPTH = 1
 
+/**
+ * Share of spawns that take the near, receding lane (`laneL`).
+ *
+ * The road is cropped at the right frame edge, so the far lane is only partly
+ * visible: its centre sits past 100 % of the frame at shallow depths. Sending
+ * two thirds of the traffic down the lane the child can actually see keeps the
+ * road busy without spawning vehicles nobody will ever look at.
+ */
+export const TRAFFIC_LANE_BIAS = 0.65
+
+/**
+ * Smallest depth gap, in depth units, that keeps two vehicles in one lane from
+ * reading as one sprite. 0,08 depth is about 40 px at depth 0,3, where a car is
+ * 67 px wide, so the gap is a little under a car length.
+ */
+export const MIN_LANE_GAP = 0.08
+
+/** Lateral metres a motorcycle may sit off its lane centre, so two can ride abreast. */
+export const BIKE_LANE_OFFSET_M = 0.5
+
 /** Speed bands in depth units per second. Vehicles are brisk, walkers calm. */
 export const TRAFFIC_SPEED = { min: 0.18, max: 0.3 } as const
 export const PED_SPEED = { min: 0.08, max: 0.14 } as const
@@ -38,6 +58,8 @@ export type Traffic = {
   depth: number
   speed: number
   dir: 1 | -1
+  /** Lateral metres off the lane centre; motorcycles only, 0 for cars. */
+  offsetM: number
 }
 
 export type Ped = {
@@ -71,12 +93,35 @@ function between(rng: () => number, min: number, max: number): number {
  * A fresh vehicle at the horizon. Direction follows the lane, never the art:
  * keep it here so a lane swap cannot silently reverse the traffic.
  */
-export function spawnTraffic(rng: () => number, nextId: number): Traffic {
-  const lane: Traffic['lane'] = rng() < 0.5 ? 'laneL' : 'laneR'
+export function spawnTraffic(
+  rng: () => number,
+  nextId: number,
+  bias: number = TRAFFIC_LANE_BIAS,
+): Traffic {
+  const lane: Traffic['lane'] = rng() < bias ? 'laneL' : 'laneR'
   const kind: Traffic['kind'] = rng() < 0.5 ? 'car' : 'bike'
   const speed = between(rng, TRAFFIC_SPEED.min, TRAFFIC_SPEED.max)
+  const offsetM =
+    kind === 'bike' ? between(rng, -BIKE_LANE_OFFSET_M, BIKE_LANE_OFFSET_M) : 0
 
-  return { id: nextId, lane, kind, depth: SPAWN_DEPTH, speed, dir: LANE_DIR[lane] }
+  return { id: nextId, lane, kind, depth: SPAWN_DEPTH, speed, dir: LANE_DIR[lane], offsetM }
+}
+
+/**
+ * Whether a new vehicle at `depth` has room in its lane. Two sprites closer
+ * than `MIN_LANE_GAP` would paint over each other and read as one wide car.
+ */
+export function fitsLaneGap(
+  depth: number,
+  others: ReadonlyArray<Traffic | null>,
+  lane: Traffic['lane'],
+  minGap: number = MIN_LANE_GAP,
+): boolean {
+  for (const other of others) {
+    if (!other || other.lane !== lane) continue
+    if (Math.abs(other.depth - depth) < minGap) return false
+  }
+  return true
 }
 
 /**
