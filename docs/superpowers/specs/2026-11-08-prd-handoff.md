@@ -48,6 +48,7 @@ realistis (yang dicari "kids interactive web" yang hidup, bukan simulasi).
 | Lembar rambu (keterangan resmi) + balon narasi | jalan sejak `b96b3b4`, `147324d` |
 | Rambu sebagai objek dunia: datang dari horizon, berhenti 0,22, lalu dilewati | jalan; `signDepth()` di `scene/world.ts` |
 | Rambu diurutkan menurut kedalaman (`propZ`), bukan z tetap 160 | jalan; `SIGN_Z` di `WalkScene.tsx` |
+| Rambu = satu gambar (pelat + tiang satu `<svg>`, tanpa denyut) | jalan; `SignFigure` di `WalkScene.tsx` |
 | Burung di langit (1 node, animasi CSS linear) | jalan; `art/scenery.tsx` `Birds` + `walk.css` |
 | Kuis 5 soal + bintang 4/2 | jalan, terkunci tes |
 | Reduced motion, fokus tidak jatuh ke `<body>`, kontras AA | jalan untuk alur utama |
@@ -261,13 +262,17 @@ scenery berulang, apakah ritme wajar, apakah balon terbaca.
    ukuran yang diukur sekali akan tertinggal satu jenis dari `placeProp` — objek bergeser dan gepeng.
 9. **`propKinds` harus di-seed dari pool.** Kalau state awal `null`, slot prewarm tampil sebagai `<div>`
    kosong ~1 detik: itulah "jalan kosong di detik pertama".
-10. **Ghost rambu adalah `<span>` dan CSS-nya `display:flex`.** `setDisplay()` menulis `block`, yang
-    membuat tiangnya jadi elemen inline: tinggi 300 px diabaikan dan pelat "jatuh ke tanah". Ghost
-    menulis `display: ''` saat tampil, `'none'` saat sembunyi.
-11. **Keyframe `wk-pulse` tidak boleh menulis `box-shadow`.** Bayangan kotak di belakang segitiga
-    kuning = "kotak canvas". Yang berdenyut sekarang `transform` pelat, yang selalu mengikuti bentuk.
-12. **Tinggi tiang di CSS harus sama dengan `METERS.sign.pole`.** Rambu asli mendapat ukuran inline
-    dari `measure()`, jadi CSS yang salah hanya terlihat pada ghost.
+10. **Rambu adalah SATU gambar (`SignFigure`), bukan dua elemen.** Pelat dan tiang dulu dua `<span>`
+    di dalam flex column; `setDisplay()` menulis `display:block`, tiangnya jadi elemen inline, tinggi
+    300 px diabaikan, dan pelat "jatuh ke tanah". Sekarang keduanya satu `<svg>` (`SIGN_BOX`
+    120 × 462,9 unit, satu unit = 0,945 m / 120), jadi tidak ada keadaan di mana mereka terpisah.
+    Lebar/tinggi kotaknya dari `--wk-sign-width` / `--wk-sign-height` di `measure()`.
+11. **Tidak ada "ketuk aku" di rambu.** Denyut (`wk-pulse`), pop-in `scale(0.88)` dan bayangan kanvas
+    per jenis sudah dibuang: rambu adalah objek dunia seperti pohon dan tiang lampu. `--in` hanya
+    mengatur `pointer-events`/`cursor`; tombolnya tetap ada supaya bisa diketuk dan difokus.
+12. **Geometri tiang hanya di `METERS`.** `SIGN_POLE_ART` dan `signPolePx()` sama-sama turun dari
+    `METERS.sign.pole`; jangan tulis angka tiang di CSS lagi (pernah 2,0 m vs 1,8 m dan hanya ghost
+    yang kelihatan salah).
 13. **Ujung jauh diukur, bukan dikira-kira.** Ukur dengan median selisih warna antar-baris layar
     (ffmpeg → rawvideo): 61 satuan = garis keras; ≤15 = halus. Kabut di atas prop akan memotong badan
     rumah 6,5 m, jadi kabut ditaruh di bawah scenery dan poligon `band()` diperpanjang ke titik hilang.
