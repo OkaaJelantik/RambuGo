@@ -21,6 +21,7 @@ import {
 } from './projection'
 import { LEG_SECONDS, SCROLL_PER_SEC } from './world'
 import WalkScene, {
+  SIGN_PLATE_GROW,
   DASH_COUNT,
   FAR_EDGE,
   HERO_DEPTH,
@@ -413,15 +414,14 @@ describe('one metre, every object class', () => {
   it('draws the sign plate and a 1,8 m pole at the stop depth, 1,5× rendered', () => {
     // SIGN_EMPHASIS = 1,5 is a game affordance: the world plate is still
     // 0,60 m, but the rendered one is 0,90 m (see SIGN_EMPHASIS).
-    expect(signPlatePx(H)).toBeCloseTo(92.9718, 3)
+    expect(signPlatePx(H)).toBeCloseTo(97.6204, 3)
     expect(signPolePx(H).h).toBeCloseTo(278.915, 3)
     expect(signPolePx(H).w).toBeCloseTo(13.9458, 3)
     // In metres at the stop depth, after dividing the emphasis back out, so
     // the CSS fallback and the JS cannot drift from the metre table.
-    expect(signPlatePx(H) / pxPerMAt(SIGN_STOP_D, H) / SIGN_EMPHASIS).toBeCloseTo(
-      METERS.sign.plate,
-      6,
-    )
+    expect(
+      signPlatePx(H) / pxPerMAt(SIGN_STOP_D, H) / SIGN_EMPHASIS / SIGN_PLATE_GROW,
+    ).toBeCloseTo(METERS.sign.plate, 6)
     expect(signPolePx(H).h / pxPerMAt(SIGN_STOP_D, H) / SIGN_EMPHASIS).toBeCloseTo(
       METERS.sign.pole,
       6,
@@ -503,16 +503,19 @@ describe('the rendered scene writes those boxes into the DOM', () => {
     expect(dash.h).toBeCloseTo(20.72, 3)
 
     const plate = px('.wk-sign-plate')
-    expect(plate.w).toBeCloseTo(92.972, 3)
-    expect(plate.h).toBeCloseTo(92.972, 3)
+    expect(plate.w).toBeCloseTo(97.6204, 3)
+    expect(plate.h).toBeCloseTo(97.6204, 3)
     expect(plate.w).toBeCloseTo(plate.h, 3)
 
     const pole = px('.wk-sign-pole')
     expect(pole.h).toBeCloseTo(278.915, 3)
     expect(pole.w).toBeCloseTo(13.946, 3)
     // The pole and the plate share one projector and one emphasis, so the
-    // ratio is still the metre ratio 1,8 m / 0,6 m.
-    expect(pole.h / plate.w).toBeCloseTo(METERS.sign.pole / METERS.sign.plate, 3)
+    // ratio is the metre ratio 1,8 m / 0,6 m over the plate's 5 % growth.
+    expect(pole.h / plate.w).toBeCloseTo(
+      METERS.sign.pole / (METERS.sign.plate * SIGN_PLATE_GROW),
+      3,
+    )
 
     const car = px('.wk-veh--car')
     expect(car.w).toBeCloseTo(266.4, 3)
@@ -834,16 +837,16 @@ describe('lateral bands and the rendered sign', () => {
     expect(signPlatePx(640)).toBeGreaterThanOrEqual(70)
     expect(signPlatePx(800)).toBeGreaterThanOrEqual(88)
     // Concrete pixels, so removing SIGN_EMPHASIS cannot keep this green.
-    expect(signPlatePx(640)).toBeCloseTo(74.377, 2)
-    expect(signPlatePx(800)).toBeCloseTo(92.972, 2)
+    expect(signPlatePx(640)).toBeCloseTo(78.0963, 2)
+    expect(signPlatePx(800)).toBeCloseTo(97.6204, 2)
     // The rendered plate is the world plate × 1,5, and the pole follows the
     // same factor: one emphasis, applied to sign geometry only.
-    expect(signPlatePx(800) / pxPerMAt(SIGN_STOP_D, 800) / SIGN_EMPHASIS).toBeCloseTo(
-      METERS.sign.plate,
-      6,
-    )
+    expect(
+      signPlatePx(800) / pxPerMAt(SIGN_STOP_D, 800) / SIGN_EMPHASIS / SIGN_PLATE_GROW,
+    ).toBeCloseTo(METERS.sign.plate, 6)
+    // Rasio tiang:pelat = 1,8 m / (0,6 m × 1,05) — pelat tumbuh 5 %, tiang tidak.
     expect(signPolePx(800).h / signPlatePx(800)).toBeCloseTo(
-      METERS.sign.pole / METERS.sign.plate,
+      METERS.sign.pole / (METERS.sign.plate * SIGN_PLATE_GROW),
       6,
     )
   })

@@ -79,6 +79,13 @@ export const SIGN_STOP_D = 0.22
  * reads 74,4 px at 360×640 and 93,0 px at 360×800.
  */
 export const SIGN_EMPHASIS = 1.5
+
+/**
+ * Pelat rambu bulat/persegi digambar 5 % lebih besar dari 0,60 m × emphasis.
+ * Segitiga tidak perlu ini: ia mengisi kotaknya sendiri, tanpa kanvas putih
+ * di belakangnya.
+ */
+export const SIGN_PLATE_GROW = 1.05
 /**
  * Lateral position of the sign, in metres from the camera line: the kerb. The
  * ruling in the plan is "rambu di kerb" so the plate never overlaps the child
@@ -268,7 +275,7 @@ export function pedBox(kind: 'adult' | 'child', viewportH: number): Box {
 
 /** Diameter of the sign plate at its stop depth, in px, including `SIGN_EMPHASIS`. */
 export function signPlatePx(viewportH: number): number {
-  return pxAt(METERS.sign.plate * SIGN_EMPHASIS, SIGN_STOP_D, viewportH)
+  return pxAt(METERS.sign.plate * SIGN_EMPHASIS * SIGN_PLATE_GROW, SIGN_STOP_D, viewportH)
 }
 
 /** Pole box at the sign's stop depth, in px, including `SIGN_EMPHASIS`. */
@@ -585,6 +592,7 @@ export default function WalkScene({
       signEl.style.top = `${roundHalf(yAt(SIGN_STOP_D) * h)}px`
     }
     const platePx = signPlatePx(h)
+    sceneEl.current?.style.setProperty('--wk-sign-width', `${platePx}px`)
     const plateEl = signPlateRef.current
     if (plateEl) {
       plateEl.style.width = `${platePx}px`
@@ -1002,6 +1010,7 @@ export default function WalkScene({
         }}
         disabled={mode !== 'stopped'}
         aria-hidden={mode !== 'stopped'}
+        data-kind={sign.kind}
         aria-label={`Rambu ${sign.name}, tekan untuk melihat artinya`}
       >
         <span className="wk-sign-plate" ref={signPlateRef}>

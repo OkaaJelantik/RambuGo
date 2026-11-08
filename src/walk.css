@@ -306,9 +306,14 @@
      lebarnya tepat selebar pelat yang terlihat: tidak ada min-width lagi,
      karena pelatnya sudah ≥74 px (aturan lama 56 px membuat kotak ketuk lebih
      besar dari pelat, dan cincinnya terlihat mengambang di luar). */
-  width: calc(
-    var(--wk-px-per-m, 148px) * 0.6 * var(--wk-sign-emphasis, 1.5) *
-      var(--wk-sign-scale, 0.6979866)
+  /* Lebar diisi `measure()` supaya CSS dan `signPlatePx()` tidak bisa
+     melenceng; fallback-nya rumus yang sama untuk paint sebelum JS jalan. */
+  width: var(
+    --wk-sign-width,
+    calc(
+      var(--wk-px-per-m, 148px) * 0.6 * var(--wk-sign-emphasis, 1.5) *
+        var(--wk-sign-scale, 0.6979866) * 1.05
+    )
   );
   padding: 0;
   border: 0;
@@ -329,20 +334,48 @@
   cursor: pointer;
 }
 
+/* Kanvas pelat mengikuti bentuk rambunya, bukan selalu lingkaran putih.
+   Dulu segitiga dan persegi duduk di dalam cakram putih, jadi sudut putihnya
+   terlihat seperti kanvas kosong — dan segitiganya dipaksa mengecil supaya
+   muat di cakram itu. Sekarang: bulat untuk larangan/perintah, kotak lembut
+   untuk petunjuk, dan TANPA kanvas untuk peringatan (art-nya sudah segitiga
+   kuning bertepi tinta tebal). */
 .wk-sign-plate {
   position: relative;
   display: grid;
   place-items: center;
   width: 100%;
   aspect-ratio: 1;
-  /* Rim tinta 3 px: pelat segitiga kuning harus terbaca sebagai benda
-     bertepi di langit pucat, bukan sebagai kuning yang melebur. Bayangannya
-     sengaja lebih tegas dari art lain karena pelat inilah fokus berhenti. */
-  padding: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Pelat bulat: rambu larangan (merah) dan perintah (biru). */
+.wk-sign[data-kind='larangan'] .wk-sign-plate,
+.wk-sign[data-kind='perintah'] .wk-sign-plate {
+  padding: 6px;
   border: 3px solid var(--ink);
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 5px 0 rgba(42, 35, 32, 0.26), 0 12px 18px rgba(42, 35, 32, 0.34);
+}
+
+/* Pelat kotak: rambu petunjuk (biru). */
+.wk-sign[data-kind='petunjuk'] .wk-sign-plate {
+  padding: 5px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 5px 0 rgba(42, 35, 32, 0.26), 0 12px 18px rgba(42, 35, 32, 0.34);
+}
+
+/* Peringatan: art segitiga mengisi kotaknya sendiri, sedikit diperbesar
+   karena viewBox-nya menyisakan margin. */
+.wk-sign[data-kind='peringatan'] .wk-sign-plate > svg {
+  transform: scale(1.12);
 }
 
 .wk-sign-plate > svg {
