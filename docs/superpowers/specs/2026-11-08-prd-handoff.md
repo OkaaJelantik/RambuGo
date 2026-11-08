@@ -3,7 +3,11 @@
 Dokumen serah-terima. Ditulis 8 November 2026 untuk melanjutkan pekerjaan di sesi lain.
 
 **Branch:** `main` · **commit terakhir:** `bcce7c7` · **repo:** `/home/lann/Projects/Ina`
-**Status verifikasi saat dokumen ini ditulis:** `pnpm test` 194/194 (10 file) · `tsc -b` bersih · `vite build` hijau.
+**Status verifikasi saat dokumen ini ditulis:** `pnpm test` 200/200 (10 file) · `tsc -b` bersih · `vite build` hijau.
+**Riwayat:** `cf17bf6` mengganti sabuk scenery dengan spawner kontinu, tetapi kotak wrapper prop hanya
+diukur sekali sehingga objek mulai bergeser dan gepeng. Perbaikan setelah dokumen ini: kepemilikan
+kotak pindah ke loop, jalan diwarmi sejak frame pertama, kerapatan naik 3×, rambu jadi objek dunia,
+dan ujung jauh jalan dimemudarkan sampai titik hilang.
 
 ---
 
@@ -36,11 +40,13 @@ realistis (yang dicari "kids interactive web" yang hidup, bukan simulasi).
 |---|---|
 | Scene 2.5D trotoar kiri, jalan terpotong di kanan | jalan, sudah stabil |
 | Satu tabel meter untuk semua objek | jalan; `scene/meters.ts` + `pxAt`/`offsetX` |
-| Scenery kontinu (spawn di horizon, lepas di tepi) | jalan sejak `cf17bf6` + `bcce7c7` |
+| Scenery kontinu, 5–7 objek serentak, frame pertama terisi | jalan; kotak wrapper ditulis ulang per jenis di `draw()` |
+| Ujung jauh jalan menyatu ke titik hilang + kabut | jalan; poligon `band()` diperpanjang ke VP |
 | Trafik + pejalan, lalu lintas kiri Indonesia | jalan; 5 kendaraan, 3 pejalan |
 | Rambu diacak per seed, perjalanan bisa dilanjutkan | jalan sejak `a51298a` |
 | Persimpangan 2.5D tiga jalur | jalan, **rupa belum diverifikasi mata manusia** |
 | Lembar rambu (keterangan resmi) + balon narasi | jalan sejak `b96b3b4`, `147324d` |
+| Rambu sebagai objek dunia: datang dari horizon, berhenti 0,22, lalu dilewati | jalan; `signDepth()` di `scene/world.ts` |
 | Kuis 5 soal + bintang 4/2 | jalan, terkunci tes |
 | Reduced motion, fokus tidak jatuh ke `<body>`, kontras AA | jalan untuk alur utama |
 
@@ -52,7 +58,7 @@ realistis (yang dicari "kids interactive web" yang hidup, bukan simulasi).
 | B2 | Balon narasi bisa melewati tepi kanan di 360 px | `max-width: min(58vw, 300px)` mulai dari 34 % lebar hero | `src/walk.css` |
 | B3 | Halte terasa terlalu tipis (0,80 m) setelah digambar menyamping | lebar diturunkan agar muat pita kerb | `scene/props.ts` (`busstop.x`), `meters.ts` |
 | B4 | Bangku 0,67 m terasa pendek dibanding bangku nyata | art profil 55×70 mengikuti lebar, bukan panjang | `art/scenery.tsx` `Bench` |
-| B5 | Scene awal masih mungkin terasa "kurang" walau sudah prewarm 4 objek | prewarm deterministik, jenis bisa kebetulan monoton | `scene/props.ts` `PREWARM_DEPTHS` |
+| B5 | Scene awal masih mungkin terasa "kurang" walau sudah prewarm 4 objek | **selesai**: prewarm 6 titik merotasi pita | `scene/props.ts` `PREWARM` |
 | B6 | Kondisi **lurus berulang** belum pernah diuji manusia lebih dari sekali | `advanceRun` baru diuji unit | `run.ts`, `App.tsx` |
 
 ### 2.3 Utang verifikasi (bukan bug yang diketahui)
@@ -113,10 +119,11 @@ src/
 | kedalaman berhenti rambu | 0,22 | `WalkScene.tsx` |
 | pelat rambu | 0,60 m × `SIGN_EMPHASIS` 1,5 × `SIGN_PLATE_GROW` 1,05 → **97,6 px** @360×800 | `WalkScene.tsx` |
 | tiang rambu | 1,8 m | `scene/meters.ts` |
-| scenery: pool | 8 slot | `scene/props.ts` |
-| scenery: jeda spawn | 0,55–1,1 s | `scene/props.ts` |
-| scenery: jarak minimum | 0,12 kedalaman per pita | `scene/props.ts` |
-| scenery: lahir / paling dekat | 0,95 / per jenis (0,26–0,42) | `scene/props.ts` |
+| scenery: pool | 10 slot | `scene/props.ts` |
+| scenery: jeda spawn | 0,30–0,55 s | `scene/props.ts` |
+| scenery: jarak minimum | 0,07 kedalaman per pita | `scene/props.ts` |
+| scenery: lahir / paling dekat | 1,0 / per pita (taman 0,14 · tepi 0,16 · kerb 0,26–0,38) | `scene/props.ts` |
+| kedalaman rambu per detik | `min(1, 0,22 + 0,30 × sisa leg)` | `scene/world.ts` `signDepth` |
 | trafik | 5 kendaraan, 3 pejalan, jeda 0,5–1,2 s | `WalkScene.tsx` |
 | lebar jalan | 4,8 m (2 lajur × 2,4 m) | `scene/meters.ts` |
 
@@ -136,10 +143,10 @@ src/
 | file | tes | mengunci |
 |---|---|---|
 | `scene/projection.test.ts` | 21 | geometri & satuan meter |
-| `scene/scale.test.ts` | 76 | framing antar viewport, lebar maksimum, siluet anak, z-order, halte di trotoar, tong vs rambu, ukuran pelat |
-| `scene/props.test.ts` | 8 | determinisme, kontinuitas spawn, jeda, jarak minimum, bobot |
+| `scene/scale.test.ts` | 77 | framing antar viewport, lebar maksimum, siluet anak, z-order, ukuran pelat, anggaran node, rasio kotak per jenis |
+| `scene/props.test.ts` | 10 | determinisme, kontinuitas spawn, jeda, jarak minimum, bobot, kerapatan, umur |
 | `scene/spawner.test.ts` | 15 | bias lajur, jarak, offset motor |
-| `scene/world.test.ts` | 5 | reducer, mode, kecepatan |
+| `scene/world.test.ts` | 10 | reducer, mode, kecepatan, `signDepth`, scroll antar-leg |
 | `scene/GroundScene.test.tsx` | 7 | pita jalan, urutan cat |
 | `story.test.ts` | 10 | 8 beat statis, ≤90 karakter, ≤2 kalimat, tombol per tempat |
 | `run.test.ts` | 8 | antrean acak, batch unik, 6 rambu, tanpa ulang langsung |
@@ -147,6 +154,12 @@ src/
 | `art/HeroWalk.test.tsx` | 6 | langkah, pose |
 
 **Batasan yang harus diketahui penerus:**
+
+- `scale.test.ts` memompa `requestAnimationFrame` manual untuk tes "kotak prop ditulis ulang saat
+  jenis berganti". Menghapus pemeriksaan `el.dataset.kind !== slot.kind` di `draw()` **tidak** langsung
+  menggagalkan tes itu (slot bisa kebetulan berganti sebelum sempat diperiksa), tetapi menulis kotak
+  hanya sekali di awal (`if (false && …)`) menggagalkannya. Jaga keduanya: tesnya memang penjaga bug
+  "pohon mewarisi kotak lampu".
 
 - `scale.test.ts` **tidak** menguji penempatan hero/rambu di JSX maupun z-index CSS — hanya jalur
   perhitungan. Lima mutasi membuktikan itu, tapi penempatan komponen tidak masuk cakupan.
@@ -240,6 +253,13 @@ scenery berulang, apakah ritme wajar, apakah balon terbaca.
 6. **Arah kedalaman**: objek mendekat = `depth - scroll`. Salah tanda = pool penuh lalu berhenti.
 7. **Guard yang menentukan sebuah angka harus menyebut angkanya**, bukan membandingkan konstanta
    dengan dirinya sendiri.
+8. **Wrapper `.wk-prop` dimiliki `draw()`, bukan `measure()`.** Pool menukar jenis di dalam satu slot;
+   ukuran yang diukur sekali akan tertinggal satu jenis dari `placeProp` — objek bergeser dan gepeng.
+9. **`propKinds` harus di-seed dari pool.** Kalau state awal `null`, slot prewarm tampil sebagai `<div>`
+   kosong ~1 detik: itulah "jalan kosong di detik pertama".
+10. **Ujung jauh diukur, bukan dikira-kira.** Ukur dengan median selisih warna antar-baris layar
+    (ffmpeg → rawvideo): 61 satuan = garis keras; ≤15 = halus. Kabut di atas prop akan memotong badan
+    rumah 6,5 m, jadi kabut ditaruh di bawah scenery dan poligon `band()` diperpanjang ke titik hilang.
 
 ---
 
