@@ -47,6 +47,8 @@ realistis (yang dicari "kids interactive web" yang hidup, bukan simulasi).
 | Persimpangan 2.5D tiga jalur | jalan, **rupa belum diverifikasi mata manusia** |
 | Lembar rambu (keterangan resmi) + balon narasi | jalan sejak `b96b3b4`, `147324d` |
 | Rambu sebagai objek dunia: datang dari horizon, berhenti 0,22, lalu dilewati | jalan; `signDepth()` di `scene/world.ts` |
+| Rambu diurutkan menurut kedalaman (`propZ`), bukan z tetap 160 | jalan; `SIGN_Z` di `WalkScene.tsx` |
+| Burung di langit (1 node, animasi CSS linear) | jalan; `art/scenery.tsx` `Birds` + `walk.css` |
 | Kuis 5 soal + bintang 4/2 | jalan, terkunci tes |
 | Reduced motion, fokus tidak jatuh ke `<body>`, kontras AA | jalan untuk alur utama |
 
@@ -122,7 +124,9 @@ src/
 | scenery: pool | 10 slot | `scene/props.ts` |
 | scenery: jeda spawn | 0,30–0,55 s | `scene/props.ts` |
 | scenery: jarak minimum | 0,07 kedalaman per pita | `scene/props.ts` |
-| scenery: lahir / paling dekat | 1,0 / per pita (taman 0,14 · tepi 0,16 · kerb 0,26–0,38) | `scene/props.ts` |
+| scenery: fade dekat | 0,05 kedalaman | `scene/props.ts` |
+| scenery: lahir / paling dekat | 1,0 / per pita (taman 0,10 · tepi 0,12 · kerb 0,26–0,34) | `scene/props.ts` |
+| sign: z-index | `propZ(depth)`, 82 saat berhenti | `WalkScene.tsx` |
 | kedalaman rambu per detik | `min(1, 0,22 + 0,30 × sisa leg)` | `scene/world.ts` `signDepth` |
 | trafik | 5 kendaraan, 3 pejalan, jeda 0,5–1,2 s | `WalkScene.tsx` |
 | lebar jalan | 4,8 m (2 lajur × 2,4 m) | `scene/meters.ts` |
@@ -143,7 +147,7 @@ src/
 | file | tes | mengunci |
 |---|---|---|
 | `scene/projection.test.ts` | 21 | geometri & satuan meter |
-| `scene/scale.test.ts` | 77 | framing antar viewport, lebar maksimum, siluet anak, z-order, ukuran pelat, anggaran node, rasio kotak per jenis |
+| `scene/scale.test.ts` | 77 | framing antar viewport, lebar maksimum, siluet anak, z-order (rambu ikut depth), ukuran pelat, anggaran node, rasio kotak per jenis |
 | `scene/props.test.ts` | 10 | determinisme, kontinuitas spawn, jeda, jarak minimum, bobot, kerapatan, umur |
 | `scene/spawner.test.ts` | 15 | bias lajur, jarak, offset motor |
 | `scene/world.test.ts` | 10 | reducer, mode, kecepatan, `signDepth`, scroll antar-leg |
@@ -257,7 +261,14 @@ scenery berulang, apakah ritme wajar, apakah balon terbaca.
    ukuran yang diukur sekali akan tertinggal satu jenis dari `placeProp` — objek bergeser dan gepeng.
 9. **`propKinds` harus di-seed dari pool.** Kalau state awal `null`, slot prewarm tampil sebagai `<div>`
    kosong ~1 detik: itulah "jalan kosong di detik pertama".
-10. **Ujung jauh diukur, bukan dikira-kira.** Ukur dengan median selisih warna antar-baris layar
+10. **Ghost rambu adalah `<span>` dan CSS-nya `display:flex`.** `setDisplay()` menulis `block`, yang
+    membuat tiangnya jadi elemen inline: tinggi 300 px diabaikan dan pelat "jatuh ke tanah". Ghost
+    menulis `display: ''` saat tampil, `'none'` saat sembunyi.
+11. **Keyframe `wk-pulse` tidak boleh menulis `box-shadow`.** Bayangan kotak di belakang segitiga
+    kuning = "kotak canvas". Yang berdenyut sekarang `transform` pelat, yang selalu mengikuti bentuk.
+12. **Tinggi tiang di CSS harus sama dengan `METERS.sign.pole`.** Rambu asli mendapat ukuran inline
+    dari `measure()`, jadi CSS yang salah hanya terlihat pada ghost.
+13. **Ujung jauh diukur, bukan dikira-kira.** Ukur dengan median selisih warna antar-baris layar
     (ffmpeg → rawvideo): 61 satuan = garis keras; ≤15 = halus. Kabut di atas prop akan memotong badan
     rumah 6,5 m, jadi kabut ditaruh di bawah scenery dan poligon `band()` diperpanjang ke titik hilang.
 
