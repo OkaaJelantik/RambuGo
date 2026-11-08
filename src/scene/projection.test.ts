@@ -219,11 +219,14 @@ describe('street geometry in metres', () => {
     expect(LANE_SPLIT_X).toBeCloseTo(2.7, 12)
   })
 
-  it('puts the sidewalk centre 0,7 m left of the camera line', () => {
-    expect(SIDEWALK_CENTRE).toBeCloseTo(SIDEWALK_LEFT + SIDEWALK_M / 2, 12)
-    expect(SIDEWALK_CENTRE).toBeCloseTo(-0.7, 12)
+  it('puts the child’s walking line 0,9 m left of the camera line, 1,2 m from the kerb', () => {
+    // 0,80 m in from the garden edge, not the pavement's geometric centre: the
+    // kerb-side band holds the bus stop (see `SIDEWALK_CENTRE`), and 0,80 is
+    // also what keeps her ink inside the left frame edge on a tall phone.
+    expect(SIDEWALK_CENTRE).toBeCloseTo(SIDEWALK_LEFT + 0.8, 12)
+    expect(SIDEWALK_CENTRE).toBeCloseTo(-0.9, 12)
     // The room the phone frame needs between the child and the road.
-    expect(KERB_X - SIDEWALK_CENTRE).toBeCloseTo(1, 12)
+    expect(KERB_X - SIDEWALK_CENTRE).toBeCloseTo(1.2, 12)
   })
 
   it('centres each lane name in metres', () => {

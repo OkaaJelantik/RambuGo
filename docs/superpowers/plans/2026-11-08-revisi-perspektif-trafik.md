@@ -38,17 +38,19 @@ penempatan yang bisa benar selama art-nya ortografis.
 
 **Requirements**
 
-1. `SIDEWALK_CENTRE = SIDEWALK_LEFT + 0,60` → **−1,10 m** (tinta anak −1,463 … −0,737).
+1. `SIDEWALK_CENTRE = SIDEWALK_LEFT + 0,80` → **−0,90 m** (tinta anak −1,263 … −0,537).
+   Catatan revisi: 0,60 → 0,80 karena tinta anak keluar tepi kiri frame pada 360×800/390×844
+   (`pxPerM` dari tinggi layar). Guard `inkLeft > 0` TIDAK dilonggarkan.
 2. Pita lajur lateral:
 
    | pita | x (m) | isi |
    |---|---|---|
-   | jalur anak | −1,10 | hero |
+   | jalur anak | −0,90 | hero |
    | tepi taman | −1,85 | 2× tong (lebar 0,55 → −2,125 … −1,575) |
    | taman | ≤ −2,3 | bangku −2,60, pohon −2,8, tiang listrik −2,9, pagar −3,5, ruko −3,8, rumah −4,0 |
-   | kerb | −0,20 … +0,30 | halte −0,20 (lebar 1,00 → −0,70 … +0,30), lampu 0,15, rambu 0,30 |
+   | kerb | −0,50 … +0,30 | halte −0,10 (lebar 0,80 → −0,50 … +0,30), lampu 0,25, rambu 0,30 |
 
-3. `PROP_ART` rasio: `bin 55/90`, `busstop 100/180`, `bench 55/70`. Task 20 menggambar ke viewBox ini.
+3. `PROP_ART` rasio: `bin 55/90`, `busstop 80/180`, `bench 55/70`. Task 20 menggambar ke viewBox ini.
 4. `SIGN_STOP_D` **0,26 → 0,22**; konstanta `SIGN_EMPHASIS = 1,5` dikalikan ke pelat dan tiang saja,
    didokumentasikan sebagai afordans game (bukan ukuran dunia) → pelat 74,4 px @360×640, 93,0 px @360×800.
 5. `walk.css`: hapus `min-width: 56px` pada `.wk-sign`; rim tinta 3 px + bayangan tegas pada
@@ -72,7 +74,7 @@ penempatan yang bisa benar selama art-nya ortografis.
 
 **Requirements**
 
-1. `BusStop` viewBox `0 0 100 180`: pandangan 3-4 menyusuri jalan — atap jajar genjang menyusut ke
+1. `BusStop` viewBox `0 0 80 180`: pandangan 3-4 menyusuri jalan — atap jajar genjang menyusut ke
    atas-kanan (objek di kiri titik hilang), tiang dekat tebal + tiang jauh tipis, panel belakang
    jajar genjang, bangku menyamping sebagai bidang tipis, papan ikon bus di panel, alas menyentuh garis
    tanah, bayangan kontak elips.

@@ -26,6 +26,7 @@ import WalkScene, {
   LAYOUT,
   NEAR_EDGE,
   PROP_ART,
+  SIGN_EMPHASIS,
   SIGN_STOP_D,
   SIGN_X,
   TRAFFIC_WAIT,
@@ -114,8 +115,48 @@ const BODY = heroBodyPoints()
 
 type Rect = { x0: number; x1: number; y0: number; y1: number; z: number; opacity: number }
 
+/** A painted rectangle without its stacking data, for the overlap guards. */
+type PaintedRect = { x0: number; x1: number; y0: number; y1: number }
+
 function contains(rect: Rect, x: number, y: number): boolean {
   return x >= rect.x0 && x <= rect.x1 && y >= rect.y0 && y <= rect.y1
+}
+
+/** Axes-aligned overlap. Touching edges do not count: a prop may stand at the
+ *  sign's column and still be *beside* the plate, not over it. */
+function overlaps(a: PaintedRect, b: PaintedRect): boolean {
+  return a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0
+}
+
+/** The box a prop paints on screen at one phase, from the loop's own placement. */
+function propRect(p: { x: number; y: number; width: number; height: number }): PaintedRect {
+  return { x0: p.x - p.width / 2, x1: p.x + p.width / 2, y0: p.y - p.height, y1: p.y }
+}
+
+/**
+ * Plate and pole boxes exactly as the DOM paints them at the stop depth: the
+ * button is bottom-anchored on the ground, the pole rises from it, and the
+ * plate sits on the pole's top (`.wk-sign` is a bottom-anchored flex column).
+ */
+function signPaintedBoxes(w: number, h: number): { plate: PaintedRect; pole: PaintedRect } {
+  const plate = signPlatePx(h)
+  const pole = signPolePx(h)
+  const cx = offsetX(SIGN_X, SIGN_STOP_D, w, h)
+  const ground = yAt(SIGN_STOP_D) * h
+  return {
+    plate: {
+      x0: cx - plate / 2,
+      x1: cx + plate / 2,
+      y0: ground - pole.h - plate,
+      y1: ground - pole.h,
+    },
+    pole: {
+      x0: cx - pole.w / 2,
+      x1: cx + pole.w / 2,
+      y0: ground - pole.h,
+      y1: ground,
+    },
+  }
 }
 
 /**
@@ -156,18 +197,8 @@ function paintRects(w: number, h: number, scroll: number): Rect[] {
 
   // The sign button's plate is above its pole; its bottom edge is the plate's
   // bottom, not the ground.
-  const plate = signPlatePx(h)
-  const pole = signPolePx(h)
-  const signCx = offsetX(SIGN_X, SIGN_STOP_D, w, h)
-  const signGround = yAt(SIGN_STOP_D) * h
-  list.push({
-    x0: signCx - plate / 2,
-    x1: signCx + plate / 2,
-    y0: signGround - pole.h - plate,
-    y1: signGround - pole.h,
-    z: SIGN_Z,
-    opacity: 1,
-  })
+  const { plate } = signPaintedBoxes(w, h)
+  list.push({ ...plate, z: SIGN_Z, opacity: 1 })
 
   // HUD pill at the top centre (walk.css: top 12–24 px, z 400).
   list.push({
@@ -378,13 +409,19 @@ describe('one metre, every object class', () => {
     expect(pedBox('adult', H).h / pedBox('child', H).h).toBeCloseTo(1.7 / 1.2, 6)
   })
 
-  it('draws the sign plate and a 2,0 m pole at the stop depth', () => {
-    expect(signPlatePx(H)).toBeCloseTo(55.3006, 3)
-    expect(signPolePx(H).h).toBeCloseTo(184.335, 3)
-    expect(signPolePx(H).w).toBeCloseTo(8.2951, 3)
-    // In metres at the stop depth, so the CSS fallback and the JS cannot drift.
-    expect(signPlatePx(H) / pxPerMAt(SIGN_STOP_D, H)).toBeCloseTo(METERS.sign.plate, 6)
-    expect(signPolePx(H).h / pxPerMAt(SIGN_STOP_D, H)).toBeCloseTo(2.0, 6)
+  it('draws the sign plate and a 2,0 m pole at the stop depth, 1,5× rendered', () => {
+    // SIGN_EMPHASIS = 1,5 is a game affordance: the world plate is still
+    // 0,60 m, but the rendered one is 0,90 m (see SIGN_EMPHASIS).
+    expect(signPlatePx(H)).toBeCloseTo(92.9718, 3)
+    expect(signPolePx(H).h).toBeCloseTo(309.906, 3)
+    expect(signPolePx(H).w).toBeCloseTo(13.9458, 3)
+    // In metres at the stop depth, after dividing the emphasis back out, so
+    // the CSS fallback and the JS cannot drift from the metre table.
+    expect(signPlatePx(H) / pxPerMAt(SIGN_STOP_D, H) / SIGN_EMPHASIS).toBeCloseTo(
+      METERS.sign.plate,
+      6,
+    )
+    expect(signPolePx(H).h / pxPerMAt(SIGN_STOP_D, H) / SIGN_EMPHASIS).toBeCloseTo(2.0, 6)
   })
 })
 
@@ -438,11 +475,13 @@ describe('the rendered scene writes those boxes into the DOM', () => {
     // The pixels the phone actually paints for the house at scroll 0.
     expect(house.w * houseScale).toBeCloseTo(304.63, 2)
 
-    // The bus stop is on the pavement and 1,8 m tall (see meters.ts).
+    // The bus stop is on the pavement and 1,8 m tall, drawn 80×180 (Task 20):
+    // in profile its visible width is the shelter's depth into the pavement,
+    // 0,80 m, which is also what lets it stand inside the kerb band.
     const bus = px('.wk-prop--busstop')
     expect(bus.h).toBeCloseTo(266.4, 3)
-    expect(bus.w).toBeCloseTo(284.16, 3)
-    expect(bus.w / bus.h).toBeCloseTo(160 / 150, 4)
+    expect(bus.w).toBeCloseTo(118.4, 3)
+    expect(bus.w / bus.h).toBeCloseTo(80 / 180, 4)
 
     // The loop's painted opacity and z-index, not just the nominal box: at
     // scroll 0 the house sits at depth 0,7, where the width guard is already
@@ -458,14 +497,15 @@ describe('the rendered scene writes those boxes into the DOM', () => {
     expect(dash.h).toBeCloseTo(20.72, 3)
 
     const plate = px('.wk-sign-plate')
-    expect(plate.w).toBeCloseTo(55.301, 3)
-    expect(plate.h).toBeCloseTo(55.301, 3)
+    expect(plate.w).toBeCloseTo(92.972, 3)
+    expect(plate.h).toBeCloseTo(92.972, 3)
     expect(plate.w).toBeCloseTo(plate.h, 3)
 
     const pole = px('.wk-sign-pole')
-    expect(pole.h).toBeCloseTo(184.335, 3)
-    expect(pole.w).toBeCloseTo(8.295, 3)
-    // The pole and the plate share one projector, so the ratio is 2,0 m / 0,6 m.
+    expect(pole.h).toBeCloseTo(309.906, 3)
+    expect(pole.w).toBeCloseTo(13.946, 3)
+    // The pole and the plate share one projector and one emphasis, so the
+    // ratio is still the metre ratio 2,0 m / 0,6 m.
     expect(pole.h / plate.w).toBeCloseTo(METERS.sign.pole / METERS.sign.plate, 3)
 
     const car = px('.wk-veh--car')
@@ -516,10 +556,10 @@ describe('framing across viewports', () => {
       })
 
       it('keeps the child on the pavement, inside the frame and clear of the sign', () => {
-        // Her line is a metre from the kerb, and the sign stands on the kerb.
+        // Her line is 0,80 m in from the garden edge and 1,20 m from the kerb.
         expect(SIDEWALK_CENTRE).toBeGreaterThan(SIDEWALK_LEFT)
         expect(SIDEWALK_CENTRE).toBeLessThan(KERB_X)
-        expect(KERB_X - SIDEWALK_CENTRE).toBeCloseTo(1.0, 6)
+        expect(KERB_X - SIDEWALK_CENTRE).toBeCloseTo(1.2, 6)
         // Her drawn body, not just the box: the ink stays on screen.
         expect(m.inkLeft).toBeGreaterThan(0)
         expect(m.inkRight).toBeLessThan(w)
@@ -652,16 +692,19 @@ describe('framing across viewports', () => {
         expect(LANES.laneR - METERS.car.width / 2).toBeGreaterThan(KERB_X)
       })
 
-      it('keeps the whole bus-stop sprite on the pavement', () => {
+      it('keeps the whole bus-stop sprite on the pavement, kerb-flush', () => {
         const spec = LAYOUT.find((s) => s.art === 'busstop')!
         const metres = propBox('busstop', h).w / pxPerM(h)
         expect(spec.x - metres / 2).toBeGreaterThanOrEqual(SIDEWALK_LEFT)
-        expect(spec.x + metres / 2).toBeLessThanOrEqual(KERB_X)
-        // Same invariant in the pixels the scene paints, at every phase.
+        expect(spec.x + metres / 2).toBeCloseTo(KERB_X, 9)
+        // Same invariant in the pixels the scene paints, at every phase. The
+        // drawn box is kerb-flush, and the loop's depth scale is rounded to
+        // three decimals, so allow a twentieth of a pixel of rounding — the
+        // point is that the sprite never walks out onto the road.
         for (const scroll of PHASES) {
           const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
           expect(p.x - p.width / 2).toBeGreaterThanOrEqual(offsetX(SIDEWALK_LEFT, p.depth, w, h))
-          expect(p.x + p.width / 2).toBeLessThanOrEqual(offsetX(KERB_X, p.depth, w, h))
+          expect(p.x + p.width / 2).toBeLessThanOrEqual(offsetX(KERB_X, p.depth, w, h) + 0.05)
         }
       })
 
@@ -684,14 +727,119 @@ describe('framing across viewports', () => {
     expect(heroBox(800).w).toBeCloseTo(107.585, 3)
     expect(pxPerM(800)).toBeCloseTo(148, 12)
     // The width is framing, the height is a metre: compare the two viewports.
+    // The hero's line is 0,90 m left of the camera, so on a 360 px phone she
+    // sits left of centre but fully inside the frame; the point here is that
+    // the *difference* between the two viewports is exactly the frame's own
+    // width difference.
     const phone = offsetX(SIDEWALK_CENTRE, HERO_DEPTH, 360, 800)
     const desktop = offsetX(SIDEWALK_CENTRE, HERO_DEPTH, 1280, 800)
-    expect(phone).toBeCloseTo(76.4, 3)
-    expect(desktop).toBeCloseTo(536.4, 3)
+    expect(phone).toBeCloseTo(46.8, 3)
+    expect(desktop).toBeCloseTo(506.8, 3)
     expect(desktop - phone).toBeCloseTo((1280 - 360) / 2, 6)
     // 844 px is above 800, inside the 640..1000 clamp band.
     expect(heroBox(844).h).toBeCloseTo(210.789, 6)
     expect(heroBox(844).h / heroBox(800).h).toBeCloseTo(844 / 800, 6)
+  })
+})
+
+/**
+ * Task 19: lateral bands, the rendered sign and its stacking.
+ *
+ * A leg freezes at `LEG_SCROLL` = 1,8; reduced motion freezes at scroll 0; and
+ * because one belt loop is 1 depth unit, a second leg's freeze would sample
+ * 3,6. Those three stop phases cover every wrapped position the belt can be
+ * frozen in, which is when the bins are most visible (the world is not moving).
+ */
+const STOP_SCROLLS = [0, LEG_SCROLL, LEG_SCROLL * 2] as const
+
+/** The three phone viewports these bands are reviewed on. */
+const PHONES = VIEWPORTS.filter((v) => v.w <= 390)
+
+/** The five placements that stand on the pavement (or its garden edge). */
+const PAVEMENT = LAYOUT.filter(
+  (s) => s.art === 'bin' || s.art === 'busstop' || s.art === 'bench' || s.art === 'lamp',
+)
+
+/** The two bins; the guard names them separately from the rest of `PAVEMENT`. */
+const BINS = LAYOUT.filter((s) => s.art === 'bin')
+
+describe('lateral bands and the rendered sign', () => {
+  it('keeps both bins clear of the sign plate and pole at every stop phase', () => {
+    for (const { label, w, h } of PHONES) {
+      const { plate, pole } = signPaintedBoxes(w, h)
+      for (const scroll of STOP_SCROLLS) {
+        for (const spec of BINS) {
+          const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+          const box = propRect(p)
+          expect(overlaps(box, plate), `${label} bin @${scroll}`).toBe(false)
+          expect(overlaps(box, pole), `${label} bin @${scroll}`).toBe(false)
+        }
+      }
+    }
+  })
+
+  it('keeps the child’s band ≥ 0,03 m clear of every pavement prop, 9 phases × 3 phones', () => {
+    for (const { label, w, h } of PHONES) {
+      // The art box (140 wide), the conservative band the brief calls her ink:
+      // 1,35 × 140/260 = 0,7269 m wide, −1,263 … −0,537 m.
+      const bandW = heroBox(h).w / pxPerM(h)
+      const bandLeft = SIDEWALK_CENTRE - bandW / 2
+      const bandRight = SIDEWALK_CENTRE + bandW / 2
+      expect(bandLeft).toBeCloseTo(-1.263, 3)
+      expect(bandRight).toBeCloseTo(-0.537, 3)
+
+      for (const scroll of PHASES) {
+        for (const spec of PAVEMENT) {
+          const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+          // The metre width at *this* depth, so the check rides the same
+          // projection the loop paints with rather than a second table.
+          const widthM = p.width / pxPerMAt(p.depth, h)
+          const left = spec.x - widthM / 2
+          const right = spec.x + widthM / 2
+          const gap = Math.max(0, left - bandRight, bandLeft - right)
+          expect(gap, `${label} ${spec.art} @${p.depth.toFixed(2)}`).toBeGreaterThanOrEqual(0.03)
+        }
+      }
+    }
+  })
+
+  it('paints the sign plate above every prop, including the lamp that crosses it', () => {
+    const w = 360
+    const h = 800
+    const { plate } = signPaintedBoxes(w, h)
+    let crossings = 0
+    for (const scroll of PHASES) {
+      for (const spec of LAYOUT) {
+        const p = placeProp(spec, propDepth(spec.base, scroll), w, h)
+        // Every prop sits at propZ ≤ 100; the plate is 160.
+        expect(p.z).toBeLessThan(SIGN_Z)
+        if (spec.art === 'lamp' && p.opacity >= 0.1 && overlaps(propRect(p), plate)) {
+          crossings += 1
+        }
+      }
+    }
+    expect(propZ(0)).toBeLessThanOrEqual(100)
+    // The rule is exercised, not vacuous: the lamp's 4,5 m box really does
+    // cross the plate's column during the leg.
+    expect(crossings).toBeGreaterThan(0)
+  })
+
+  it('renders the sign plate at least 70 px at 360×640 and 88 px at 360×800', () => {
+    expect(signPlatePx(640)).toBeGreaterThanOrEqual(70)
+    expect(signPlatePx(800)).toBeGreaterThanOrEqual(88)
+    // Concrete pixels, so removing SIGN_EMPHASIS cannot keep this green.
+    expect(signPlatePx(640)).toBeCloseTo(74.377, 2)
+    expect(signPlatePx(800)).toBeCloseTo(92.972, 2)
+    // The rendered plate is the world plate × 1,5, and the pole follows the
+    // same factor: one emphasis, applied to sign geometry only.
+    expect(signPlatePx(800) / pxPerMAt(SIGN_STOP_D, 800) / SIGN_EMPHASIS).toBeCloseTo(
+      METERS.sign.plate,
+      6,
+    )
+    expect(signPolePx(800).h / signPlatePx(800)).toBeCloseTo(
+      METERS.sign.pole / METERS.sign.plate,
+      6,
+    )
   })
 })
 

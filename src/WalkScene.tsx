@@ -59,14 +59,27 @@ type Props = {
 /** Depth of the hero. Fixed: the camera follows her, on her own lateral line. */
 export const HERO_DEPTH = CAMERA_DEPTH
 /**
- * Depth where the active sign waits once the world stops. 0.26 puts the plate
+ * Depth where the active sign waits once the world stops. 0.22 puts the plate
  * clearly ahead of the child (who walks at 0.12) without ever covering her.
  */
-export const SIGN_STOP_D = 0.26
+export const SIGN_STOP_D = 0.22
+/**
+ * Render magnification of the interactive sign, applied to the plate and the
+ * pole only.
+ *
+ * A game affordance, not a world measurement: the real plate stays 0,60 m and
+ * the pole 2,0 m in `METERS`, so every other object on screen keeps its honest
+ * metre. On a 360 px phone a world-true plate is 44 px — too small for a
+ * seven-year-old to see, and far too small to tap — so the *rendered* sign is
+ * 1,5× and the button's box is exactly the visible plate. `METERS` is never
+ * scaled: the metre table stays a description of the street, and the plate
+ * reads 74,4 px at 360×640 and 93,0 px at 360×800.
+ */
+export const SIGN_EMPHASIS = 1.5
 /**
  * Lateral position of the sign, in metres from the camera line: the kerb. The
  * ruling in the plan is "rambu di kerb" so the plate never overlaps the child
- * standing on the sidewalk centre 1,0 m to its left at that depth.
+ * standing on her line 1,20 m to its left at that depth.
  */
 export const SIGN_X = KERB_X
 
@@ -107,9 +120,13 @@ export const PROP_ART = {
   tree: { Art: Tree, height: METERS.tree, ratio: 120 / 160 },
   lamp: { Art: StreetLamp, height: METERS.lamp, ratio: 60 / 200 },
   fence: { Art: Fence, height: METERS.fence, ratio: 180 / 70 },
-  bin: { Art: Bin, height: METERS.bin, ratio: 60 / 90 },
-  bench: { Art: Bench, height: METERS.bench, ratio: 120 / 70 },
-  busstop: { Art: BusStop, height: METERS.busStop, ratio: 160 / 150 },
+  // The three sidewalk pieces are redrawn side-on in Task 20, to exactly these
+  // viewBoxes: 55×90, 80×180 and 55×70. The ratios are fixed here so the art
+  // and the metre table cannot drift; bin 0,55 m and bus stop 0,80 m wide,
+  // bench 0,67 m, at 0,9 / 1,8 / 0,85 m tall.
+  bin: { Art: Bin, height: METERS.bin, ratio: 55 / 90 },
+  bench: { Art: Bench, height: METERS.bench, ratio: 55 / 70 },
+  busstop: { Art: BusStop, height: METERS.busStop, ratio: 80 / 180 },
   powerpole: { Art: PowerPole, height: METERS.powerPole, ratio: 50 / 230 },
 } as const
 
@@ -137,9 +154,22 @@ export type { PropSpec }
  * object pops in mid-screen or out of the sky.
  *
  * The camera walks the left sidewalk, so every placement is a lateral metre
- * from that line (verge < −1,7 m; sidewalk −1,7 … +0,3 m). Houses, shop, tree,
- * fence and power pole stand back on the garden side (anchor x < −1,7 m);
- * bus stop, lamp, bench and bins stand on the sidewalk itself.
+ * from that line (verge < −1,7 m; sidewalk −1,7 … +0,3 m). The belt now keeps
+ * four lateral bands, so a piece is never merely "somewhere on the pavement":
+ *
+ * | band        | x (m)        | contents |
+ * |-------------|--------------|----------|
+ * | child       | −1,10        | hero only; her ink −1,463 … −0,737 |
+ * | garden edge | −1,85        | both bins, 0,55 m wide → −2,125 … −1,575 |
+ * | garden      | ≤ −2,30      | bench −2,60, tree −2,8, power pole −2,9, fence −3,5, shop −3,8, house −4,0 |
+ * | kerb        | −0,20 … +0,30| bus stop −0,20 (1,00 m wide → −0,70 … +0,30), lamp +0,15, sign +0,30 |
+ *
+ * The bins straddle the pavement's garden edge by 12,5 cm (they stand 0,30 m
+ * into the verge) on purpose: the 2,0 m pavement cannot hold the child 0,73 +
+ * the bus stop 1,00 + a bin 0,55, and a bin half in the verge reads far better
+ * than one in the child's path. The bus stop is kerb-flush on *both* edges of
+ * its band, so the child has 3,7 cm of clearance from it — `scale.test.ts` pins
+ * that as a floor, not a coincidence.
  *
  * The two big buildings used to sit at −7,8 m and −6,0 m. On a 360 px phone
  * that showed 1–13 % of their sprite (3–40 px) through the haze, i.e. the
@@ -162,15 +192,15 @@ export type { PropSpec }
  */
 export const LAYOUT: ReadonlyArray<PropSpec> = [
   { art: 'tree', x: -2.8, base: 0.08 },
-  { art: 'bin', x: -0.9, base: 0.17 },
+  { art: 'bin', x: -1.85, base: 0.17 },
   { art: 'shop', x: -3.8, base: 0.26 },
   { art: 'fence', x: -3.5, base: 0.35 },
-  { art: 'busstop', x: -0.7, base: 0.52 },
-  { art: 'lamp', x: 0.15, base: 0.61 },
+  { art: 'busstop', x: -0.1, base: 0.52 },
+  { art: 'lamp', x: 0.25, base: 0.61 },
   { art: 'house', x: -4.0, base: 0.7 },
   { art: 'powerpole', x: -2.9, base: 0.79 },
-  { art: 'bench', x: -0.6, base: 0.88 },
-  { art: 'bin', x: 0.0, base: 0.97 },
+  { art: 'bench', x: -2.6, base: 0.88 },
+  { art: 'bin', x: -1.85, base: 0.97 },
 ]
 
 export type Box = { w: number; h: number }
@@ -233,16 +263,16 @@ export function pedBox(kind: 'adult' | 'child', viewportH: number): Box {
   return { w: h * (90 / 200), h }
 }
 
-/** Diameter of the sign plate at its stop depth, in px. */
+/** Diameter of the sign plate at its stop depth, in px, including `SIGN_EMPHASIS`. */
 export function signPlatePx(viewportH: number): number {
-  return pxAt(METERS.sign.plate, SIGN_STOP_D, viewportH)
+  return pxAt(METERS.sign.plate * SIGN_EMPHASIS, SIGN_STOP_D, viewportH)
 }
 
-/** Pole box at the sign's stop depth, in px. */
+/** Pole box at the sign's stop depth, in px, including `SIGN_EMPHASIS`. */
 export function signPolePx(viewportH: number): Box {
   return {
-    w: pxAt(METERS.sign.poleWidth, SIGN_STOP_D, viewportH),
-    h: pxAt(METERS.sign.pole, SIGN_STOP_D, viewportH),
+    w: pxAt(METERS.sign.poleWidth * SIGN_EMPHASIS, SIGN_STOP_D, viewportH),
+    h: pxAt(METERS.sign.pole * SIGN_EMPHASIS, SIGN_STOP_D, viewportH),
   }
 }
 
@@ -528,9 +558,13 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
 
     // One CSS variable carries the whole metre scale to walk.css, where the
     // ambience and sign fallbacks live. `--wk-sign-scale` is the perspective
-    // factor at the sign's stop depth, so the plate stays 0,60 m there.
+    // factor at the sign's stop depth, so the plate stays 0,60 m there;
+    // `--wk-sign-emphasis` is the plate's game magnification (see
+    // `SIGN_EMPHASIS`), kept as a variable so the CSS fallback cannot drift
+    // from the JS.
     sceneEl.current?.style.setProperty('--wk-px-per-m', `${pxPerM(h)}px`)
     sceneEl.current?.style.setProperty('--wk-sign-scale', `${depthScale(SIGN_STOP_D)}`)
+    sceneEl.current?.style.setProperty('--wk-sign-emphasis', `${SIGN_EMPHASIS}`)
 
     // The sign stands still at its stop depth; its plate, pole and position
     // all come from the same metres as the rest of the street.
@@ -854,9 +888,9 @@ export default function WalkScene({ step, onOpen, onStop, onSignTap, sceneRef }:
   }, [reduced, draw, stepAmbience])
 
   const sign = WALK_SIGNS[signStep]
-  // The child walks the sidewalk's centre line, not the camera's line, so she
-  // is a few pixels left of screen centre at every viewport. Her depth is the
-  // focal plane, so `offsetX` here is also what pxAt() sizes her with. The
+  // The child walks her own lateral line (`SIDEWALK_CENTRE`), not the camera's
+  // line, so she is drawn left of screen centre at every viewport. Her depth is
+  // the focal plane, so `offsetX` here is also what pxAt() sizes her with. The
   // sign's own anchors are set in `measure()` because they need the same
   // viewport width and a pixel offset at its stop depth.
   const heroStyle = {

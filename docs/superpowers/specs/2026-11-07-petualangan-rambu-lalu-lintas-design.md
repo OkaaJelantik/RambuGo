@@ -120,19 +120,50 @@ seperti versi prototipe dulu.
 - Kamera berjalan di **trotoar kiri**. Satu-satunya trotoar yang digambar membentang
   dari `SIDEWALK_LEFT = -1,7 m` sampai `KERB_X = +0,3 m`; semua angka lateral diukur
   dalam meter dari garis kamera — negatif = sisi taman/rumah, positif = ke arah jalan
-  (`src/scene/projection.ts:31-47`). Lebar trotoar `METERS.sidewalk = 2,0 m`
+  (`src/scene/projection.ts`). Lebar trotoar `METERS.sidewalk = 2,0 m`
   (`src/scene/meters.ts:35`).
-- Anak berjalan di `SIDEWALK_CENTRE = -0,7 m` (`src/scene/projection.ts:47`), yaitu
-  **1,0 m dari kerb**, pada kedalaman `CAMERA_DEPTH = 0,12`
-  (`src/scene/projection.ts:28`; `src/WalkScene.tsx:60`). Kamera sengaja duduk 0,7 m
-  lebih dekat kerb daripada anak supaya jalan — hal yang diceritakan scene — mulai
-  dekat tengah frame, bukan di tepi kanan.
+- **Empat pita lajur.** Trotoar 2,0 m dipakai sebagai pita, bukan "boleh di mana
+  saja" (revisi 2026-11-08, `src/WalkScene.tsx` `LAYOUT`):
+
+  | pita | x (m) | isi |
+  |---|---|---|
+  | jalur anak | −0,90 | hero saja; tinta −1,263 … −0,537 |
+  | tepi taman | −1,85 | 2× tong, lebar 0,55 → −2,125 … −1,575 (masuk 12,5 cm ke tepi taman) |
+  | taman | ≤ −2,30 | bangku −2,60 (lebar 0,67), pohon −2,8, tiang listrik −2,9, pagar −3,5, ruko −3,8, rumah −4,0 |
+  | kerb | −0,50 … +0,30 | halte −0,10 (lebar 0,80 → −0,50 … +0,30), lampu +0,25, rambu +0,30 |
+
+- Anak berjalan di `SIDEWALK_CENTRE = SIDEWALK_LEFT + 0,80 = −0,90 m`
+  (`src/scene/projection.ts`), yaitu **1,20 m dari kerb**, bukan di titik tengah
+  geometris trotoar (−0,7). Kotak seninya 1,35 × 140/260 = 0,727 m, jadi tintanya
+  **−1,263 … −0,537 m**: 3,6 cm dari sisi kiri halte dan 31,2 cm dari tong taman.
+  Alasan 0,80 dan bukan 0,60: `pxPerM` dihitung dari **tinggi** layar, jadi pada
+  ponsel tinggi satu meter menjadi lebar sekali (148 px di 360×800 melawan 118 px di
+  360×640) sementara frame tetap 360 px — setengah lebar yang terlihat di bidang anak
+  hanya ±1,2 m. Pada 0,60 (−1,10 m) tinta anak keluar 18 px di kiri frame pada
+  360×800 dan 14 px pada 390×844; pada 0,80 ia masuk 11 px dan 17 px, di semua ponsel.
+  Guard `keeps the child on the pavement, inside the frame` mengunci ini.
 - Rambu berdiri di **kerb yang sama**, `SIGN_X = KERB_X = +0,3 m`
-  (`src/WalkScene.tsx:71`), dan berhenti di kedalaman `SIGN_STOP_D = 0,26`
-  (`src/WalkScene.tsx:65`). Jadi plat berada 1,0 m di kanan anak dan sedikit di
-  depannya: keduanya berbagi trotoar, tidak ada jalan yang harus diseberangi untuk
-  melihat rambu. Pelat 0,60 m di atas tiang 2,0 m (`src/scene/meters.ts:45`); pada
-  360×800 plat ±55 px, dan tombolnya dijaga ≥ 56 px (`src/walk.css:305-308`).
+  (`src/WalkScene.tsx`), dan berhenti di kedalaman `SIGN_STOP_D = 0,22`. Jadi plat
+  berada 1,40 m di kanan anak dan sedikit di depannya: keduanya berbagi trotoar, tidak
+  ada jalan yang harus diseberangi untuk melihat rambu.
+- **Pelat digambar 1,5×, ukuran dunia tidak berubah.** `METERS.sign.plate = 0,60 m`
+  di atas tiang 2,0 m (`src/scene/meters.ts:50`) tetap ukuran dunia; yang dirender
+  adalah `SIGN_EMPHASIS = 1,5` kali pelat **dan** tiang saja
+  (`src/WalkScene.tsx`; `signPlatePx`/`signPolePx`). Ini afordans game, bukan
+  pengukuran: pelat 0,60 m hanya 44 px di 360×640 — terlalu kecil untuk menjadi
+  fokus, dan kotak ketuknya dulu dipaksa `min-width: 56px` sehingga lebih besar dari
+  pelat yang terlihat. `METERS` tidak diubah supaya tabel meter tetap jujur. Hasilnya
+  pelat **74,4 px @360×640** dan **93,0 px @360×800**, tiang 3,0 × 0,135 m yang
+  sebanding, dan tombolnya tepat selebar pelat (tanpa `min-width`). Cincin
+  putus-putus selalu terlihat saat `--in` (opacity 0,9, denyut 1,8 s; statis pada
+  `prefers-reduced-motion`) dan `pointer-events: none`.
+- **Halte boleh menyapu di belakang rambu.** Halte 1,00 m berdiri kerb-flush
+  (−0,70 … +0,30), jadi kolom lateralnya menyentuh kolom rambu. Itu aman karena pelat
+  dicat di `z-index: 160` sementara `propZ` maksimum 100 (`src/WalkScene.tsx`,
+  `propZ`): setiap prop selalu di belakang pelat. Alasan yang sama membuat lampu
+  4,5 m (x +0,15, lebar 1,35) boleh melintasi kolom rambu; `scale.test.ts` mengunci
+  "pelat di atas semua prop" dan "tidak ada tong yang menyentuh pelat/tiang pada
+  ketiga fase berhenti".
 - **Sisi seberang tidak pernah digambar.** Jalan dicat dari `KERB_X` sampai
   `ROAD_FAR_X = 200 m` (`src/scene/projection.ts:54`) lalu dipotong tepi kanan frame;
   `GroundScene` hanya menggambar trotoar kiri, kerb, dan jalan itu
@@ -506,7 +537,8 @@ Aturan konten yang sudah dipakai dan sebaiknya dipertahankan:
 Status per 2026-11-07 setelah Task 1–14 dan fix wave `0634832`. ✅ = tertutup,
 ⚠️ = sebagian, tanpa tanda = masih terbuka. Nomor T dipertahankan supaya rujukan
 lama tetap sah; T3 sudah dicabut dan keputusannya ada di §16. T14–T19 adalah cacat
-yang baru ketahuan setelah framing/panel ditulis ulang.
+yang baru ketahuan setelah framing/panel ditulis ulang; T20–T24 dari reviu anotasi
+2026-11-08 (Task 19).
 
 **✅ T1 — Teks layar rumah selalu salah satu versi.** Dulu `App.tsx` menyetel
 `via = 'materi'`, lalu menimpanya jadi `'kuis'` sebelum pindah ke `home`, sehingga
@@ -539,10 +571,10 @@ pejalan `:601` (`9d0a9e4`) — dan panel di `dialog.css:154` (`0634832`).
 (`0634832`) dan Task 15; DoD §14.5 terpenuhi.
 
 **✅ T6 — Tidak ada test sama sekali.** Dulu tidak ada runner maupun smoke test.
-Selesai: vitest + jsdom (`aac63b4`), sekarang **8 suite / 164 test** — flow
+Selesai: vitest + jsdom (`aac63b4`), sekarang **8 suite / 169 test** — flow
 (`21b78a1`, 9 test), projection (`aac63b4`, 40), GroundScene (`2397d0c`, 7),
 HeroWalk (`ac5c4ae`, 6), world (`c30af0a`, 7), spawner (`9d0a9e4`, 12), story
-(`76ed157`/`0634832`, 10), dan scale (`d6a1dc1`, 67). `pnpm test` hijau.
+(`76ed157`/`0634832`, 10), dan scale (`d6a1dc1`/Task 19, 71). `pnpm test` hijau.
 
 **✅ T7 — Parameter dev ikut ke produksi.** `?s=`, `?step=`, `?still` dulu selalu
 dibaca. Selesai di `4a873ad`: ketiganya hanya aktif bila `import.meta.env.DEV`
@@ -651,6 +683,61 @@ di `0634832`: `wasStoppedRef` mulai `true` bila mode awal `stopped`
 (`:759-766`), dan ketukan plat tetap memberi `onSignTap` (`:915-920`). Dikunci
 `beat leg tetap tampil saat prefers-reduced-motion` (`src/flow.test.tsx:287-297`)
 dan `ketuk plat rambu memunculkan beat stop tanpa MutationObserver` (`:298-313`).
+
+**T20–T24 — reviu anotasi 2026-11-08.** Empat temuan dari tangkapan 360×760
+(`Revised1.png`, `Revised2.png`) plus satu tambahan (bangku), semuanya diukur ulang
+sebelum diperbaiki. T20/T24 separuh tertutup: art-nya digambar ulang di Task 20,
+sedangkan geometri, pita lajur, dan rasionya dikunci di Task 19.
+
+**⚠️ T20 (A1) — Art kit ortografis depan, dunia menyusut ke titik hilang.** Halte
+(`BusStop` 160×150), tong (`Bin` 60×90), dan bangku (`Bench` 120×70) digambar sebagai
+elevasi depan simetris, padahal jalan di belakangnya memakai perspektif 2,5D; makin
+dekat objek, makin jelas pandangan depannya bertabrakan dengan garis yang menyusut.
+Penempatan saja tidak bisa menutupinya — itu sebabnya art-nya digambar ulang, bukan
+digeser. Resolusi: Task 20 menggambar `BusStop` `0 0 80 180` (3-4 menyusuri jalan,
+atap menyusut ke atas-kanan, satu tiang dekat tebal; lebar yang terlihat adalah
+kedalaman teluknya, 0,80 m — cukup sempit untuk duduk di pita kerb), `Bin`
+`0 0 55 90` (tutup elips miring, satu sisi badan), `Bench` `0 0 55 70` (profil
+menyamping). Task 19 sudah mengunci rasio itu di `PROP_ART` (`55/90`, `80/180`,
+`55/70`) supaya art dan tabel meter tidak bisa melenceng. Rumah/ruko tetap elevasi depan dengan alasan tertulis di
+header `src/art/scenery.tsx`.
+
+**✅ T21 (A2) — Tong berdiri di jalur jalan anak.** Tong dulu di `x = −0,9 m`, lebar
+0,6 m (`−1,2 … −0,6`), sementara tinta anak `−1,063 … −0,337 m`: tumpang 0,26 m, jadi
+tong berdiri di tengah jalannya. Selesai di Task 19: kedua tong pindah ke pita tepi
+taman `x = −1,85 m`, lebar 0,55 m (`−2,125 … −1,575`), dan anak pindah ke
+`SIDEWALK_CENTRE = −0,90` sehingga tintanya `−1,263 … −0,537 m` — jarak 31,2 cm.
+Dikunci guard `keeps the child’s band ≥ 0,03 m clear of every pavement prop,
+9 phases × 3 phones` (`src/scene/scale.test.ts`), yang juga mengukur halte (3,6 cm),
+bangku (80,3 cm), dan lampu (11,2 cm).
+
+**✅ T22 (A3) — Pelat rambu terlalu kecil, kotak ketuk lebih besar dari pelat.**
+Pelat 0,60 m pada kedalaman 0,26 hanya 44,2 px di 360×640 dan 55,3 px di 360×800,
+sementara `.wk-sign` dipaksa `min-width: 56px`; hasilnya pelat kecil dan tombol
+transparan yang lebih lebar dari pelat, dengan cincin yang hanya muncul saat hover.
+Selesai di Task 19: `SIGN_STOP_D = 0,22`, `SIGN_EMPHASIS = 1,5` pada pelat **dan**
+tiang saja (`METERS` tetap 0,60 / 2,0 m), `min-width` dihapus, tombol = selebar pelat.
+Pelat sekarang **74,4 px @360×640** dan **93,0 px @360×800**, rim tinta 3 px, bayangan
+lebih tegas; cincin putus-putus selalu terlihat saat `--in` (opacity 0,9, denyut
+1,8 s) dan statis pada `prefers-reduced-motion`, dengan `pointer-events: none`.
+Dikunci `renders the sign plate at least 70 px at 360×640 and 88 px at 360×800`.
+
+**✅ T23 (A4) — Tong menyapu kolom rambu, lalu membeku di sana.** Tong kedua dulu di
+`x = 0,0 m`, lebar 0,6 m (`−0,3 … +0,3`), sedangkan kolom rambu mulai di `+0,3 m`
+(plat 0,6 m berpusat di kerb, tiang 0,09 m). Setiap leg, tong itu melewati kolom
+rambu; karena dunia membeku saat berhenti, tumpang tindihnya ikut beku dan terlihat.
+Selesai di Task 19: kedua tong di `−1,85 m`, jadi tidak ada tong di kolom rambu pada
+fase mana pun. Dikunci guard `keeps both bins clear of the sign plate and pole at
+every stop phase`, yang menguji scroll 0 (reduced motion), 1,8 (akhir leg), dan 3,6
+(fase yang sama satu leg kemudian) di ketiga viewport ponsel.
+
+**⚠️ T24 (A5) — Bangku digambar depan dan 1,46 m lebar.** Rasio art lama `120/70`
+pada tinggi 0,85 m membuat bangku 1,46 m — tidak muat di pita trotoar mana pun, dan
+pandangan depannya sama salahnya dengan halte. Selesai sebagian di Task 19: rasio
+`55/70` → lebar **0,668 m**, ditempatkan di pita taman `x = −2,60`
+(`−2,934 … −2,266`), 80 cm dari tinta anak. Profil menyamping (dudukan memanjang ke
+belakang, sandaran bidang tipis, satu kaki dekat + satu jauh) menyusul di Task 20 ke
+viewBox `0 0 55 70`.
 
 ---
 

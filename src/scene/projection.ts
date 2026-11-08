@@ -32,19 +32,30 @@ export const CAMERA_DEPTH = 0.12
  *
  * The camera hovers just behind the kerb (0,3 m), not over the sidewalk's
  * centre, so the road — the thing the scene is about — starts near the frame's
- * centre instead of at its right edge. The child is still fully on the
- * pavement, one metre from the kerb; see `SIDEWALK_CENTRE`.
+ * centre instead of at its right edge. The child walks 0,80 m in from the
+ * garden edge, 1,20 m from the kerb; see `SIDEWALK_CENTRE`.
  */
 export const SIDEWALK_LEFT = -1.7
 export const SIDEWALK_M = METERS.sidewalk
 export const KERB_X = SIDEWALK_LEFT + SIDEWALK_M
 /**
- * Lateral metre of the sidewalk's centre line. The hero walks here, not on the
- * camera's own line: the camera sits 0,7 m towards the kerb, so the child is
- * drawn left of screen centre on every viewport and the road has room to the
- * right.
+ * Lateral line the hero walks, in metres from the camera's own line.
+ *
+ * 0,80 m in from the garden edge, not the pavement's geometric centre (−0,7):
+ * the kerb-side band (−0,50 … +0,30) belongs to the bus stop, the lamp and the
+ * sign, and the pavement is only 2,0 m wide. Her 140-wide art box is 0,727 m
+ * wide, so her ink spans **−1,263 … −0,537 m** — 3,6 cm clear of the bus
+ * stop's left edge and 31 cm clear of the garden bins'.
+ *
+ * 0,80 rather than 0,60 is a framing limit, not a taste: `pxPerM` comes from
+ * the viewport's *height*, so on a tall phone one metre is huge across the
+ * frame (148 px at 360×800 against 118 px at 360×640) and the visible
+ * half-width at the camera plane is only ~1,2 m. At 0,60 (−1,10 m) her ink
+ * started 18 px outside the left edge at 360×800 and 14 px at 390×844; at
+ * 0,80 it starts 11 px and 17 px *inside*, at every phone. `scale.test.ts`
+ * pins that.
  */
-export const SIDEWALK_CENTRE = SIDEWALK_LEFT + SIDEWALK_M / 2
+export const SIDEWALK_CENTRE = SIDEWALK_LEFT + 0.8
 
 /** Road geometry, all in metres. The far side is never drawn. */
 export const LANE_M = METERS.lane
@@ -64,7 +75,8 @@ export const KERB_LINE_M = 0.12
  * `sidewalkL` and `sidewalkR` are deliberately *not* `SIDEWALK_CENTRE`: a
  * passer-by walking the child's own line would be drawn on top of her, and the
  * one thing the framing must never do is hide the hero behind a pedestrian.
- * They stand 0,6 m and 0,65 m to either side of her line instead.
+ * They stand 0,2 m and 1,05 m to either side of her line instead, and are
+ * painted at `propZ` ≤ 100, i.e. always behind her (z 200).
  */
 export const LANES = {
   sidewalkL: SIDEWALK_LEFT + 0.4,

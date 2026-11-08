@@ -301,11 +301,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Pelat 0,60 m pada kedalaman berhenti 0,26; --wk-sign-scale = depthScale(0,26). */
-  width: calc(var(--wk-px-per-m, 148px) * 0.6 * var(--wk-sign-scale, 0.6228));
-  /* Di ponsel pendek (360×640) pelat 0,60 m hanya ~49 px, jadi tombolnya
-     dijaga ≥56 px sesuai target sentuh plan; pelat tetap 0,60×0,60. */
-  min-width: 56px;
+  /* Pelat 0,60 m × SIGN_EMPHASIS 1,5 pada kedalaman berhenti 0,22;
+     --wk-sign-scale = depthScale(0,22). Tinggi tombol = pelat + tiang, dan
+     lebarnya tepat selebar pelat yang terlihat: tidak ada min-width lagi,
+     karena pelatnya sudah ≥74 px (aturan lama 56 px membuat kotak ketuk lebih
+     besar dari pelat, dan cincinnya terlihat mengambang di luar). */
+  width: calc(
+    var(--wk-px-per-m, 148px) * 0.6 * var(--wk-sign-emphasis, 1.5) *
+      var(--wk-sign-scale, 0.6979866)
+  );
   padding: 0;
   border: 0;
   background: none;
@@ -331,10 +335,14 @@
   place-items: center;
   width: 100%;
   aspect-ratio: 1;
+  /* Rim tinta 3 px: pelat segitiga kuning harus terbaca sebagai benda
+     bertepi di langit pucat, bukan sebagai kuning yang melebur. Bayangannya
+     sengaja lebih tegas dari art lain karena pelat inilah fokus berhenti. */
   padding: 7px;
+  border: 3px solid var(--ink);
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 6px 0 rgba(42, 35, 32, 0.16), 0 12px 20px rgba(42, 35, 32, 0.2);
+  box-shadow: 0 5px 0 rgba(42, 35, 32, 0.26), 0 12px 18px rgba(42, 35, 32, 0.34);
 }
 
 .wk-sign-plate > svg {
@@ -344,9 +352,15 @@
 }
 
 .wk-sign-pole {
-  /* Tiang 9 cm × 2,0 m pada kedalaman berhenti yang sama. */
-  width: calc(var(--wk-px-per-m, 148px) * 0.09 * var(--wk-sign-scale, 0.6228));
-  height: calc(var(--wk-px-per-m, 148px) * 2 * var(--wk-sign-scale, 0.6228));
+  /* Tiang 9 cm × 2,0 m pada kedalaman berhenti yang sama, ikut SIGN_EMPHASIS. */
+  width: calc(
+    var(--wk-px-per-m, 148px) * 0.09 * var(--wk-sign-emphasis, 1.5) *
+      var(--wk-sign-scale, 0.6979866)
+  );
+  height: calc(
+    var(--wk-px-per-m, 148px) * 2 * var(--wk-sign-emphasis, 1.5) *
+      var(--wk-sign-scale, 0.6979866)
+  );
   border-radius: 5px;
   background: linear-gradient(
     90deg,
@@ -355,6 +369,10 @@
   );
 }
 
+/* Cincin putus-putus: selalu terlihat selama rambu aktif (--in), bukan hanya
+   saat hover. opacity 0,9 supaya tetap kontras di langit, dan denyut 1,8 s
+   hanya mengubah opacity/scale — bukan rotasi — supaya tenang untuk anak.
+   pointer-events: none: cincin tidak boleh memperluas/menelan kotak ketuk. */
 .wk-sign-plate::after {
   content: '';
   position: absolute;
@@ -362,6 +380,7 @@
   border-radius: 50%;
   border: 4px dashed var(--yellow);
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.2s ease;
 }
 
@@ -370,23 +389,29 @@
 }
 
 .wk-sign--in .wk-sign-plate::after {
-  opacity: 1;
-  animation: wk-spin 9s linear infinite;
+  opacity: 0.9;
+  animation: wk-ring 1.8s ease-in-out infinite;
 }
 
 @keyframes wk-pulse {
   0%,
   100% {
-    box-shadow: 0 6px 0 rgba(42, 35, 32, 0.16), 0 12px 20px rgba(42, 35, 32, 0.2);
+    box-shadow: 0 5px 0 rgba(42, 35, 32, 0.26), 0 12px 18px rgba(42, 35, 32, 0.34);
   }
   50% {
-    box-shadow: 0 8px 0 rgba(42, 35, 32, 0.12), 0 18px 26px rgba(42, 35, 32, 0.24);
+    box-shadow: 0 8px 0 rgba(42, 35, 32, 0.18), 0 18px 26px rgba(42, 35, 32, 0.4);
   }
 }
 
-@keyframes wk-spin {
-  to {
-    rotate: 360deg;
+@keyframes wk-ring {
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.05);
   }
 }
 
@@ -427,7 +452,9 @@
   background: var(--orange);
 }
 
-/* Gerak berulang dimatikan; rambu tetap langsung bisa ditekan. */
+/* Gerak berulang dimatikan; rambu tetap langsung bisa ditekan. Cincin
+   putus-putus tetap terlihat (statis) supaya rambu aktif masih terbaca
+   sebagai ajakan mengetuk, bukan hilang bersama animasinya. */
 @media (prefers-reduced-motion: reduce) {
   .wk-sign {
     transition: none;
@@ -436,6 +463,10 @@
   .wk-sign--in .wk-sign-plate,
   .wk-sign--in .wk-sign-plate::after {
     animation: none;
+  }
+
+  .wk-sign--in .wk-sign-plate::after {
+    opacity: 0.9;
   }
 }
 
