@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, RefObject } from 'react'
 import GroundScene from './scene/GroundScene'
 import HeroWalk from './art/HeroWalk'
@@ -17,8 +17,8 @@ import {
 } from './art/scenery'
 import { Car, Motorcycle } from './art/vehicles'
 import { Pedestrian } from './art/people'
-import { SignArt } from './SignArt'
-import type { Sign } from './data'
+import { ART } from './SignArt'
+import type { Art, Kind, Sign } from './data'
 import { METERS } from './scene/meters'
 import {
   CAMERA_DEPTH,
@@ -222,6 +222,43 @@ export function pedBox(kind: 'adult' | 'child', viewportH: number): Box {
   return { w: h * (90 / 200), h }
 }
 
+/**
+ * Pelat dan tiang dalam satu gambar: satu `<svg>`, bukan dua elemen yang bisa
+ * lepas satu sama lain. Rambu asli dan ghost-nya memakai komponen yang sama,
+ * jadi keduanya tidak mungkin berbeda bentuk.
+ *
+ * `poleId` unik per instance karena gradien tiang dideklarasikan di dalam SVG
+ * ini; dua rambu di DOM tidak boleh berbagi id.
+ */
+function SignFigure({ art, kind, poleId }: { art: Art; kind: Kind; poleId: string }) {
+  const poleW = SIGN_POLE_ART.w
+  return (
+    <svg className="wk-sign-art" viewBox={`0 0 ${SIGN_BOX.w} ${SIGN_BOX.h}`} aria-hidden="true">
+      <defs>
+        <linearGradient id={poleId} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="color-mix(in srgb, var(--road) 40%, var(--paper))" />
+          <stop offset="1" stopColor="color-mix(in srgb, var(--road) 80%, var(--ink))" />
+        </linearGradient>
+      </defs>
+      {/* Tiang dulu, pelat menimpanya di sambungan. Tiang mulai tepat di bawah
+          kotak pelat (y = 120 unit) dan berakhir di tanah. */}
+      <rect
+        x={(SIGN_BOX.w - poleW) / 2}
+        y={SIGN_BOX.w}
+        width={poleW}
+        height={SIGN_POLE_ART.h}
+        rx={4}
+        fill={`url(#${poleId})`}
+      />
+      {/* Segitiga mengisi kotaknya sendiri; diperbesar 12 % karena viewBox
+          art-nya menyisakan margin. 60 adalah pusat kotak 120 unit. */}
+      <g transform={kind === 'peringatan' ? 'translate(-7.2 -7.2) scale(1.12)' : undefined}>
+        {ART[art]}
+      </g>
+    </svg>
+  )
+}
+
 /** Diameter of the sign plate at its stop depth, in px, including `SIGN_EMPHASIS`. */
 export function signPlatePx(viewportH: number): number {
   return pxAt(METERS.sign.plate * SIGN_EMPHASIS * SIGN_PLATE_GROW, SIGN_STOP_D, viewportH)
@@ -234,6 +271,29 @@ export function signPolePx(viewportH: number): Box {
     h: pxAt(METERS.sign.pole * SIGN_EMPHASIS, SIGN_STOP_D, viewportH),
   }
 }
+
+/**
+ * Satu viewBox untuk pelat **dan** tiang: pelat adalah 120 unit (kotak art
+ * `SignArt`, yang sudah dipakai lembar dan kuis), dan satu unit = 0,945 m / 120
+ * dari pelat yang dirender. Tiang 1,8 m × emphasis jatuh di 342,9 unit di
+ * bawahnya, jadi seluruh rambu adalah satu gambar 120 × 462,9.
+ *
+ * Kenapa satu gambar: pelat dan tiang dulu dua elemen terpisah di dalam flex
+ * column, dan begitu salah satunya kehilangan ukuran (ghost pernah begitu),
+ * pelatnya melorot ke tanah. Satu SVG tidak punya keadaan seperti itu, dan
+ * seluruh rambu menjadi satu node yang diskalakan dan ditempatkan seperti prop
+ * lain.
+ */
+const SIGN_UNITS_PER_M = 120 / (METERS.sign.plate * SIGN_EMPHASIS * SIGN_PLATE_GROW)
+export const SIGN_BOX = {
+  w: 120,
+  h: 120 + METERS.sign.pole * SIGN_EMPHASIS * SIGN_UNITS_PER_M,
+} as const
+/** Tiang di dalam sistem unit `SIGN_BOX`. */
+export const SIGN_POLE_ART = {
+  w: METERS.sign.poleWidth * SIGN_EMPHASIS * SIGN_UNITS_PER_M,
+  h: METERS.sign.pole * SIGN_EMPHASIS * SIGN_UNITS_PER_M,
+} as const
 
 /**
  * Visible fraction of a projected box inside the viewport: a piece cropped by
@@ -489,10 +549,11 @@ export default function WalkScene({
   const sceneElRef = useRef<HTMLDivElement | null>(null)
   const sceneEl = sceneRef ?? sceneElRef
   const signButtonRef = useRef<HTMLButtonElement | null>(null)
-  const signPlateRef = useRef<HTMLSpanElement | null>(null)
-  const signPoleRef = useRef<HTMLSpanElement | null>(null)
   // Rambu yang sudah dilewati: bukan tombol, tanpa fokus, hanya art.
   const ghostElRef = useRef<HTMLSpanElement | null>(null)
+  // Gradien tiang hidup di dalam SVG, jadi setiap gambar butuh id sendiri.
+  const poleId = useId()
+  const ghostPoleId = useId()
   const [passedSign, setPassedSign] = useState<Sign | null>(null)
   // Leg terakhir yang sudah dipasang, untuk memilih ghost tanpa menambah
   // dependensi efek (lihat efek leg).
@@ -592,19 +653,13 @@ export default function WalkScene({
       signEl.style.left = `${roundHalf(offsetX(SIGN_X, SIGN_STOP_D, w, h))}px`
       signEl.style.top = `${roundHalf(yAt(SIGN_STOP_D) * h)}px`
     }
+    // Lebar pelat dan tinggi seluruh gambar (pelat + tiang) dari satu viewBox.
     const platePx = signPlatePx(h)
     sceneEl.current?.style.setProperty('--wk-sign-width', `${platePx}px`)
-    const plateEl = signPlateRef.current
-    if (plateEl) {
-      plateEl.style.width = `${platePx}px`
-      plateEl.style.height = `${platePx}px`
-    }
-    const pole = signPolePx(h)
-    const poleEl = signPoleRef.current
-    if (poleEl) {
-      poleEl.style.width = `${pole.w}px`
-      poleEl.style.height = `${pole.h}px`
-    }
+    sceneEl.current?.style.setProperty(
+      '--wk-sign-height',
+      `${platePx * (SIGN_BOX.h / SIGN_BOX.w)}px`,
+    )
 
     const dash = dashBox(h)
     for (const el of dashRefs.current) {
@@ -1088,10 +1143,7 @@ export default function WalkScene({
           aria-hidden="true"
           ref={ghostElRef}
         >
-          <span className="wk-sign-plate">
-            <SignArt art={passedSign.art} size={96} />
-          </span>
-          <span className="wk-sign-pole" />
+          <SignFigure art={passedSign.art} kind={passedSign.kind} poleId={ghostPoleId} />
         </span>
       )}
 
@@ -1110,10 +1162,7 @@ export default function WalkScene({
         data-kind={sign.kind}
         aria-label={`Rambu ${sign.name}, tekan untuk melihat artinya`}
       >
-        <span className="wk-sign-plate" ref={signPlateRef}>
-          <SignArt art={sign.art} size={96} />
-        </span>
-        <span className="wk-sign-pole" ref={signPoleRef} />
+        <SignFigure art={sign.art} kind={sign.kind} poleId={poleId} />
       </button>
 
       <div className="wk-hero-zone" style={heroStyle} ref={heroZoneRef}>

@@ -38,7 +38,9 @@ import WalkScene, {
   HERO_DEPTH,
   NEAR_EDGE,
   PROP_ART,
+  SIGN_BOX,
   SIGN_EMPHASIS,
+  SIGN_POLE_ART,
   SIGN_STOP_D,
   SIGN_X,
   SIGN_Z,
@@ -588,19 +590,25 @@ describe('the rendered scene writes those boxes into the DOM', () => {
     expect(dash.w).toBeCloseTo(66.6, 3)
     expect(dash.h).toBeCloseTo(20.72, 3)
 
-    const plate = px('.wk-sign-plate')
-    expect(plate.w).toBeCloseTo(97.6204, 3)
-    expect(plate.h).toBeCloseTo(97.6204, 3)
-    expect(plate.w).toBeCloseTo(plate.h, 3)
-
-    const pole = px('.wk-sign-pole')
-    expect(pole.h).toBeCloseTo(278.915, 3)
-    expect(pole.w).toBeCloseTo(13.946, 3)
-    // The pole and the plate share one projector and one emphasis, so the
-    // ratio is the metre ratio 1,8 m / 0,6 m over the plate's 5 % growth.
-    expect(pole.h / plate.w).toBeCloseTo(
+    // Pelat dan tiang adalah SATU gambar (`.wk-sign-art`), jadi yang diuji
+    // kotaknya, bukan dua <span> yang bisa lepas satu sama lain. Tinggi kotak
+    // = lebar × (pelat 120 unit + tiang dalam unit yang sama).
+    const scene = container.querySelector<HTMLElement>('.wk-scene')!
+    expect(container.querySelectorAll('.wk-sign-art')).toHaveLength(1)
+    expect(container.querySelector('.wk-sign-plate')).toBeNull()
+    const signW = parseFloat(scene.style.getPropertyValue('--wk-sign-width'))
+    const signH = parseFloat(scene.style.getPropertyValue('--wk-sign-height'))
+    expect(signW).toBeCloseTo(97.6204, 3)
+    const unit = METERS.sign.plate * SIGN_EMPHASIS * SIGN_PLATE_GROW
+    const poleUnits = (METERS.sign.pole * SIGN_EMPHASIS * 120) / unit
+    expect(signH).toBeCloseTo(signW * ((120 + poleUnits) / 120), 3)
+    expect(SIGN_BOX.h / SIGN_BOX.w).toBeCloseTo((120 + poleUnits) / 120, 6)
+    // Lebar tiang di sistem unit yang sama: 9 cm × emphasis.
+    expect(SIGN_POLE_ART.w).toBeCloseTo((METERS.sign.poleWidth * SIGN_EMPHASIS * 120) / unit, 6)
+    // Rasionya adalah rasio meter 1,8 m / (0,6 m × 1,05), bukan angka bebas.
+    expect(SIGN_POLE_ART.h / SIGN_BOX.w).toBeCloseTo(
       METERS.sign.pole / (METERS.sign.plate * SIGN_PLATE_GROW),
-      3,
+      6,
     )
 
     // Anggaran node beranimasi (plafon 30, PRD §3.1 aturan 3).

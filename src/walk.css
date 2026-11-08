@@ -393,6 +393,10 @@
      besar dari pelat, dan cincinnya terlihat mengambang di luar). */
   /* Lebar diisi `measure()` supaya CSS dan `signPlatePx()` tidak bisa
      melenceng; fallback-nya rumus yang sama untuk paint sebelum JS jalan. */
+  /* Satu kotak untuk pelat + tiang: lebar dari proyeksi, tinggi mengikuti
+     viewBox SVG-nya (lihat SIGN_BOX di WalkScene). Dulu pelat dan tiang adalah
+     dua <span> di dalam flex column; kalau salah satunya kehilangan ukuran,
+     pelatnya "jatuh ke tanah". Satu SVG tidak bisa terpisah seperti itu. */
   width: var(
     --wk-sign-width,
     calc(
@@ -400,6 +404,7 @@
         var(--wk-sign-scale, 0.6979866) * 1.05
     )
   );
+  height: var(--wk-sign-height);
   padding: 0;
   border: 0;
   background: none;
@@ -412,113 +417,26 @@
   pointer-events: none;
 }
 
-/* Kelas ini hanya mengurus afordansi ketuk; posisinya sudah dari proyeksi. */
+/* Satu-satunya isi rambu: pelat dan tiang dalam satu gambar. */
+.wk-sign-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Kelas ini hanya mengurus afordansi ketuk; posisinya sudah dari proyeksi.
+   Tidak ada denyut, tidak ada bayangan kotak: rambu adalah objek dunia seperti
+   pohon dan tiang lampu, bukan tombol yang memanggil "ketuk aku". */
 .wk-sign--in {
   pointer-events: auto;
   cursor: pointer;
 }
 
-/* Rambu yang sudah dilewati (ghost): art sama, tanpa afordansi, tanpa pulse. */
+/* Rambu yang sudah dilewati (ghost): art sama, tanpa afordansi ketuk. */
 .wk-sign--passed {
   pointer-events: none;
   cursor: default;
-}
-
-.wk-sign--passed .wk-sign-plate {
-  animation: none;
-}
-
-/* Kanvas pelat mengikuti bentuk rambunya, bukan selalu lingkaran putih.
-   Dulu segitiga dan persegi duduk di dalam cakram putih, jadi sudut putihnya
-   terlihat seperti kanvas kosong — dan segitiganya dipaksa mengecil supaya
-   muat di cakram itu. Sekarang: bulat untuk larangan/perintah, kotak lembut
-   untuk petunjuk, dan TANPA kanvas untuk peringatan (art-nya sudah segitiga
-   kuning bertepi tinta tebal). */
-.wk-sign-plate {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 100%;
-  aspect-ratio: 1;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-/* Tanpa kanvas: art-nya sudah menggambar papan rambunya sendiri (lingkaran
-   merah, persegi biru, segitiga kuning). Yang tersisa hanya bayangan yang
-   mengikuti bentuk itu — lingkaran untuk rambu bulat, kotak lembut untuk
-   persegi, dan tidak ada bayangan untuk segitiga (bayangan kotak di balik
-   segitiga itulah "kotak" yang kelihatan menonjol). */
-.wk-sign[data-kind='larangan'] .wk-sign-plate,
-.wk-sign[data-kind='perintah'] .wk-sign-plate {
-  border-radius: 50%;
-  box-shadow: 0 4px 0 rgba(42, 35, 32, 0.2), 0 10px 16px rgba(42, 35, 32, 0.24);
-}
-
-.wk-sign[data-kind='petunjuk'] .wk-sign-plate {
-  border-radius: 16px;
-  box-shadow: 0 4px 0 rgba(42, 35, 32, 0.2), 0 10px 16px rgba(42, 35, 32, 0.24);
-}
-
-/* Peringatan: art segitiga mengisi kotaknya sendiri, sedikit diperbesar
-   karena viewBox-nya menyisakan margin. */
-.wk-sign[data-kind='peringatan'] .wk-sign-plate > svg {
-  transform: scale(1.12);
-}
-
-.wk-sign-plate > svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.wk-sign-pole {
-  /* Tiang 9 cm × 1,8 m pada kedalaman berhenti yang sama, ikut SIGN_EMPHASIS.
-     Angka ini WAJIB sama dengan METERS.sign.pole: rambu asli mendapat ukuran
-     inline dari measure(), tetapi ghost (rambu yang dilewati) hanya memakai
-     CSS ini, dan tiang 2,0 m membuat ghost 11 % lebih panjang dari aslinya. */
-  width: calc(
-    var(--wk-px-per-m, 148px) * 0.09 * var(--wk-sign-emphasis, 1.5) *
-      var(--wk-sign-scale, 0.6979866)
-  );
-  height: calc(
-    var(--wk-px-per-m, 148px) * 1.8 * var(--wk-sign-emphasis, 1.5) *
-      var(--wk-sign-scale, 0.6979866)
-  );
-  border-radius: 5px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--road) 40%, var(--paper)),
-    color-mix(in srgb, var(--road) 80%, var(--ink))
-  );
-}
-
-.wk-sign--in .wk-sign-plate {
-  animation: wk-pulse 1.7s ease-in-out infinite;
-}
-
-/* Afordansi "ketuk aku" tanpa mengubah bentuk. Dulu keyframe ini menulis
-   `box-shadow` untuk semua jenis, sehingga rambu segitiga (yang memang tanpa
-   kanvas dan tanpa sudut) tiba-tiba punya bayangan kotak di belakangnya —
-   "kotak canvas yang berusaha blend". Sekarang yang berdenyut adalah
-   transform pelat, yang bentuknya selalu mengikuti art-nya. */
-@keyframes wk-pulse {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-3px) scale(1.02);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wk-sign--in .wk-sign-plate {
-    animation: none;
-  }
 }
 
 /* ---------- balon ucapan narasi (Task 24) ---------- */
@@ -633,17 +551,6 @@
 
 .wk-pips i.on {
   background: var(--orange);
-}
-
-/* Gerak berulang dimatikan; rambu tetap langsung bisa ditekan. */
-@media (prefers-reduced-motion: reduce) {
-  .wk-sign {
-    transition: none;
-  }
-
-  .wk-sign--in .wk-sign-plate {
-    animation: none;
-  }
 }
 
 /* ============================================================
