@@ -85,17 +85,29 @@ export const LANES = {
   laneR: KERB_X + LANE_M * 1.5,
 } as const
 
-/** Depth where objects start to disappear. */
-const FADE_FAR = 0.92
-
-/** Depth where objects are still fully visible. */
-const FADE_NEAR = 0.62
+/**
+ * Depth where objects start to disappear, and the last depth they are fully
+ * visible at. Exported so the spawner's guard can assert that a new object is
+ * born *invisible* (`PROP_SPAWN_D >= FADE_FAR`) instead of comparing a
+ * constant with itself.
+ */
+export const FADE_FAR = 0.92
+export const FADE_NEAR = 0.62
 
 /** Depth where objects enter the near fade on their way past the camera. */
 const FADE_NEAR_START = 0.06
 
 /** Depth where the near fade ends and the object is fully visible. */
 const FADE_NEAR_END = 0.16
+
+/**
+ * Depth the active sign waits at once the world stops. 0,22 puts the plate
+ * clearly ahead of the child (who walks at 0,12) without ever covering her.
+ *
+ * It lives here, not in `WalkScene`, because `world.ts` needs it to compute
+ * the sign's depth as it walks in from the horizon.
+ */
+export const SIGN_STOP_D = 0.22
 
 function clampDepth(depth: number): number {
   return Math.min(1, Math.max(0, depth))

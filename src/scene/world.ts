@@ -7,6 +7,8 @@
  * makes the motion unit-testable without a browser.
  */
 
+import { SIGN_STOP_D } from './projection'
+
 /**
  * World depth scrolled per second while walking. Halved for Task 11: 0,30 is
  * a seven-year-old's amble, not the old 0,55 rush.
@@ -31,9 +33,17 @@ export type WorldState = {
   step: number
 }
 
-/** A fresh world for one leg, walking towards `step`. */
-export function createWorld(step: number): WorldState {
-  return { mode: 'walking', travel: 0, scroll: 0, step }
+/**
+ * A fresh world for one leg, walking towards `step`.
+ *
+ * `scroll` is carried over from the leg before, never reset: the street the
+ * child is walking along does not teleport back to its start when she keeps
+ * walking. With a reset, every leg snapped the road markings to a new phase
+ * and the sign she had just passed vanished instead of receding — the two
+ * "objects pop in and out" complaints.
+ */
+export function createWorld(step: number, scroll = 0): WorldState {
+  return { mode: 'walking', travel: 0, scroll, step }
 }
 
 /**
@@ -65,4 +75,18 @@ export function stepWorld(s: WorldState, dt: number): WorldState {
     scroll: s.scroll + SCROLL_PER_SEC * advanced,
     step: s.step,
   }
+}
+
+/**
+ * Depth of the sign this leg walks towards.
+ *
+ * The sign is a world object, not a pop-up: it enters at the horizon exactly
+ * when the leg starts (`1`, where `fadeAt` is 0) and arrives at `SIGN_STOP_D`
+ * the moment the leg ends, because both the sign and the camera move at
+ * `SCROLL_PER_SEC`. That is why it needs neither a spawn nor a despawn — a
+ * fade, and the same depth formula every other object on the street uses.
+ */
+export function signDepth(s: WorldState): number {
+  const remaining = Math.max(0, LEG_SECONDS - s.travel)
+  return Math.min(1, SIGN_STOP_D + SCROLL_PER_SEC * remaining)
 }

@@ -10,7 +10,7 @@
  * Murni dan deterministik: satu seed menghasilkan urutan yang sama, sehingga
  * tes bisa mensimulasikan 30 detik dan mengunci invariannya.
  *
- * Kenapa kedalaman spawn tetap (0,95) dan bukan diundi: objek harus selalu
+ * Kenapa kedalaman spawn tetap (1,0) dan bukan diundi: objek harus selalu
  * masuk dari titik hilang. Kalau kedalaman spawn diundi, sebagian objek akan
  * muncul di tengah jalan — pop yang jauh lebih mengganggu daripada pengulangan.
  * Kerapatan visual yang menumpuk di dekat horizon itu memang perspektif, bukan
@@ -46,31 +46,39 @@ export const PROP_RULES: Record<
     band: Band
     weight: number
     /**
-     * Kedalaman terdekat yang masih digambar. Objek yang lebih dekat dari ini
-     * sudah memudar habis dan dilepas: kursi 0,85 m pada kedalaman 0,10
-     * delapan kali lebih besar daripada saat ia berdiri di trotoar, dan itulah
-     * yang membuat furniture terasa "kegedean" lalu menutupi trotoar.
+     * Kedalaman terdekat yang masih digambar. Dipakai sebagai batas umur:
+     * objek dilepas di sini.
+     *
+     * Pita taman (0,14) jauh lebih dekat dari pita kerb, dan itu disengaja.
+     * Objek taman berdiri di x −2,6 … −5,0, jadi pada kedalaman 0,14 seluruh
+     * kotaknya sudah keluar frame kiri: ia **lepas lewat tepi**, bukan lenyap
+     * di tengah layar. Sebelumnya batas 0,28–0,42 membunuh mereka saat masih
+     * 30–60 px di dalam frame — itulah "despawn terlalu cepat".
+     *
+     * Objek kerb (x −0,1 … +0,25) tidak pernah keluar frame: makin dekat,
+     * makin besar, tetap di layar. Mereka tetap butuh fade dekat, dan batas
+     * lamanya menjaga furniture tidak membesar sampai menutupi trotoar.
      */
     nearest: number
   }
 > = {
-  tree: { x: -2.8, band: 'garden', weight: 24, nearest: 0.34 },
+  tree: { x: -2.8, band: 'garden', weight: 24, nearest: 0.14 },
   lamp: { x: 0.25, band: 'kerb', weight: 16, nearest: 0.3 },
-  fence: { x: -3.5, band: 'garden', weight: 12, nearest: 0.32 },
-  bin: { x: -1.85, band: 'gardenEdge', weight: 12, nearest: 0.26 },
-  bench: { x: -2.6, band: 'garden', weight: 10, nearest: 0.28 },
-  shop: { x: -4.2, band: 'garden', weight: 9, nearest: 0.4 },
-  house: { x: -5.0, band: 'garden', weight: 10, nearest: 0.42 },
-  powerpole: { x: -2.9, band: 'garden', weight: 6, nearest: 0.36 },
+  fence: { x: -3.5, band: 'garden', weight: 12, nearest: 0.14 },
+  bin: { x: -1.85, band: 'gardenEdge', weight: 12, nearest: 0.16 },
+  bench: { x: -2.6, band: 'garden', weight: 10, nearest: 0.14 },
+  shop: { x: -4.2, band: 'garden', weight: 9, nearest: 0.14 },
+  house: { x: -5.0, band: 'garden', weight: 10, nearest: 0.14 },
+  powerpole: { x: -2.9, band: 'garden', weight: 6, nearest: 0.14 },
   busstop: { x: -0.1, band: 'kerb', weight: 7, nearest: 0.38 },
 }
 
 /**
  * Panjang fade keluar di ujung dekat, dalam satuan kedalaman. Objek memudar
  * dari `nearest + PROP_NEAR_FADE` ke `nearest`, jadi tidak ada yang hilang
- * mendadak di depan kamera.
+ * mendadak di depan kamera. 0,06 ≈ 0,2 detik berjalan pada kecepatan 0,30.
  */
-export const PROP_NEAR_FADE = 0.08
+export const PROP_NEAR_FADE = 0.06
 
 /** Kedalaman terdekat sebuah jenis. */
 export function propNearest(kind: PropKind): number {
@@ -91,24 +99,26 @@ export function propNearFade(kind: PropKind, depth: number): number {
 
 export const PROP_KINDS = Object.keys(PROP_RULES) as PropKind[]
 
-/** Kedalaman tempat objek lahir: di luar fadeAt, jadi opasitasnya 0. */
-export const PROP_SPAWN_D = 0.95
 /**
- * Kedalaman tempat objek dilepas. `nearFadeAt` baru mencapai 0 di 0,06, jadi
- * objek harus hidup sampai sana — melepasnya di 0,10 (opasitas 0,4) akan
- * membuatnya hilang mendadak di depan kamera.
+ * Kedalaman tempat objek lahir: tepat di garis horizon. `fadeAt` baru mencapai
+ * 0 di 0,92, jadi objek lahir dalam keadaan tak terlihat dan masuk lewat
+ * kabut — tidak mungkin muncul di tengah layar.
  */
-export const PROP_END_D = 0.06
-
-/** Jeda antar spawn, dalam detik berjalan. */
-export const PROP_WAIT = { min: 0.55, max: 1.1 } as const
+export const PROP_SPAWN_D = 1
 
 /**
- * Jarak kedalaman minimum antara dua objek di pita yang sama. 0,12 kedalaman
- * ≈ 0,4 detik berjalan: cukup supaya dua sprite tidak saling menempel, tanpa
- * membuat jalan terasa kosong.
+ * Jeda antar spawn, dalam detik berjalan. 0,30–0,55 dengan umur objek ~2,9 s
+ * berarti sekitar 7 objek hidup serentak; jeda lama (0,55–1,1) hanya
+ * menyisakan 2–3 dan jalan terasa kosong.
  */
-export const PROP_MIN_GAP = 0.12
+export const PROP_WAIT = { min: 0.3, max: 0.55 } as const
+
+/**
+ * Jarak kedalaman minimum antara dua objek di pita yang sama, 0,07 ≈ 0,23 s.
+ * Pita taman menampung 67 % undian, jadi jarak lama 0,12 (0,4 s) menolak
+ * separuh spawn dan itulah sebab lain jalan terasa sepi.
+ */
+export const PROP_MIN_GAP = 0.07
 
 /** Slot pool. `null` = tidak ada objek di slot itu. */
 export type PropSlot = { kind: PropKind; x: number; depth: number } | null
@@ -124,8 +134,12 @@ export type PropPool = {
   spawned: number
 }
 
-/** Pool dibatasi karena tiap slot adalah satu node SVG yang sudah terpasang. */
-export const PROP_POOL_SIZE = 8
+/**
+ * Pool dibatasi karena tiap slot adalah satu node SVG yang sudah terpasang.
+ * 10 slot menampung ~7 objek hidup; anggaran node scene jadi 28 dari plafon 30
+ * (10 prop + 8 marka + hero + rambu + ghost rambu + 5 kendaraan + 3 pejalan).
+ */
+export const PROP_POOL_SIZE = 10
 
 /** Total bobot, dihitung sekali. */
 const TOTAL_WEIGHT = PROP_KINDS.reduce((sum, kind) => sum + PROP_RULES[kind].weight, 0)
@@ -140,8 +154,33 @@ export function pickPropKind(rng: () => number): PropKind {
   return PROP_KINDS[PROP_KINDS.length - 1]
 }
 
-/** Kedalaman awal yang sudah terisi saat adegan pertama tampil. */
-const PREWARM_DEPTHS = [0.86, 0.72, 0.58, 0.44] as const
+/** Satu jenis dari pita tertentu, diundi menurut bobot di dalam pita itu. */
+export function pickPropKindOfBand(rng: () => number, band: Band): PropKind {
+  const kinds = PROP_KINDS.filter((kind) => PROP_RULES[kind].band === band)
+  const total = kinds.reduce((sum, kind) => sum + PROP_RULES[kind].weight, 0)
+  let roll = rng() * total
+  for (const kind of kinds) {
+    roll -= PROP_RULES[kind].weight
+    if (roll < 0) return kind
+  }
+  return kinds[kinds.length - 1]
+}
+
+/**
+ * Kedalaman yang sudah terisi saat adegan pertama tampil, plus pitanya.
+ *
+ * Pita dirotasi, bukan diundi: frame pertama harus memperlihatkan ketiga pita
+ * sekaligus, dan undian bebas akan sering memberi tiga pohon berturut-turut
+ * (keluhan "scene awal terasa kurang", PRD B5).
+ */
+const PREWARM: ReadonlyArray<{ depth: number; band: Band }> = [
+  { depth: 0.98, band: 'kerb' },
+  { depth: 0.86, band: 'garden' },
+  { depth: 0.74, band: 'gardenEdge' },
+  { depth: 0.62, band: 'kerb' },
+  { depth: 0.5, band: 'garden' },
+  { depth: 0.38, band: 'garden' },
+]
 
 export function createPropPool(seed: number): PropPool {
   const rng = createRng(seed)
@@ -153,21 +192,29 @@ export function createPropPool(seed: number): PropPool {
     spawned: 0,
   }
 
-  // Jalan tidak boleh kosong pada detik pertama. Empat potong scenery
-  // ditanam di kedalaman yang tersebar, dengan aturan jarak yang sama seperti
-  // spawn biasa, jadi adegan pembuka langsung terasa seperti jalan.
-  PREWARM_DEPTHS.forEach((depth, index) => {
+  // Jalan tidak boleh kosong pada detik pertama. Enam potong scenery ditanam
+  // di kedalaman yang tersebar — lima di antaranya sudah terlihat — dengan
+  // aturan jarak yang sama seperti spawn biasa.
+  PREWARM.forEach(({ depth, band }, index) => {
     for (let attempt = 0; attempt < 6; attempt += 1) {
-      const kind = pickPropKind(rng)
-      const rule = PROP_RULES[kind]
-      if (!fitsPropGap(pool, rule.band, depth)) continue
-      pool.slots[index] = { kind, x: rule.x, depth }
+      const kind = pickPropKindOfBand(rng, band)
+      if (!fitsPropGap(pool, band, depth)) continue
+      pool.slots[index] = { kind, x: PROP_RULES[kind].x, depth }
       pool.spawned += 1
       break
     }
   })
 
   return pool
+}
+
+/**
+ * Jenis per slot, untuk React. Satu sumber untuk keadaan awal **dan** untuk
+ * penyegaran setelah spawn: kalau keadaan awal tidak di-seed dari sini, slot
+ * prewarm tampil sebagai `<div>` kosong selama ~1 detik pertama.
+ */
+export function propKindsOf(pool: PropPool): Array<PropKind | null> {
+  return pool.slots.map((slot) => (slot ? slot.kind : null))
 }
 
 /** Apakah ada slot kosong. */
@@ -217,8 +264,10 @@ export function stepPropPool(pool: PropPool, dt: number, scrollDelta: number): b
   if (freeSlot(pool) < 0) return false
 
   // Coba beberapa kali: jenis yang lahir mungkin bertabrakan jarak dengan
-  // objek sepitanya, dan itu bukan alasan menunda seluruh jalan.
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  // objek sepitanya, dan itu bukan alasan menunda seluruh jalan. Delapan
+  // percobaan karena pita taman menampung 67 % undian; dengan empat, satu
+  // pita yang penuh membuang seluruh siklus dan jalan kembali sepi.
+  for (let attempt = 0; attempt < 8; attempt += 1) {
     const kind = pickPropKind(pool.rng)
     const rule = PROP_RULES[kind]
     if (!fitsPropGap(pool, rule.band, PROP_SPAWN_D)) continue

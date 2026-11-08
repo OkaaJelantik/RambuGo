@@ -22,6 +22,36 @@
   height: 100%;
 }
 
+/* ---------- kabut cakrawala ---------- */
+
+/* Pita kabut: puncaknya tepat di garis cakrawala, jadi jalan dan tanah
+   memudar ke warna langit di ujung jauhnya dan ujung dunia tidak terbaca
+   sebagai tepi keras. z-index 3 menaruhnya di atas marka (1) dan di bawah
+   seluruh scenery (20+): objek tinggi seperti rumah 6,5 m akan terpotong garis
+   kabut kalau pita ini dinaikkan di atas mereka, sedangkan objek jauh sudah
+   pudar oleh fadeAt sehingga tidak perlu ditutup. */
+.wk-fog {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--wk-horizon, 38%) - 8%);
+  height: 20%;
+  z-index: 3;
+  pointer-events: none;
+  /* Veil tipis, bukan pita putih. Ujung jalan dimudarkan mask di bawah dan
+     kaki rumput memudar ke kabut, jadi lapisan ini hanya menyatukan warna
+     keduanya; opasitas puncak 45 % sudah cukup dan tidak terbaca sebagai blok
+     di layar lebar. */
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--fog) 45%, transparent) 40%,
+    color-mix(in srgb, var(--fog) 45%, transparent) 60%,
+    transparent 100%
+  );
+}
+
+
 /* ---------- langit ---------- */
 
 .wk-sky {
@@ -50,20 +80,23 @@
 
 /* ---------- kabut cakrawala ---------- */
 
-/* Puncak putih tepat di garis cakrawala, lalu memudar ke atas.
-   Ujung bawahnya 0.5% di bawah cakrawala, tertutup .wk-verge,
-   supaya tidak ada garis sambung. */
+/* Puncak putih tepat di garis cakrawala, lalu memudar ke atas DAN ke bawah.
+   Ujung bawahnya dulu dipotong di 0,5 % di bawah cakrawala dengan harapan
+   tertutup `.wk-verge`; sejak kaki rumput ikut memudar, potongan itu justru
+   terlihat sebagai garis keras selebar layar. Sekarang ia memudar sendiri
+   sampai 0 di 40 % tinggi layar, di titik rumput sudah pekat kembali. */
 .wk-haze {
   position: absolute;
   left: 0;
   right: 0;
   top: calc(var(--wk-horizon) - 7%);
-  height: 7.5%;
+  height: 9%;
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.55) 62%,
-    rgba(255, 255, 255, 0.92) 100%
+    rgba(255, 255, 255, 0.55) 60%,
+    rgba(255, 255, 255, 0.92) 78%,
+    rgba(255, 255, 255, 0) 100%
   );
 }
 
@@ -75,7 +108,15 @@
   right: 0;
   top: var(--wk-horizon);
   bottom: 0;
-  background: linear-gradient(180deg, var(--grass) 0%, var(--grass) 52%, var(--grass-dark) 100%);
+  /* Kaki rumput memudar ke kabut di belakangnya, jadi tidak ada tepi keras
+     selebar layar di titik pertemuannya dengan langit. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--grass) 0%, transparent) 0%,
+    var(--grass) 2.5%,
+    var(--grass) 52%,
+    var(--grass-dark) 100%
+  );
 }
 
 /* ---------- trotoar kiri, jalan, garis kerb ---------- */
@@ -318,20 +359,29 @@
   padding: 0;
   border: 0;
   background: none;
-  transform: translate(-50%, -92%) scale(0.88);
+  /* Posisi, skala dan opasitas ditulis loop rAF setiap frame (rambu adalah
+     objek dunia: ia datang dari horizon), jadi tidak boleh ada transisi CSS
+     yang menimpanya. `opacity: 0` di sini hanya cadangan sebelum JS jalan. */
+  transform: translate(-50%, -100%);
   transform-origin: 50% 100%;
   opacity: 0;
   pointer-events: none;
-  transition:
-    opacity 0.24s ease,
-    transform 0.32s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
+/* Kelas ini hanya mengurus afordansi ketuk; posisinya sudah dari proyeksi. */
 .wk-sign--in {
-  transform: translate(-50%, -100%) scale(1);
-  opacity: 1;
   pointer-events: auto;
   cursor: pointer;
+}
+
+/* Rambu yang sudah dilewati (ghost): art sama, tanpa afordansi, tanpa pulse. */
+.wk-sign--passed {
+  pointer-events: none;
+  cursor: default;
+}
+
+.wk-sign--passed .wk-sign-plate {
+  animation: none;
 }
 
 /* Kanvas pelat mengikuti bentuk rambunya, bukan selalu lingkaran putih.

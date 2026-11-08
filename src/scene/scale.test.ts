@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import { createElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SIGNS } from '../data'
@@ -20,7 +20,6 @@ import {
   yAt,
 } from './projection'
 import {
-  PROP_END_D,
   PROP_KINDS,
   PROP_POOL_SIZE,
   PROP_RULES,
@@ -477,6 +476,62 @@ describe('the rendered scene writes those boxes into the DOM', () => {
     vi.unstubAllGlobals()
   })
 
+  it('menulis ulang kotak prop saat jenis slot berganti (regresi misplaced)', () => {
+    // BUG: kotak `.wk-prop` dulu diukur sekali di `measure()` dari jenis slot
+    // saat itu. Pool menukar jenis di dalam satu slot, jadi slot yang tadinya
+    // lampu (199×666) lalu berisi pohon digambar dengan kotak lampu: pohon
+    // melar dan jangkarnya bergeser. Tes ini menjalankan loop rAF sungguhan
+    // sampai pool menukar jenis, lalu memeriksa setiap slot yang tampil.
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 360 })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 })
+
+    let queue: Array<(time: number) => void> = []
+    vi.stubGlobal('requestAnimationFrame', (cb: (time: number) => void) => {
+      queue.push(cb)
+      return queue.length
+    })
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+
+    const { container } = render(
+      createElement(WalkScene, { signs: SIGNS.slice(0, 3), step: 0, onOpen: () => {} }),
+    )
+
+    // 4 detik pada 60 fps: cukup untuk beberapa spawn dan setidaknya satu
+    // slot berganti jenis.
+    act(() => {
+      let now = 0
+      for (let frame = 0; frame < 240; frame += 1) {
+        now += 16
+        const due = queue
+        queue = []
+        for (const cb of due) cb(now)
+      }
+    })
+
+    const props = Array.from(container.querySelectorAll<HTMLElement>('.wk-props .wk-prop'))
+    const shown = props.filter((el) => el.style.display !== 'none')
+    expect(shown.length).toBeGreaterThan(0)
+
+    const seen = new Set<string>()
+    for (const el of shown) {
+      // Jenis yang dikira `draw()` (dataset) dan yang dirender React (kelas)
+      // harus sama, dan kotak inline harus rasio art jenis itu.
+      const className = /\bwk-prop--([a-z]+)/.exec(el.className)?.[1]
+      expect(className).toBeTruthy()
+      expect(el.dataset.kind).toBe(className)
+      const kind = className as PropKind
+      seen.add(kind)
+      const w = parseFloat(el.style.width)
+      const h = parseFloat(el.style.height)
+      expect(w).toBeGreaterThan(0)
+      expect(w / h).toBeCloseTo(PROP_ART[kind].ratio, 3)
+    }
+
+    // Bukti bahwa slot benar-benar berganti jenis selama simulasi: kotak yang
+    // ditulis sekali di awal tidak akan pernah bisa bertahan.
+    expect(seen.size).toBeGreaterThanOrEqual(2)
+  })
+
   it('sizes the hero, props, dashes, sign and traffic from the metres table at 360×800', () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 360 })
     Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 })
@@ -522,7 +577,12 @@ describe('the rendered scene writes those boxes into the DOM', () => {
     // frame pertama, sisanya menyusul dari spawner.
     const slots = Array.from(container.querySelectorAll<HTMLElement>('.wk-props .wk-prop'))
     expect(slots).toHaveLength(PROP_POOL_SIZE)
-    expect(slots.filter((slot) => slot.style.display !== 'none').length).toBeGreaterThanOrEqual(4)
+    const shown = slots.filter((slot) => slot.style.display !== 'none')
+    expect(shown.length).toBeGreaterThanOrEqual(5)
+    // Setiap slot yang tampil sudah membawa art-nya. Frame pertama yang berisi
+    // `<div>` kosong adalah bug "jalan kosong di awal": state awal harus
+    // di-seed dari pool yang sudah di-prewarm.
+    for (const slot of shown) expect(slot.querySelector('svg')).not.toBeNull()
 
     const dash = px('.wk-dash')
     expect(dash.w).toBeCloseTo(66.6, 3)
@@ -542,6 +602,16 @@ describe('the rendered scene writes those boxes into the DOM', () => {
       METERS.sign.pole / (METERS.sign.plate * SIGN_PLATE_GROW),
       3,
     )
+
+    // Anggaran node beranimasi (plafon 30, PRD §3.1 aturan 3).
+    const nodeCount =
+      slots.length +
+      container.querySelectorAll('.wk-dash').length +
+      container.querySelectorAll('.wk-veh-slot').length +
+      container.querySelectorAll('.wk-ped-slot').length +
+      container.querySelectorAll('.wk-hero').length +
+      container.querySelectorAll('.wk-sign').length
+    expect(nodeCount).toBeLessThanOrEqual(30)
 
     const car = px('.wk-veh--car')
     expect(car.w).toBeCloseTo(266.4, 3)

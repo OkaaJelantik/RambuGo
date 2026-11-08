@@ -4,6 +4,9 @@
   --paper-line: #f0e3cc;
   --sky-1: #8fd8ff;
   --sky-2: #d6f1ff;
+  /* Kabut di kaki cakrawala; diturunkan dari --sky-2 supaya langit dan tanah
+     bertemu di warna yang sama. */
+  --fog: #e9f7ff;
   --grass: #69c64a;
   --grass-dark: #4fa936;
   --road: #5b606b;

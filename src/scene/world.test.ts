@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createWorld, LEG_SECONDS, SCROLL_PER_SEC, stepWorld } from './world'
+import { SIGN_STOP_D, fadeAt } from './projection'
+import { createWorld, LEG_SECONDS, SCROLL_PER_SEC, signDepth, stepWorld } from './world'
 
 /** The scroll a full leg should accumulate: 0,30 depth units per second. */
 const LEG_SCROLL = SCROLL_PER_SEC * LEG_SECONDS
@@ -16,6 +17,36 @@ describe('createWorld', () => {
 
   it('keeps the step it was created with', () => {
     expect(createWorld(2).step).toBe(2)
+  })
+
+  it('carries the scroll of the previous leg over instead of resetting it', () => {
+    // Reset tiap leg membuat marka melompat fase dan rambu yang baru dilewati
+    // lenyap alih-alih menjauh.
+    expect(createWorld(1, 1.8).scroll).toBe(1.8)
+    expect(createWorld(1).scroll).toBe(0)
+  })
+})
+
+describe('signDepth', () => {
+  it('starts at the horizon and arrives at the stop depth when the leg ends', () => {
+    expect(signDepth(createWorld(0))).toBe(1)
+    const arrived = stepWorld(createWorld(0), LEG_SECONDS)
+    expect(signDepth(arrived)).toBeCloseTo(SIGN_STOP_D, 9)
+  })
+
+  it('walks towards the camera monotonically and stays invisible until it is close', () => {
+    let world = createWorld(0)
+    let previous = signDepth(world)
+    const dt = 1 / 60
+    while (world.mode === 'walking') {
+      world = stepWorld(world, dt)
+      const depth = signDepth(world)
+      expect(depth).toBeLessThanOrEqual(previous + 1e-12)
+      previous = depth
+      // Selama kedalaman masih di luar `FADE_FAR` rambu tidak terlihat: ia
+      // datang lewat kabut, bukan muncul tiba-tiba.
+      if (world.travel <= 2.6) expect(fadeAt(depth)).toBe(0)
+    }
   })
 })
 

@@ -30,10 +30,21 @@ function band(
   const nearY = height
   const farY = yAt(1) * height
 
+  // One-point perspective: both edges of a band are straight lines through the
+  // camera's own line at the horizon, so the band can be carried past depth 1
+  // to that vanishing point instead of stopping on the horizontal line where
+  // the ground plane's last metre is. Without this the ground ends 6,2 % of the
+  // viewport above nothing — a hard horizontal cut with bare verge above it,
+  // which is what "ujung jauh gagal" looked like. The extra triangle is the
+  // real projection of the ground beyond depth 1, and both edges are collinear
+  // with points already in the polygon, so nothing else moves.
+  const vp: readonly [number, number] = [width / 2, HORIZON * height]
+
   return points([
     [offsetX(leftM, 0, width, height), nearY],
     [offsetX(rightM, 0, width, height), nearY],
     [offsetX(rightM, 1, width, height), farY],
+    vp,
     [offsetX(leftM, 1, width, height), farY],
   ])
 }

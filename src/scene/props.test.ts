@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
-  PROP_END_D,
+  PROP_KINDS,
   PROP_MIN_GAP,
+  PROP_POOL_SIZE,
   PROP_RULES,
   PROP_SPAWN_D,
   PROP_WAIT,
   createPropPool,
   fitsPropGap,
   pickPropKind,
+  propKindsOf,
+  propNearest,
   stepPropPool,
 } from './props'
 import { createRng } from './spawner'
 import { SCROLL_PER_SEC } from './world'
+import { FADE_FAR, fadeAt } from './projection'
 
 /** Simulasikan pool selama `seconds`, kembalikan setiap spawn (jenis + waktu). */
 function run(seconds: number, seed = 7) {
@@ -29,6 +33,20 @@ function run(seconds: number, seed = 7) {
 }
 
 describe('scenery kontinu', () => {
+  it('mewarmi jalan sejak frame pertama: ≥5 slot terlihat dan ketiga pita terisi', () => {
+    const pool = createPropPool(11)
+    const kinds = propKindsOf(pool)
+    const filled = pool.slots.filter((slot) => slot !== null)
+    const visible = filled.filter((slot) => slot && fadeAt(slot.depth) > 0)
+    expect(visible.length).toBeGreaterThanOrEqual(5)
+    // `propKindsOf` adalah satu-satunya sumber untuk React: slot yang terisi
+    // harus persis sama dengan yang dilaporkan, kalau tidak ada <div> kosong.
+    expect(kinds.filter(Boolean).length).toBe(filled.length)
+    // Keragaman dijamin: prewarm merotasi pita, bukan mengundi bebas.
+    const bands = new Set(pool.slots.flatMap((slot) => (slot ? [PROP_RULES[slot.kind].band] : [])))
+    expect(bands.size).toBe(3)
+  })
+
   it('seed yang sama menghasilkan urutan spawn yang sama', () => {
     const a = run(20, 11)
     const b = run(20, 11)
@@ -42,10 +60,18 @@ describe('scenery kontinu', () => {
     expect(pool.spawned).toBeGreaterThan(20)
   })
 
-  it('menjaga jumlah objek serentak tetap wajar, tidak memenuhi pool', () => {
-    const { maxAlive } = run(60)
-    expect(maxAlive).toBeGreaterThan(1)
-    expect(maxAlive).toBeLessThan(8)
+  it('menjaga jalan tetap ramai: 4–9 objek hidup serentak, tidak memenuhi pool', () => {
+    // Jalan yang hanya menyisakan 2–3 objek adalah keluhan "scene cukup sepi".
+    // Batas atas menjaga pool tidak penuh (spawn gagal terus → jalan macet).
+    const dt = 1 / 60
+    const pool = createPropPool(7)
+    let minAlive = PROP_POOL_SIZE
+    for (let t = 0; t < 45; t += dt) {
+      stepPropPool(pool, dt, SCROLL_PER_SEC * dt)
+      minAlive = Math.min(minAlive, pool.slots.filter(Boolean).length)
+    }
+    expect(minAlive).toBeGreaterThanOrEqual(4)
+    expect(pool.slots.filter(Boolean).length).toBeLessThanOrEqual(9)
   })
 
   it('jeda spawn berada di antara batas yang ditetapkan', () => {
@@ -89,9 +115,32 @@ describe('scenery kontinu', () => {
     }
   })
 
-  it('melepas objek hanya setelah fade-nya selesai', () => {
-    // Kalau dilepas sebelum nearFadeAt mencapai 0, objek menghilang mendadak.
-    expect(PROP_END_D).toBeLessThanOrEqual(0.06)
+  it('melahirkan objek dalam keadaan tak terlihat di garis cakrawala', () => {
+    // Objek yang lahir saat fadeAt > 0 muncul di tengah layar. 1,0 adalah
+    // kedalaman spawn; FADE_FAR (0,92) adalah tempat fade habis, jadi spawn
+    // harus di titik itu atau lebih jauh.
+    expect(PROP_SPAWN_D).toBe(1)
+    expect(PROP_SPAWN_D).toBeGreaterThanOrEqual(FADE_FAR)
+    expect(fadeAt(PROP_SPAWN_D)).toBe(0)
+  })
+
+  it('memberi setiap jenis umur yang cukup panjang sebelum dilepas', () => {
+    // Dilepas pada `nearest`; umur = (spawn − nearest) / SCROLL_PER_SEC.
+    // Furniture 0,85 m yang hidup 2 detik adalah "despawn terlalu cepat".
+    // Pita taman/tepi taman lepas lewat tepi frame kiri, jadi harus hidup
+    // paling lama; objek kerb tidak pernah keluar frame dan memudar di tempat,
+    // jadi batasnya lebih pendek tetapi tetap > 2 detik.
+    const life = (kind: (typeof PROP_KINDS)[number]) =>
+      (PROP_SPAWN_D - propNearest(kind)) / SCROLL_PER_SEC
+    for (const kind of PROP_KINDS) {
+      const floor = PROP_RULES[kind].band === 'kerb' ? 2.0 : 2.8
+      expect(life(kind)).toBeGreaterThanOrEqual(floor)
+    }
+    // Yang paling penting: furniture taman keluar frame, bukan lenyap di
+    // tengah layar. nearest-nya harus ≤ kedalaman tempat kotaknya masih di
+    // dalam frame; 0,14 menjaga itu dengan margin.
+    expect(PROP_RULES.bench.nearest).toBeLessThanOrEqual(0.16)
+    expect(PROP_RULES.tree.nearest).toBeLessThanOrEqual(0.16)
   })
 
   it('mengundi jenis sesuai bobot: pohon sering, halte jarang', () => {

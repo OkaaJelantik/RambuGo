@@ -21,10 +21,12 @@ import type { Sign } from './data'
 import { METERS } from './scene/meters'
 import {
   CAMERA_DEPTH,
+  HORIZON,
   KERB_X,
   LANES,
   LANE_SPLIT_X,
   SIDEWALK_CENTRE,
+  SIGN_STOP_D,
   depthScale,
   fadeAt,
   nearFadeAt,
@@ -33,13 +35,13 @@ import {
   pxPerM,
   yAt,
 } from './scene/projection'
-import { createWorld, stepWorld, type Mode, type WorldState } from './scene/world'
+import { createWorld, signDepth, stepWorld, type Mode, type WorldState } from './scene/world'
 import {
   PROP_POOL_SIZE,
   createPropPool,
+  propKindsOf,
   propNearFade,
   stepPropPool,
-  type PropPool,
 } from './scene/props'
 import {
   LANE_DIR,
@@ -71,11 +73,9 @@ type Props = {
 
 /** Depth of the hero. Fixed: the camera follows her, on her own lateral line. */
 export const HERO_DEPTH = CAMERA_DEPTH
-/**
- * Depth where the active sign waits once the world stops. 0.22 puts the plate
- * clearly ahead of the child (who walks at 0.12) without ever covering her.
- */
-export const SIGN_STOP_D = 0.22
+/** Re-exported: `world.ts` owns where the sign stops, this module renders it. */
+export { SIGN_STOP_D }
+
 /**
  * Render magnification of the interactive sign, applied to the plate and the
  * pole only.
@@ -277,8 +277,8 @@ function prefersReducedMotion(): boolean {
 }
 
 /** A world that is already stopped, used when motion is reduced. */
-function stoppedWorld(step: number): WorldState {
-  return { ...createWorld(step), mode: 'stopped' }
+function stoppedWorld(step: number, scroll = 0): WorldState {
+  return { ...createWorld(step, scroll), mode: 'stopped' }
 }
 
 function setTransform(el: HTMLElement, tx: number, ty: number, scale: number): void {
@@ -313,6 +313,21 @@ function setDisplay(el: HTMLElement, visible: boolean): void {
 /** Depth scale rounded to three decimals, to cut redundant style writes. */
 function roundScale(depth: number): number {
   return Math.round(depthScale(depth) * 1000) / 1000
+}
+
+/** A projected scale factor relative to the sign's stop depth, 1 when stopped. */
+function signScale(depth: number): number {
+  return depthScale(depth) / depthScale(SIGN_STOP_D)
+}
+
+/** Bottom-centred on a ground point, the way the sign and its ghost sit. */
+function setSignPose(el: HTMLElement, x: number, y: number, scale: number): void {
+  const left = `${roundHalf(x)}px`
+  const top = `${roundHalf(y)}px`
+  const transform = `translate(-50%, -100%) scale(${scale.toFixed(3)})`
+  if (el.style.left !== left) el.style.left = left
+  if (el.style.top !== top) el.style.top = top
+  if (el.style.transform !== transform) el.style.transform = transform
 }
 
 /**
@@ -467,15 +482,34 @@ export default function WalkScene({
   const signButtonRef = useRef<HTMLButtonElement | null>(null)
   const signPlateRef = useRef<HTMLSpanElement | null>(null)
   const signPoleRef = useRef<HTMLSpanElement | null>(null)
-  const worldRef = useRef<WorldState>(reduced ? stoppedWorld(step) : createWorld(step))
+  // Rambu yang sudah dilewati: bukan tombol, tanpa fokus, hanya art.
+  const ghostElRef = useRef<HTMLSpanElement | null>(null)
+  const [passedSign, setPassedSign] = useState<Sign | null>(null)
+  // Leg terakhir yang sudah dipasang, untuk memilih ghost tanpa menambah
+  // dependensi efek (lihat efek leg).
+  const lastStepRef = useRef(step)
+  // Scroll saat leg ini mulai: jarak yang ditempuh leg ini, bukan scroll total
+  // (scroll kini menyambung antar-leg), yang menentukan posisi rambu lewat.
+  const legStartScrollRef = useRef(0)
+  const signsRef = useRef(signs)
+  signsRef.current = signs
+  // `scroll` lives across legs so the street stays one continuous street.
+  const scrollRef = useRef(0)
+  const worldRef = useRef<WorldState>(
+    reduced ? stoppedWorld(step, 0) : createWorld(step, 0),
+  )
   const dashRefs = useRef<Array<HTMLDivElement | null>>([])
   const propRefs = useRef<Array<HTMLDivElement | null>>([])
   // Scenery lahir di horizon dan dilepas di tepi kamera (bukan sabuk yang
   // berulang); pool-nya tetap, jadi tidak ada node yang dipasang/dilepas.
-  const propPoolRef = useRef<PropPool>(createPropPool(SPAWN_SEED + 2))
-  const [propKinds, setPropKinds] = useState<Array<PropKind | null>>(() =>
-    Array.from({ length: PROP_POOL_SIZE }, () => null),
-  )
+  // Pool disimpan di state supaya identitasnya stabil: `useState` inisialisasi
+  // berjalan sekali, sedangkan `useRef(createPropPool(...))` memanggil pembuat
+  // pool (dan RNG) di setiap render.
+  const [propPool] = useState(() => createPropPool(SPAWN_SEED + 2))
+  // Di-seed dari pool yang sudah di-prewarm. Kalau dimulai dari `null`, empat
+  // slot prewarm tampil sebagai `<div>` kosong sampai spawn pertama (~1 s):
+  // itulah jalan kosong di detik pertama.
+  const [propKinds, setPropKinds] = useState<Array<PropKind | null>>(() => propKindsOf(propPool))
   const heroRef = useRef<HTMLDivElement | null>(null)
   const heroZoneRef = useRef<HTMLDivElement | null>(null)
   const sizeRef = useRef({ w: 0, h: 0, heroW: 0, heroH: 0, heroNomW: 0, heroNomH: 0 })
@@ -532,6 +566,13 @@ export default function WalkScene({
     // `SIGN_EMPHASIS`), kept as a variable so the CSS fallback cannot drift
     // from the JS.
     sceneEl.current?.style.setProperty('--wk-px-per-m', `${pxPerM(h)}px`)
+    // Pita kabut di walk.css perlu tahu di mana cakrawala berada; dulu
+    // variabel ini hanya hidup di `.wk-ground`.
+    sceneEl.current?.style.setProperty('--wk-horizon', `${HORIZON * 100}%`)
+    // Ujung pita jalan/trotoar di `yAt(1)`, dalam persen tinggi layar (44,2 %).
+    // Dipakai walk.css untuk memudarkannya di sana: tanpa ini poligon berhenti
+    // dengan garis lurus keras di tengah layar.
+    sceneEl.current?.style.setProperty('--wk-ground-far', `${yAt(1) * 100}%`)
     sceneEl.current?.style.setProperty('--wk-sign-scale', `${depthScale(SIGN_STOP_D)}`)
     sceneEl.current?.style.setProperty('--wk-sign-emphasis', `${SIGN_EMPHASIS}`)
 
@@ -562,15 +603,6 @@ export default function WalkScene({
       el.style.width = `${dash.w}px`
       el.style.height = `${dash.h}px`
     }
-
-    propRefs.current.forEach((el, i) => {
-      if (!el) return
-      const kind = propPoolRef.current.slots[i]?.kind
-      if (!kind) return
-      const box = propBox(kind, h)
-      el.style.width = `${box.w}px`
-      el.style.height = `${box.h}px`
-    })
 
     // Ambience art is sized from the same METERS table, once per measure; only
     // the slot transform changes per frame. (walk.css carries the same sizes
@@ -609,12 +641,25 @@ export default function WalkScene({
 
     // Scenery: bottom-centred on its point on the verge/sidewalk. Slot yang
     // kosong disembunyikan, bukan dilepas dari DOM.
+    //
+    // Ukuran wrapper dimiliki di sini, bukan di `measure()`. Pool menukar jenis
+    // di dalam satu slot, jadi kotak yang diukur sekali akan tertinggal dari
+    // `placeProp` yang memakai kotak jenis baru: pohon mewarisi kotak lampu
+    // (199×666) lalu melar dan bergeser. Ditulis ulang hanya saat jenisnya
+    // berganti, jadi tidak ada gaya yang ditulis per frame.
     propRefs.current.forEach((el, i) => {
       if (!el) return
-      const slot = propPoolRef.current.slots[i]
+      const slot = propPool.slots[i]
       if (!slot) {
         setDisplay(el, false)
+        el.dataset.kind = ''
         return
+      }
+      const box = propBox(slot.kind, h)
+      if (el.dataset.kind !== slot.kind) {
+        el.style.width = `${box.w}px`
+        el.style.height = `${box.h}px`
+        el.dataset.kind = slot.kind
       }
       setDisplay(el, true)
       const prop = placeProp({ art: slot.kind, x: slot.x, depth: slot.depth }, w, h)
@@ -670,7 +715,33 @@ export default function WalkScene({
       setOpacity(el, fadeAt(ped.depth) * nearFadeAt(ped.depth))
       setZ(el, propZ(ped.depth))
     })
-  }, [])
+
+    // Rambu sebagai objek dunia, bukan pop-up: ia datang dari horizon dan
+    // tiba di `SIGN_STOP_D` tepat saat leg habis, memakai kedalaman yang sama
+    // dengan seluruh jalan. Ukuran pelat/tiang tetap diisi `measure()` pada
+    // kedalaman berhenti, jadi skalanya persis 1 saat ia berhenti — target
+    // ketuk dan jarak ke anak tidak berubah.
+    const signD = signDepth(world)
+    const signEl = signButtonRef.current
+    if (signEl) {
+      setSignPose(signEl, offsetX(SIGN_X, signD, w, h), yAt(signD) * h, signScale(signD))
+      setOpacity(signEl, fadeAt(signD) * nearFadeAt(signD))
+    }
+
+    // Ghost rambu yang sudah dilewati: keluar dari 0,22 menuju kamera, memudar
+    // lewat `nearFadeAt`. Satu node, disembunyikan begitu tak terlihat.
+    const ghost = ghostElRef.current
+    if (ghost) {
+      // Jarak yang sudah ditempuh leg ini, bukan scroll total.
+      const passedD = SIGN_STOP_D - (world.scroll - legStartScrollRef.current)
+      const ghostOpacity = passedD > 0 ? fadeAt(passedD) * nearFadeAt(passedD) : 0
+      setDisplay(ghost, ghostOpacity > 0.01)
+      if (ghostOpacity > 0.01) {
+        setSignPose(ghost, offsetX(SIGN_X, passedD, w, h), yAt(passedD) * h, signScale(passedD))
+        setOpacity(ghost, ghostOpacity)
+      }
+    }
+  }, [propPool])
 
   /** Birth a vehicle at the entry edge for its direction. */
   const spawnVehicle = useCallback(() => {
@@ -789,9 +860,21 @@ export default function WalkScene({
 
   // Each leg starts a fresh walk; reduced motion jumps straight to "stopped".
   useLayoutEffect(() => {
-    const next = reduced ? stoppedWorld(step) : createWorld(step)
+    const next = reduced ? stoppedWorld(step, scrollRef.current) : createWorld(step, scrollRef.current)
     worldRef.current = next
-    if (reduced) setSignStep(step)
+    // `signs` disimpan di ref supaya efek ini hanya berjalan saat leg berubah:
+    // menyertakannya di dependensi akan me-reset `travel` di tengah leg.
+    if (lastStepRef.current !== step) {
+      // Rambu leg sebelumnya menjadi ghost yang menjauh; `null` di leg pertama.
+      setPassedSign(signsRef.current[lastStepRef.current] ?? null)
+      lastStepRef.current = step
+    }
+    legStartScrollRef.current = scrollRef.current
+    // Rambu leg ini tampil sejak detik pertama — ia berjalan masuk dari
+    // horizon, bukan muncul saat dunia berhenti. Dulu `signStep` baru berubah
+    // saat berhenti, jadi selama 3,4 detik pertama scene menampilkan rambu
+    // leg **sebelumnya**.
+    setSignStep(step)
     setMode(next.mode)
     if (sizeRef.current.w === 0) measure()
     draw(next)
@@ -841,12 +924,10 @@ export default function WalkScene({
 
       // Scenery hanya bergerak saat dunia berjalan: ia bagian dari jalan, bukan
       // lalu lintas. Satu render React hanya ketika ada objek baru lahir.
+      scrollRef.current = next.scroll
       if (next.mode === 'walking' && dt > 0) {
         const scrolled = next.scroll - prev.scroll
-        if (stepPropPool(propPoolRef.current, dt, scrolled)) {
-          const pool = propPoolRef.current
-          setPropKinds(pool.slots.map((slot) => (slot ? slot.kind : null)))
-        }
+        if (stepPropPool(propPool, dt, scrolled)) setPropKinds(propKindsOf(propPool))
       }
 
       draw(next)
@@ -885,7 +966,7 @@ export default function WalkScene({
       stop()
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [reduced, draw, stepAmbience])
+  }, [reduced, draw, stepAmbience, propPool])
 
   const sign = signs[signStep]
   // The child walks her own lateral line (`SIDEWALK_CENTRE`), not the camera's
@@ -901,6 +982,12 @@ export default function WalkScene({
   return (
     <div className="wk-scene" ref={sceneEl} tabIndex={-1}>
       <GroundScene width={viewport.w} height={viewport.h} />
+
+      {/* Kabut di kaki cakrawala. Sengaja di ATAS marka dan di BAWAH scenery:
+          objek yang tinggi (rumah 6,5 m) akan terpotong garis kabut kalau
+          lapisan ini dinaikkan, sedangkan objek jauh sudah pudar oleh `fadeAt`
+          sehingga ujung render tidak terlihat sebagai tepi keras. */}
+      <div className="wk-fog" aria-hidden="true" />
 
       <div className="wk-dashes" aria-hidden="true">
         {Array.from({ length: DASH_COUNT }, (_, i) => (
@@ -969,6 +1056,22 @@ export default function WalkScene({
           </div>
         ))}
       </div>
+
+      {/* Rambu yang sudah dilewati: art yang sama, menjauh ke kamera. Bukan
+          tombol, tidak bisa difokus, jadi tidak menambah satu pun titik tab. */}
+      {passedSign && (
+        <span
+          className="wk-sign wk-sign--passed"
+          data-kind={passedSign.kind}
+          aria-hidden="true"
+          ref={ghostElRef}
+        >
+          <span className="wk-sign-plate">
+            <SignArt art={passedSign.art} size={96} />
+          </span>
+          <span className="wk-sign-pole" />
+        </span>
+      )}
 
       <button
         type="button"
