@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { CASES, TOTAL_DECISIONS, orderedOptions, type CaseAsk } from './sulit'
-import { SignArt } from './SignArt'
+import { SulitScene } from './art/sulitScene'
 import { initialSeed } from './run'
 import './sulit.css'
 
@@ -134,15 +134,15 @@ export default function Sulit({ onDone, cardRef }: Props) {
       </div>
 
       <div className="question-card sulit-card" ref={cardRef} tabIndex={-1}>
-        {/* Gambar situasi: rumput, jalan, dan rambu kasus ini berdiri di tepinya. */}
-        <div className="sulit-hero" aria-hidden="true">
-          {/* Jalan digambar lebih dulu: ia lapisan latar yang opak, jadi apa pun
-              yang datang sesudahnya (pelat + tiang) tetap terlihat di atasnya. */}
-          <span className="sulit-hero-road" />
-          <span className="sulit-hero-sign">
-            <SignArt art={kase.sign.art} size={54} />
-          </span>
-        </div>
+        {/* Gambar situasi: langit, bukit, rumput, jalan, dan rambu kasus ini
+            berdiri di tepinya. `key` per keputusan membuat kilau perhatian di
+            rambu diputar ulang tiap tahap, bukan hanya saat kasus berganti. */}
+        <SulitScene
+          key={decision}
+          art={kase.sign.art}
+          caseId={kase.id}
+          caseIndex={caseIndex}
+        />
 
         {stepIndex === 0 && (
           <p className="sulit-story">

@@ -9,7 +9,7 @@
  * (handoff §10 menuntut `scrollHeight === clientHeight` di tahap terberat).
  */
 
-.sulit-screen {
+.quiz-screen.sulit-screen {
   /* `.quiz-screen` memusatkan isi; di sini isi mulai dari atas supaya bar
      progres tidak melompat saat tinggi kartu berganti antar-tahap. */
   align-content: start;
@@ -35,63 +35,309 @@
   height: 8px;
 }
 
-.sulit-card {
+.question-card.sulit-card {
   padding: 10px;
   border-radius: 22px;
   box-shadow: 0 6px 0 rgba(42, 35, 32, 0.06), 0 12px 26px rgba(42, 35, 32, 0.12);
 }
 
-/* ---------- gambar situasi (mengikuti contoh) ---------- */
+/* ---------- gambar situasi: scene ilustrasi kasus ---------- */
 
+/*
+ * Scene-nya satu kotak ilustrasi (bukan lagi pita 84 px): langit bergradasi,
+ * bukit, rumput, jalan, dan rambu kasus itu berdiri di tepi jalan. Tingginya
+ * mengikuti lebar layar (clamp: 150–180 px; ±158 px di 360 px), jadi proporsi
+ * langit–rumput–jalan tetap sama dari HP sampai kartu lebar.
+ *
+ * Animasi di dalamnya semuanya CSS (scene ini tidak disentuh loop rAF):
+ * matahari, dua awan, marka jalan, satu mobil di kasus tertentu, dan satu kilau
+ * sekali di rambu. Total 6 node beranimasi — plafon untuk scene ini 10.
+ */
 .sulit-hero {
   position: relative;
-  height: 84px;
+  height: clamp(150px, 44vw, 180px);
   margin-bottom: 8px;
   overflow: hidden;
   border-radius: 16px;
-  background: linear-gradient(
-    180deg,
-    #c4ebff 0 40%,
-    var(--grass) 40% 68%,
-    var(--grass-dark) 68% 100%
+  background: linear-gradient(180deg, var(--sky-1), var(--sky-2) 62%);
+  /* Warna latar rambu; diganti per kasus di bawah. */
+  --sulit-kind: var(--green);
+}
+
+/* Jenis rambu → warna latar. Hanya menandai jenis (yang sudah terbaca dari
+   bentuk & warna pelatnya), bukan jawaban kasus. */
+.sulit-hero--dilarang-masuk,
+.sulit-hero--berhenti-stop,
+.sulit-hero--dilarang-parkir {
+  --sulit-kind: var(--red);
+}
+
+.sulit-hero--peringatan-tikungan {
+  --sulit-kind: var(--yellow);
+}
+
+.sulit-hero--penyeberangan-biru {
+  --sulit-kind: var(--blue);
+}
+
+/* Kilau warna jenis di belakang pelat rambu: gradien radial tipis, bukan
+   filter atau blur. */
+.sulit-halo {
+  position: absolute;
+  left: 2%;
+  top: 2%;
+  width: 50%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--sulit-kind) 30%, transparent) 0 30%,
+    transparent 70%
   );
 }
 
-/* Jalan: pita gelap di kaki gambar dengan satu garis marka putus-putus. */
-.sulit-hero-road {
+/* Matahari: bidang warna + cincin tipis, berdenah naik-turun pelan. */
+.sulit-sun {
+  position: absolute;
+  top: 10%;
+  right: 12%;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--yellow) 62%, #fff);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--yellow) 24%, transparent);
+  animation: sulit-sun-bob 7s ease-in-out infinite;
+}
+
+@keyframes sulit-sun-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Awan: satu bidang membulat + dua lingkaran, melayang bergantian pelan. */
+.sulit-cloud {
+  position: absolute;
+  width: 56px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--paper);
+  animation: sulit-cloud-a 16s ease-in-out infinite alternate;
+}
+
+.sulit-cloud::before,
+.sulit-cloud::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.sulit-cloud::before {
+  left: 8px;
+  bottom: 5px;
+  width: 24px;
+  height: 24px;
+}
+
+.sulit-cloud::after {
+  right: 9px;
+  bottom: 5px;
+  width: 16px;
+  height: 16px;
+}
+
+.sulit-cloud--a {
+  top: 10%;
+  left: 33%;
+}
+
+.sulit-cloud--b {
+  top: 31%;
+  right: 28%;
+  width: 46px;
+  height: 14px;
+  animation-name: sulit-cloud-b;
+  animation-duration: 21s;
+}
+
+@keyframes sulit-cloud-a {
+  from {
+    transform: translateX(-5px);
+  }
+  to {
+    transform: translateX(6px);
+  }
+}
+
+@keyframes sulit-cloud-b {
+  from {
+    transform: translateX(5px);
+  }
+  to {
+    transform: translateX(-7px);
+  }
+}
+
+/* Bukit tipis di cakrawala. Dua lapis: yang belakang lebih pucat (terbawa
+   kabut), yang depan lebih hijau. */
+.sulit-hills {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 30%;
+  display: block;
+  width: 100%;
+  height: 20%;
+}
+
+/* Rumput: pita hijau tempat rambu berdiri. */
+.sulit-grass {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 34%;
+  height: 19%;
+  background: linear-gradient(180deg, var(--grass), var(--grass-dark));
+}
+
+.sulit-tufts {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Jalan aspal: pita gelap di kaki gambar, satu garis kerb tipis, dan marka
+   putus-putus yang bergerak lambat ke kanan (searah mobil). */
+.sulit-road {
   position: absolute;
   inset: auto 0 0 0;
-  height: 32%;
+  height: 34%;
+  border-top: 3px solid color-mix(in srgb, var(--road) 58%, var(--paper));
   background-color: var(--road);
   background-image: repeating-linear-gradient(
     90deg,
-    var(--road-line) 0 16px,
-    transparent 16px 34px
+    var(--road-line) 0 18px,
+    transparent 18px 38px
   );
   background-repeat: no-repeat;
+  background-size: 100% 5px;
   background-position: 0 50%;
-  background-size: 100% 4px;
+  animation: sulit-road-flow 0.9s linear infinite;
 }
 
-/* Pelat rambu berdiri di tepi jalan: pelatnya `SignArt` (satu gambar), tiangnya
-   pseudo-elemen supaya tidak ada dua SVG yang bisa lepas satu sama lain. */
-.sulit-hero-sign {
+@keyframes sulit-road-flow {
+  from {
+    background-position-x: 0;
+  }
+  to {
+    background-position-x: 38px;
+  }
+}
+
+/* Mobil kecil (SVG inline sederhana, bukan `art/vehicles` yang ber-`display:
+   none` di luar slot scene berjalan): melintas ke kanan, lalu kosong lagi.
+   Satu mobil per siklus, bukan arus tanpa henti. */
+.sulit-car {
   position: absolute;
-  left: 16px;
-  bottom: 24px;
+  left: -20%;
+  bottom: 5px;
+  width: 46px;
+  height: 20px;
+  opacity: 0;
+  animation: sulit-car-drive 15s linear infinite;
+}
+
+@keyframes sulit-car-drive {
+  0% {
+    left: -20%;
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  58% {
+    left: 104%;
+    opacity: 1;
+  }
+  60%,
+  100% {
+    left: 104%;
+    opacity: 0;
+  }
+}
+
+/* Rambu kasus itu berdiri di tepi jalan: pelat `SignArt` (satu gambar) dengan
+   tiang pseudo-elemen supaya tidak ada dua SVG yang bisa lepas satu sama lain.
+   `bottom` = garis jalan + tinggi tiang, jadi ujung tiang mendarat tepat di
+   kerb. */
+.sulit-sign {
+  position: absolute;
+  left: 13%;
+  bottom: calc(34% + 22px);
   display: block;
 }
 
-.sulit-hero-sign::after {
+.sulit-sign::after {
   content: '';
   position: absolute;
   left: 50%;
   top: 100%;
   width: 7px;
-  height: 20px;
+  height: 22px;
   border-radius: 0 0 3px 3px;
-  background: #9aa1aa;
+  background: var(--road);
   translate: -50% 0;
+}
+
+/* Satu sentuhan perhatian, sekali saja: cincin warna jenis rambu melebar dan
+   memudar, mulai ±140 ms sesudah tahap tampil (`key` di `Sulit.tsx` memutar
+   ulang tiap tahap). Bukan animasi tanpa akhir. */
+.sulit-ping {
+  position: absolute;
+  inset: -11px;
+  border: 3px solid var(--sulit-kind);
+  border-radius: 50%;
+  opacity: 0;
+  animation: sulit-ping 1.1s ease-out 140ms 1 both;
+}
+
+@keyframes sulit-ping {
+  0% {
+    transform: scale(0.72);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+/* Gerak dikurangi: matikan semua animasi scene, termasuk kilau sekali dan
+   mobilnya. `.app.still` (`?still`) sudah mematikan lewat `.still *` dengan
+   `!important`; aturan ini tidak melawannya. */
+@media (prefers-reduced-motion: reduce) {
+  .sulit-sun,
+  .sulit-cloud,
+  .sulit-road,
+  .sulit-car,
+  .sulit-ping {
+    animation: none;
+  }
+
+  .sulit-car,
+  .sulit-ping {
+    opacity: 0;
+  }
 }
 
 /* ---------- teks kasus & tahap ---------- */
