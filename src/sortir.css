@@ -1,0 +1,422 @@
+/* ============================================================
+   Layar "Kelompokkan rambu" (sortir) — panggung kafe.
+
+   Dua belas rambu adalah hiasan interior: lima di rak dinding, empat di atas
+   counter, tiga di lantai dekat pintu. Anak memindahkannya ke empat kotak
+   kayu 2×2 di bawah panggung. Slotnya TETAP: rambu yang pindah meninggalkan
+   paku, jadi panggung tidak pernah reflow.
+
+   Token warna dari `index.css`; warna jenis datang dari `--kind-color`.
+   Mobile-first 360 px, target ketuk ≥ 44 px, tanpa gulir mendatar, tanpa
+   filter/backdrop-filter.
+   ============================================================ */
+
+.sortir-screen {
+  background: linear-gradient(180deg, #f7ecdc 0%, #e8d5bb 100%);
+}
+
+.sr {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- judul + narasi ---------- */
+
+.sr-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px 7px;
+  border-radius: 16px;
+  /* Narasi tetap di atas panel kertas, bukan langsung di atas latar kafe. */
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  box-shadow: 0 3px 0 rgba(42, 35, 32, 0.1);
+}
+
+.sr-title {
+  font-size: clamp(1.2rem, 4.4vw, 1.6rem);
+  line-height: 1.15;
+  text-align: center;
+}
+
+.sr-title:focus-visible {
+  outline: 3px solid var(--blue-dark);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
+.sr-hint {
+  max-width: 40ch;
+  margin: 0 auto;
+  text-align: center;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #6b5f52;
+  text-wrap: pretty;
+}
+
+/* ---------- progres ---------- */
+
+.sr-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #6b5f52;
+}
+
+.sr-progress__text {
+  flex: 0 0 auto;
+  /* Angka tidak melompat saat digit bertambah: "9 dari 12" vs "10 dari 12". */
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-progress__bar {
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 999px;
+  background: #e6dccb;
+  overflow: hidden;
+}
+
+.sr-progress__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+  transition: width 0.18s ease;
+}
+
+/* ---------- panggung kafe ---------- */
+
+.sr-stage {
+  position: relative;
+  /* Tumbuh sampai plafon 340 px: latar kafe digambar untuk 340×300, jadi
+     panggung yang jauh lebih tinggi akan memangkas jendela dan pintu. */
+  flex: 0 1 340px;
+  min-height: 240px;
+  max-height: 340px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #f3e7d5;
+  box-shadow:
+    inset 0 0 0 3px rgba(42, 35, 32, 0.08),
+    0 6px 0 rgba(42, 35, 32, 0.1);
+  isolation: isolate;
+}
+
+.sr-stage__art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- tiga bidang ---------- */
+
+.sr-shelf {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  /* Tinggi = rambu + tebal papan, supaya papan tidak pernah menutupi rambu. */
+  height: calc(var(--sign-size) + 8px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-evenly;
+  padding-bottom: 8px;
+  z-index: 1;
+  /* Wadah transparan: yang menerima ketukan hanya slot rambunya. */
+  pointer-events: none;
+}
+
+/* Papan bidang = kayu di bawah rambu, digambar CSS supaya selalu menempel
+   pada baris slotnya walau panggung melar. */
+.sr-shelf::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  bottom: 0;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #c08c5a 0%, #96653f 100%);
+  box-shadow: 0 2px 0 rgba(42, 35, 32, 0.28);
+  z-index: 0;
+}
+
+.sr-shelf--rak {
+  --sign-size: 48px;
+  top: 8px;
+}
+
+.sr-shelf--counter {
+  --sign-size: 64px;
+  top: 28%;
+}
+
+.sr-shelf--lantai {
+  --sign-size: 56px;
+  bottom: 6%;
+}
+
+/* Slot tetap: tombol rambu dan paku memakai kotak yang sama persis. */
+.sr-pajang,
+.sr-paku {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: var(--sign-size);
+  height: var(--sign-size);
+  border-radius: 12px;
+}
+
+/* Rambu yang belum dipindah: hiasan telanjang, bukan kartu putih berbingkai. */
+.sr-pajang {
+  padding: 0;
+  background: none;
+  border: 0;
+  /* Kemiringan deterministik dari indeks slot; diputar dari bawah supaya
+     terlihat disandarkan, bukan mengambang. */
+  transform: rotate(var(--tilt, 0deg));
+  transform-origin: 50% 90%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: auto;
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.14s ease,
+    opacity 0.14s ease;
+}
+
+.sr-pajang > svg {
+  pointer-events: none;
+}
+
+/* Affordance hanya saat dipilih dan saat diseret — bukan kartu permanen. */
+.sr-pajang[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 3px rgba(46, 123, 224, 0.45),
+    0 6px 14px rgba(42, 35, 32, 0.25);
+  transform: rotate(var(--tilt, 0deg)) scale(1.06);
+}
+
+.sr-pajang[data-dragging='true'] {
+  opacity: 0.35;
+}
+
+.sr-pajang:focus-visible {
+  outline: 3px solid var(--blue-dark);
+  outline-offset: 2px;
+}
+
+/* Rambu yang sudah dipindah meninggalkan paku di slotnya: panggung tetap
+   "berisi" dan tidak ada satu pun kotak yang berubah ukuran. */
+.sr-paku::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6f5137;
+  box-shadow: 0 0 0 2px rgba(111, 81, 55, 0.18);
+}
+
+/* ---------- kotak kayu 2×2 ---------- */
+
+.sr-bins {
+  display: grid;
+  /* 164 + 8 + 164 = 336 = lebar konten 360 − padding 2 × 12. */
+  grid-template-columns: repeat(2, 164px);
+  gap: 8px;
+  justify-content: center;
+  /* Kotak menempel di bawah layar saat masih bermain. */
+  margin-top: auto;
+}
+
+.sr-bin {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 164px;
+  min-height: 88px;
+  min-width: 0;
+  padding: 6px 8px 7px;
+  border-radius: 14px;
+  text-align: left;
+  color: var(--ink);
+  background: linear-gradient(180deg, #e0b782 0%, #c99a63 100%);
+  border: 3px solid #8a5f3c;
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--kind-color, var(--ink)) 65%, transparent),
+    0 4px 0 rgba(42, 35, 32, 0.14);
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.sr-bin:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--kind-color, var(--ink)) 65%, transparent),
+    0 2px 0 rgba(42, 35, 32, 0.14);
+}
+
+.sr-bin:focus-visible {
+  outline: 3px solid var(--blue-dark);
+  outline-offset: 2px;
+}
+
+.sr-bin__head {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sr-bin__label {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.15;
+}
+
+.sr-bin__role {
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.2;
+  /* Cokelat tua, bukan abu: ±5,3:1 di atas kayu terang. */
+  color: #3a2c1f;
+}
+
+.sr-bin__slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-height: 26px;
+  align-items: flex-start;
+}
+
+/* Rambu yang sudah masuk kotak: bukan tombol lagi, jadi tidak menambah
+   titik tab dan tidak bisa diketuk ulang. 26 px = isi kotak kayu. */
+.sr-placed {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--paper);
+  border: 2px solid var(--kind-color, var(--ink));
+}
+
+/* ---------- ringkasan ---------- */
+
+.sr-done {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px;
+  text-align: center;
+  background: var(--paper);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+}
+
+.sr-done h3 {
+  font-size: clamp(1.1rem, 3.8vw, 1.35rem);
+  line-height: 1.25;
+}
+
+.sr-done h3:focus-visible {
+  outline: 3px solid var(--blue-dark);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.sr-done__text {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #5a4e43;
+  text-wrap: pretty;
+}
+
+/* ---------- hantu seret ---------- */
+
+.sr-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  padding: 4px;
+  border-radius: 18px;
+  /* Hiasan yang diangkat ikut jari: tanpa kartu kertas, hanya rambunya. */
+  background: none;
+  border: 0;
+  box-shadow: none;
+  /* Dipusatkan di ujung jari; `transform` per frame hanya menggeser. */
+  translate: -50% -50%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* ---------- kurangi gerak ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .sr-progress__bar > span,
+  .sr-pajang,
+  .sr-bin {
+    transition: none;
+  }
+
+  .sr-pajang[aria-pressed='true'] {
+    transform: rotate(var(--tilt, 0deg));
+  }
+}
+
+/* ---------- keadaan selesai ---------- */
+
+/* Panggung memberi tempat ke ringkasan: tanpa ini layar selesai 90 px lebih
+   tinggi dari viewport 360×640 dan harus digulir. */
+.sr[data-done] .sr-stage {
+  display: none;
+}
+
+.sr[data-done] .sr-bins {
+  margin-top: 8px;
+}
+
+.sr[data-done] .sr-done {
+  margin-top: auto;
+}
+
+/* ---------- layar lebar ---------- */
+
+/* Latar kafe dibuat untuk 340×300. Di layar lebar panggung selebar 696 px
+   akan memangkas hampir separuh tinggi gambar, jadi kontennya dibatasi. */
+@media (min-width: 760px) {
+  .sr {
+    max-width: 480px;
+  }
+}
