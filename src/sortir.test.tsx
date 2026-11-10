@@ -4,24 +4,48 @@ import Sortir from './Sortir'
 import { KINDS, SIGNS, type Kind } from './data'
 import { KIND_ORDER, binAt, sortirCards, starsFor, type Box } from './sortir'
 
-/** Kartu pertama yang masih di area kartu (urutan layar). */
+/** Hiasan pertama yang masih di panggung (urutan layar). */
 function firstCard(): HTMLButtonElement {
   const card = document.querySelector<HTMLButtonElement>('.sr-pajang')
-  if (!card) throw new Error('tidak ada kartu tersisa')
+  if (!card) throw new Error('tidak ada hiasan tersisa')
   return card
 }
 
-/** Rambu di balik sebuah kartu: dibaca dari `data-sign`, bukan dari urutan. */
+/** Rambu di balik sebuah tombol: dibaca dari `data-sign`, bukan dari urutan. */
 function signOf(card: HTMLButtonElement) {
   const sign = SIGNS.find((candidate) => candidate.id === card.dataset.sign)
-  if (!sign) throw new Error(`kartu tanpa rambu: ${card.dataset.sign}`)
+  if (!sign) throw new Error(`tombol tanpa rambu: ${card.dataset.sign}`)
   return sign
 }
 
+/** Kepala kotak: tombol "taruh di sini" yang membawa nama jenis. */
 function bin(kind: Kind): HTMLButtonElement {
   return screen.getByRole('button', {
     name: `Kotak ${KINDS[kind].label}`,
   }) as HTMLButtonElement
+}
+
+/** Wadah kotak: pembawa `data-kind` dan bidang yang dipakai hit-test seret. */
+function binBox(kind: Kind): HTMLDivElement {
+  const el = document.querySelector<HTMLDivElement>(`.sr-bin[data-kind="${kind}"]`)
+  if (!el) throw new Error(`kotak tidak ada: ${kind}`)
+  return el
+}
+
+/** Tombol penilaian; satu-satunya tombol yang memulai percobaan baru. */
+function finishButton(): HTMLButtonElement {
+  return screen.getByRole('button', { name: 'Aku selesai' }) as HTMLButtonElement
+}
+
+/** Menaruh semua hiasan yang tersisa ke kotak jenis yang benar. */
+function placeAllCorrect(): void {
+  for (let i = 0; i < SIGNS.length; i += 1) {
+    const card = document.querySelector<HTMLButtonElement>('.sr-pajang')
+    if (!card) return
+    const sign = signOf(card)
+    fireEvent.click(card)
+    fireEvent.click(bin(sign.kind))
+  }
 }
 
 /** Jenis lain yang pasti salah untuk rambu ini. */
@@ -79,7 +103,7 @@ describe('binAt', () => {
     { kind: 'peringatan' as const, box: box(110, 0, 200, 50) },
   ]
 
-  it('mengembalikan jenis keranjang yang memuat titik', () => {
+  it('mengembalikan jenis kotak yang memuat titik', () => {
     expect(binAt(50, 25, rects)).toBe('larangan')
     expect(binAt(150, 25, rects)).toBe('peringatan')
   })
@@ -91,7 +115,7 @@ describe('binAt', () => {
     expect(binAt(200, 50, rects)).toBe('peringatan')
   })
 
-  it('titik di luar semua keranjang mengembalikan null', () => {
+  it('titik di luar semua kotak mengembalikan null', () => {
     expect(binAt(-1, 25, rects)).toBeNull()
     expect(binAt(105, 25, rects)).toBeNull()
     expect(binAt(50, 51, rects)).toBeNull()
@@ -110,7 +134,7 @@ describe('starsFor', () => {
     expect(starsFor(0, 5)).toBe(1)
   })
 
-  it('memberi ambang yang sama untuk 12 kartu: 10/12 → 3, 5–9/12 → 2, 0–4/12 → 1', () => {
+  it('memberi ambang yang sama untuk 12 rambu: 10/12 → 3, 5–9/12 → 2, 0–4/12 → 1', () => {
     expect(starsFor(12, 12)).toBe(3)
     expect(starsFor(10, 12)).toBe(3)
     expect(starsFor(9, 12)).toBe(2)
@@ -126,51 +150,29 @@ describe('starsFor', () => {
 })
 
 describe('Sortir (DOM)', () => {
-  it('memasang dua belas kartu, empat keranjang, dan satu wilayah live tetap', () => {
+  it('memasang dua belas hiasan, empat kotak, dan wilayah live; progres disembunyikan', () => {
     renderSortir()
 
     expect(document.querySelectorAll('.sr-pajang')).toHaveLength(SIGNS.length)
     for (const kind of KIND_ORDER) {
-      const el = bin(kind)
-      expect(el.tagName).toBe('BUTTON')
-      expect(el.getAttribute('data-kind')).toBe(kind)
+      const head = bin(kind)
+      expect(head.tagName).toBe('BUTTON')
+      expect(binBox(kind).getAttribute('data-kind')).toBe(kind)
     }
+
+    // Tidak ada bilah kemajuan: anak menilai sendiri lewat tombol, bukan
+    // membaca "tinggal 3 lagi" yang membocorkan sisa langkah.
+    expect(document.querySelector('.sr-progress')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Aku selesai' })).toBeTruthy()
 
     const live = document.querySelector<HTMLElement>('.sr-live')
     expect(live).not.toBeNull()
     expect(live?.getAttribute('role')).toBe('status')
     expect(live?.getAttribute('aria-live')).toBe('polite')
-
-    // Wilayah live tidak lahir-mati bersama umpan balik.
     expect(live?.textContent).toBe('')
   })
 
-  it('ketuk kartu → ketuk keranjang yang benar: kartu masuk dan live memuji', () => {
-    renderSortir()
-    const card = firstCard()
-    const sign = signOf(card)
-
-    fireEvent.click(card)
-    expect(card.getAttribute('aria-pressed')).toBe('true')
-
-    fireEvent.click(bin(sign.kind))
-
-    // Kartu tidak lagi di area kartu, tetapi tercatat di keranjang yang benar.
-    expect(document.querySelector(`.sr-pajang[data-sign="${sign.id}"]`)).toBeNull()
-    const placed = document.querySelector<HTMLElement>(
-      `[data-kind="${sign.kind}"] .sr-placed`,
-    )
-    expect(placed).not.toBeNull()
-    expect(placed?.textContent).toContain(sign.name)
-
-    expect(liveText()).toContain('Tepat!')
-    expect(liveText()).toContain(`termasuk ${KINDS[sign.kind].label.toLowerCase()}`)
-    // Progres ikut diumumkan: pembaca layar tidak melihat bilah kemajuan.
-    expect(liveText()).toContain(`1 dari ${SIGNS.length}`)
-    expect(document.activeElement).not.toBe(document.body)
-  })
-
-  it('salah keranjang: kartu tetap di area kartu, live menyebut jenis yang benar', () => {
+  it('menaruh rambu ke kotak yang salah pun diterima — tidak ada penolakan', () => {
     renderSortir()
     const card = firstCard()
     const sign = signOf(card)
@@ -179,43 +181,119 @@ describe('Sortir (DOM)', () => {
     fireEvent.click(card)
     fireEvent.click(bin(wrong))
 
-    // Kartu kembali ke area kartu — bukan hilang, bukan hukuman.
-    expect(document.querySelector(`.sr-pajang[data-sign="${sign.id}"]`)).toBe(card)
-    expect(card.getAttribute('aria-pressed')).toBe('false')
-    expect(document.querySelector(`[data-kind="${wrong}"] .sr-placed`)).toBeNull()
+    // Rambu benar-benar pindah ke kotak yang salah, tanpa dikembalikan.
+    expect(document.querySelector(`.sr-pajang[data-sign="${sign.id}"]`)).toBeNull()
+    const placed = document.querySelector<HTMLElement>(`[data-kind="${wrong}"] .sr-placed`)
+    expect(placed).not.toBeNull()
+    expect(placed?.getAttribute('aria-label')).toContain(sign.name)
 
-    expect(liveText()).toContain('Belum tepat')
-    expect(liveText()).toContain(`termasuk ${KINDS[sign.kind].label.toLowerCase()}`)
-    expect(liveText()).toContain(`bukan ${KINDS[wrong].label.toLowerCase()}`)
-    // Fokus kembali ke kartu yang salah, tidak jatuh ke <body>.
-    expect(document.activeElement).toBe(card)
+    // Umpan balik netral: jenis yang benar tidak disebut sebelum dinilai.
+    expect(liveText()).toContain('masuk kotak')
+    expect(liveText()).not.toContain('Belum tepat')
+    expect(liveText()).not.toContain('termasuk')
+    expect(document.activeElement).not.toBe(document.body)
   })
 
-  it('papan tombol: Enter memilih, Enter menaruh, Escape membatalkan pilihan', () => {
+  it('rambu di kotak bisa dipilih lalu dipindah ke kotak lain', () => {
+    renderSortir()
+    const card = firstCard()
+    const sign = signOf(card)
+    const wrong = wrongKind(sign.kind)
+
+    fireEvent.click(card)
+    fireEvent.click(bin(wrong))
+    const placed = document.querySelector<HTMLButtonElement>(
+      `[data-kind="${wrong}"] .sr-placed`,
+    )
+    expect(placed).not.toBeNull()
+
+    fireEvent.click(placed as HTMLButtonElement)
+    expect(placed?.getAttribute('aria-pressed')).toBe('true')
+
+    fireEvent.click(bin(sign.kind))
+    expect(document.querySelector(`[data-kind="${wrong}"] .sr-placed`)).toBeNull()
+    expect(document.querySelector(`[data-kind="${sign.kind}"] .sr-placed`)).not.toBeNull()
+    expect(liveText()).toContain('dipindah ke kotak')
+  })
+
+  it('Aku selesai saat masih ada yang belum pas: menandai, tidak menyelesaikan', () => {
+    renderSortir()
+    fireEvent.click(finishButton())
+
+    expect(document.querySelector('.sr-done')).toBeNull()
+    expect(document.querySelectorAll('[data-wrong]').length).toBeGreaterThan(0)
+    expect(liveText()).toContain('belum pas')
+    expect(screen.getByRole('button', { name: 'Aku selesai' })).toBeTruthy()
+
+    // Tanda hilang begitu rambu dipindah, bukan menempel selamanya.
+    const card = firstCard()
+    const sign = signOf(card)
+    expect(card.getAttribute('data-wrong')).toBe('true')
+    fireEvent.click(card)
+    fireEvent.click(bin(sign.kind))
+    // Rambu yang dipindah menjadi tombol baru di kotak; tanda merah tidak
+    // ikut berpindah karena tanda itu milik penilaian sebelumnya.
+    const moved = document.querySelector(`[data-kind="${sign.kind}"] .sr-placed`)
+    expect(moved).not.toBeNull()
+    expect(moved?.getAttribute('data-wrong')).toBeNull()
+  })
+
+  it('berhasil pada percobaan pertama: ringkasan ke-1 dan skor 12/12', () => {
+    const { onDone } = renderSortir()
+    placeAllCorrect()
+
+    expect(document.querySelectorAll('.sr-pajang')).toHaveLength(0)
+    fireEvent.click(finishButton())
+
+    const summary = screen.getByRole('heading', { name: 'Berhasil dalam percobaan ke-1.' })
+    expect(document.activeElement).toBe(summary)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Selesai' }))
+    expect(onDone).toHaveBeenCalledTimes(1)
+    expect(onDone).toHaveBeenCalledWith(SIGNS.length)
+  })
+
+  it('gagal sekali lalu benar: ringkasan ke-2, skor memakai percobaan pertama', () => {
+    const { onDone } = renderSortir()
+    const first = firstCard()
+    const firstSign = signOf(first)
+    const wrong = wrongKind(firstSign.kind)
+
+    // Semua dua belas ditaruh; satu sengaja di kotak yang salah.
+    fireEvent.click(first)
+    fireEvent.click(bin(wrong))
+    placeAllCorrect()
+
+    fireEvent.click(finishButton())
+    expect(document.querySelector('.sr-done')).toBeNull()
+    expect(document.querySelector(`[data-kind="${wrong}"] .sr-placed[data-wrong]`)).not.toBeNull()
+
+    // Pindahkan yang salah ke kotak yang benar, lalu nilai lagi.
+    fireEvent.click(document.querySelector<HTMLButtonElement>(`[data-kind="${wrong}"] .sr-placed`)!)
+    fireEvent.click(bin(firstSign.kind))
+
+    fireEvent.click(finishButton())
+    expect(screen.getByRole('heading', { name: 'Berhasil dalam percobaan ke-2.' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Selesai' }))
+    expect(onDone).toHaveBeenCalledWith(SIGNS.length - 1)
+  })
+
+  it('papan tombol: memilih, menaruh, membatalkan; fokus tidak jatuh ke body', () => {
     renderSortir()
     const card = firstCard()
     const sign = signOf(card)
 
-    // Tombol asli: Tab mencapainya dan Enter/Space mengaktifkannya. jsdom
-    // tidak mensintesis klik dari keydown, jadi aktivasi Enter diwakili
-    // `click` — perilaku yang sama dengan `<button>` di peramban.
-    expect(card.tagName).toBe('BUTTON')
-    expect(card.type).toBe('button')
     card.focus()
-    expect(document.activeElement).toBe(card)
     fireEvent.click(card)
     expect(card.getAttribute('aria-pressed')).toBe('true')
 
     const target = bin(sign.kind)
-    expect(target.tagName).toBe('BUTTON')
-    expect(target.type).toBe('button')
     target.focus()
     fireEvent.click(target)
-
     expect(document.querySelector(`.sr-pajang[data-sign="${sign.id}"]`)).toBeNull()
     expect(document.activeElement).not.toBe(document.body)
 
-    // Escape membatalkan pilihan, fokus tetap di kartu.
     const next = firstCard()
     next.focus()
     fireEvent.click(next)
@@ -225,39 +303,13 @@ describe('Sortir (DOM)', () => {
     expect(document.activeElement).toBe(next)
   })
 
-  it('semua kartu habis: ringkasan difokuskan, Selesai mengirim skor percobaan pertama', () => {
-    const { onDone } = renderSortir()
-    const seedCard = firstCard()
-    const seedSign = signOf(seedCard)
-
-    // Satu percobaan salah sengaja: kartu itu tidak dihitung benar.
-    fireEvent.click(seedCard)
-    fireEvent.click(bin(wrongKind(seedSign.kind)))
-
-    for (let i = 0; i < SIGNS.length; i += 1) {
-      const card = firstCard()
-      fireEvent.click(card)
-      fireEvent.click(bin(signOf(card).kind))
-    }
-
-    expect(document.querySelectorAll('.sr-pajang')).toHaveLength(0)
-    const summary = screen.getByRole('heading', {
-      name: /Semua hiasan sudah masuk kotaknya/,
-    })
-    expect(document.activeElement).toBe(summary)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Selesai' }))
-    expect(onDone).toHaveBeenCalledTimes(1)
-    expect(onDone).toHaveBeenCalledWith(SIGNS.length - 1)
-  })
-
-  it('seret pointer: hantu mengikuti jari tanpa render ulang, lepas di keranjang menaruh', () => {
+  it('seret pointer: hantu mengikuti jari, kotak salah pun menerima', () => {
     renderSortir()
     const card = firstCard()
     const sign = signOf(card)
 
-    // Kotak keranjang dijsdom selalu nol; beri kotak sungguhan supaya
-    // `binAt` punya bidang untuk dinilai — hit-test tetap fungsi murni.
+    // Kotak di jsdom selalu nol; beri bidang sungguhan supaya hit-test punya
+    // yang dinilai — `binAt` tetap fungsi murni tanpa DOM.
     const boxes: Record<Kind, Box> = {
       larangan: { left: 0, top: 100, right: 100, bottom: 200 },
       peringatan: { left: 110, top: 100, right: 200, bottom: 200 },
@@ -265,7 +317,7 @@ describe('Sortir (DOM)', () => {
       petunjuk: { left: 110, top: 210, right: 200, bottom: 310 },
     }
     for (const kind of KIND_ORDER) {
-      const el = bin(kind)
+      const el = binBox(kind)
       const box = boxes[kind]
       el.getBoundingClientRect = () =>
         ({
@@ -278,15 +330,15 @@ describe('Sortir (DOM)', () => {
         }) as DOMRect
     }
 
+    const wrong = wrongKind(sign.kind)
     fireEvent.pointerDown(card, { clientX: 10, clientY: 10, button: 0, pointerType: 'touch' })
     const ghost = document.querySelector<HTMLElement>('.sr-ghost')
     expect(ghost).not.toBeNull()
 
     fireEvent.pointerMove(window, { clientX: 60, clientY: 60, pointerType: 'touch' })
-    // Satu penulisan transform, bukan setState per frame.
     expect(ghost?.style.transform).toContain('translate3d(60px, 60px, 0')
 
-    const drop = boxes[sign.kind]
+    const drop = boxes[wrong]
     fireEvent.pointerUp(window, {
       clientX: (drop.left + drop.right) / 2,
       clientY: (drop.top + drop.bottom) / 2,
@@ -294,11 +346,12 @@ describe('Sortir (DOM)', () => {
     })
 
     expect(document.querySelector(`.sr-pajang[data-sign="${sign.id}"]`)).toBeNull()
+    expect(document.querySelector(`[data-kind="${wrong}"] .sr-placed`)).not.toBeNull()
     expect(document.querySelector('.sr-ghost')).toBeNull()
-    expect(liveText()).toContain('Tepat!')
+    expect(liveText()).not.toContain('Tepat!')
   })
 
-  it('seret lalu lepas di luar keranjang: batal, kartu tetap di area kartu', () => {
+  it('seret lalu lepas di luar kotak: batal, rambu tetap di panggung', () => {
     renderSortir()
     const card = firstCard()
     const sign = signOf(card)

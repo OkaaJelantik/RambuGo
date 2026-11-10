@@ -94,3 +94,22 @@ Slot: `<button className="sr-pajang" data-sign={id}>` untuk rambu yang belum dip
    hilang, supaya tidak ada reflow dan panggung tetap "berisi".
 4. **Gate dijalankan Lead setelah kedua lane selesai**, karena `tsc -b` menulis
    `tsconfig.tsbuildinfo` dan tidak boleh dua proses.
+
+## Revisi 2 (2026-11-10, sesudah tinjauan pertama)
+
+Empat perubahan, semuanya menggeser penilaian dari "setiap perpindahan" ke
+"satu tombol di akhir".
+
+| # | Keputusan | Alasan |
+|---|---|---|
+| 8 | Dinding kafe polos: satu warna rata, tanpa pintu kaca, cangkir, tanaman, plint, atau glow di dinding. Jendela (langit + potongan jalan), plafon/lampu, dan lantai papan tetap. | Bentuk di dinding membuat hiasan terbaca mengambang di tempat acak. |
+| 9 | Kotak kayu **tanpa warna jenis** (`--kind-color` dicabut dari kotak dan isi kotak). | Merah/kuning/biru/hijau di kotak membocorkan jawaban sebelum rambu dibaca. |
+| 10 | `KIND_ROLE` menjadi kalimat perintah-akibat: "Berhenti — jangan lakukan.", "Hati-hati, ada bahaya di depan.", "Ikuti agar selamat.", "Bisa bantu kita nemuin sesuatu." | Kalimat peran sebelumnya ("Aku atur jalannya.") terlalu abstrak untuk memilih. |
+| 11 | **Tidak ada penolakan.** Rambu boleh masuk kotak mana pun. Penilaian hanya saat tombol **"Aku selesai"** ditekan. Gagal = rambu yang belum pas ditandai merah (rambu + kotaknya), lalu anak memindahkannya (ketuk, seret, atau papan tombol) dan menekan tombol lagi. Berhasil = layar menyebut "Berhasil dalam percobaan ke-N." | Anak belajar dari kesalahannya sendiri, bukan dari koreksi sistem. `firstCorrect` (benar saat tekanan pertama) tetap menjadi skor untuk bintang di layar rumah. |
+| 12 | Bilah kemajuan dihapus. | Ia memberi hitungan sisa langkah yang tidak lagi bermakna tanpa penolakan. |
+
+Konsekuensi teknis: `placedBy` menjadi peta `rambuId → Kind` (bukan daftar
+rambu yang sudah benar), kotak berisi tombol-tombol rambu (kepala kotak tetap
+satu tombol "taruh di sini"), dan slot isi memakai satu baris dengan tumpukan
+negatif di atas empat hiasan supaya tinggi kotak konstan — kalau tidak, 12
+hiasan di satu kotak membuat layar 360×640 bergulir.

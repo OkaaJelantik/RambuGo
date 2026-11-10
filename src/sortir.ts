@@ -24,9 +24,9 @@ export const KIND_ORDER: readonly Kind[] = ['larangan', 'peringatan', 'perintah'
  * salah-taruh dan ringkasan, bukan dicetak di tempat menjawab.
  */
 export const KIND_ROLE: Record<Kind, string> = {
-  larangan: 'Aku jaga pintu.',
-  peringatan: 'Aku di depan tikungan.',
-  perintah: 'Aku atur jalannya.',
+  larangan: 'Berhenti — jangan lakukan.',
+  peringatan: 'Hati-hati, ada bahaya di depan.',
+  perintah: 'Ikuti agar selamat.',
   petunjuk: 'Bisa bantu kita nemuin sesuatu.',
 }
 

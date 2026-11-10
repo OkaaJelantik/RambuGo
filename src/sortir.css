@@ -6,9 +6,13 @@
    kayu 2×2 di bawah panggung. Slotnya TETAP: rambu yang pindah meninggalkan
    paku, jadi panggung tidak pernah reflow.
 
-   Token warna dari `index.css`; warna jenis datang dari `--kind-color`.
-   Mobile-first 360 px, target ketuk ≥ 44 px, tanpa gulir mendatar, tanpa
-   filter/backdrop-filter.
+   Kotak sengaja TIDAK berwarna jenis: warna merah/kuning/biru/hijau di kotak
+   akan membocorkan jawaban sebelum anak membaca rambunya. Jenis hanya hadir
+   sebagai kata (label) dan kalimat peran. Penilaian terjadi di tombol
+   "Aku selesai", bukan saat menjatuhkan rambu.
+
+   Token warna dari `index.css`. Mobile-first 360 px, target ketuk ≥ 44 px,
+   tanpa gulir mendatar, tanpa filter/backdrop-filter.
    ============================================================ */
 
 .sortir-screen {
@@ -24,7 +28,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 12px 12px;
+  padding: 10px 12px 8px;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
@@ -65,39 +69,6 @@
   line-height: 1.3;
   color: #6b5f52;
   text-wrap: pretty;
-}
-
-/* ---------- progres ---------- */
-
-.sr-progress {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: #6b5f52;
-}
-
-.sr-progress__text {
-  flex: 0 0 auto;
-  /* Angka tidak melompat saat digit bertambah: "9 dari 12" vs "10 dari 12". */
-  font-variant-numeric: tabular-nums;
-}
-
-.sr-progress__bar {
-  flex: 1 1 auto;
-  height: 8px;
-  border-radius: 999px;
-  background: #e6dccb;
-  overflow: hidden;
-}
-
-.sr-progress__bar > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--green);
-  transition: width 0.18s ease;
 }
 
 /* ---------- panggung kafe ---------- */
@@ -221,6 +192,12 @@
   opacity: 0.35;
 }
 
+/* Tanda dari penilaian terakhir: rambu ini belum di kotak yang tepat. */
+.sr-pajang[data-wrong] {
+  outline: 3px solid var(--red);
+  outline-offset: 4px;
+}
+
 .sr-pajang:focus-visible {
   outline: 3px solid var(--blue-dark);
   outline-offset: 2px;
@@ -237,7 +214,7 @@
   box-shadow: 0 0 0 2px rgba(111, 81, 55, 0.18);
 }
 
-/* ---------- kotak kayu 2×2 ---------- */
+/* ---------- kotak kayu 2×2 (netral, tanpa warna jenis) ---------- */
 
 .sr-bins {
   display: grid;
@@ -263,30 +240,48 @@
   background: linear-gradient(180deg, #e0b782 0%, #c99a63 100%);
   border: 3px solid #8a5f3c;
   box-shadow:
-    inset 0 0 0 2px color-mix(in srgb, var(--kind-color, var(--ink)) 65%, transparent),
+    inset 0 0 0 2px rgba(42, 35, 32, 0.16),
     0 4px 0 rgba(42, 35, 32, 0.14);
   transition:
     transform 0.14s ease,
     box-shadow 0.14s ease;
 }
 
+/* Kotak yang memuat rambu bertanda merah ikut ditandai. */
+.sr-bin[data-wrong] {
+  box-shadow:
+    inset 0 0 0 3px var(--red),
+    0 4px 0 rgba(42, 35, 32, 0.14);
+}
+
 .sr-bin:active {
   transform: translateY(2px);
   box-shadow:
-    inset 0 0 0 2px color-mix(in srgb, var(--kind-color, var(--ink)) 65%, transparent),
+    inset 0 0 0 2px rgba(42, 35, 32, 0.16),
     0 2px 0 rgba(42, 35, 32, 0.14);
 }
 
-.sr-bin:focus-visible {
-  outline: 3px solid var(--blue-dark);
-  outline-offset: 2px;
-}
-
+/* Kepala kotak adalah tombol "taruh di sini"; kotak sendiri bukan tombol
+   supaya hiasan di dalamnya bisa jadi tombol (tombol tidak boleh bersarang). */
 .sr-bin__head {
   display: flex;
   flex-direction: column;
   gap: 1px;
   min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sr-bin__head:focus-visible {
+  outline: 3px solid var(--blue-dark);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .sr-bin__label {
@@ -306,22 +301,69 @@
 
 .sr-bin__slots {
   display: flex;
-  flex-wrap: wrap;
+  /* Satu baris tetap. Kotak bertinggi konstan = panggung tidak bergeser dan
+     layar 360×640 tidak perlu digulir, bahkan saat semua ditumpuk di satu
+     kotak (aturan "tidak ada penolakan" membuat itu mungkin). */
+  flex-wrap: nowrap;
   gap: 3px;
   min-height: 26px;
   align-items: flex-start;
 }
 
-/* Rambu yang sudah masuk kotak: bukan tombol lagi, jadi tidak menambah
-   titik tab dan tidak bisa diketuk ulang. 26 px = isi kotak kayu. */
+/* Tumpukan: hiasan berikutnya menutupi sebagian yang sebelumnya, seperti
+   kartu yang dijejer di baki. Yang paling kanan bisa dipindah lebih dulu. */
+.sr-bin__slots--stack .sr-placed + .sr-placed {
+  margin-left: -16px;
+}
+
+/* Rambu yang sudah masuk kotak: tombol, supaya bisa dipilih lalu dipindah
+   (papan tombol) atau diseret ke kotak lain. 26 px = isi kotak kayu. */
 .sr-placed {
   display: grid;
   place-items: center;
   width: 26px;
   height: 26px;
+  padding: 0;
   border-radius: 7px;
   background: var(--paper);
-  border: 2px solid var(--kind-color, var(--ink));
+  border: 2px solid #8a5f3c;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sr-placed[data-wrong] {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(224, 69, 63, 0.32);
+}
+
+.sr-placed[aria-pressed='true'] {
+  box-shadow: 0 0 0 3px rgba(46, 123, 224, 0.45);
+}
+
+.sr-placed:focus-visible {
+  outline: 3px solid var(--blue-dark);
+  outline-offset: 2px;
+}
+
+/* ---------- tombol selesai ---------- */
+
+.sr-finish {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.sr-finish__hint {
+  max-width: 34ch;
+  margin: 0;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #6b5f52;
+  text-wrap: pretty;
 }
 
 /* ---------- ringkasan ---------- */
@@ -369,9 +411,8 @@
   place-items: center;
   width: 78px;
   height: 78px;
-  padding: 4px;
-  border-radius: 18px;
   /* Hiasan yang diangkat ikut jari: tanpa kartu kertas, hanya rambunya. */
+  padding: 0;
   background: none;
   border: 0;
   box-shadow: none;
@@ -379,20 +420,6 @@
   translate: -50% -50%;
   pointer-events: none;
   will-change: transform;
-}
-
-/* ---------- kurangi gerak ---------- */
-
-@media (prefers-reduced-motion: reduce) {
-  .sr-progress__bar > span,
-  .sr-pajang,
-  .sr-bin {
-    transition: none;
-  }
-
-  .sr-pajang[aria-pressed='true'] {
-    transform: rotate(var(--tilt, 0deg));
-  }
 }
 
 /* ---------- keadaan selesai ---------- */
@@ -418,5 +445,18 @@
 @media (min-width: 760px) {
   .sr {
     max-width: 480px;
+  }
+}
+
+/* ---------- kurangi gerak ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .sr-pajang,
+  .sr-bin {
+    transition: none;
+  }
+
+  .sr-pajang[aria-pressed='true'] {
+    transform: rotate(var(--tilt, 0deg));
   }
 }
