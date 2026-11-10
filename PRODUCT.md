@@ -109,7 +109,8 @@ ditampilkan. Salah keranjang tidak mengurangi nyawa maupun skor.
 
 ## 6. Non-goal (disengaja, jangan dikerjakan tanpa permintaan)
 
-- **Audio/suara.** Dibatalkan.
+- **Audio narasi/efek suara.** Dibatalkan. Satu pengecualian: musik latar `public/bgm.mp3` dengan
+  tombol nyala/mati di pojok kanan atas (`src/Bgm.tsx`), pilihan disimpan di `localStorage`.
 - **Deploy, akun, progres server, leaderboard.** Aplikasi jalan di localhost; tidak ada backend.
 - **Animasi realistis / 3D.** Yang dicari "kids interactive web" yang hidup, bukan simulasi.
 - **Perspektif untuk langit.** Burung bergerak linear; ia di atas dunia, bukan di dalamnya.

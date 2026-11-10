@@ -9,6 +9,7 @@ import Junction from './Junction'
 import Sortir from './Sortir'
 import Kuis from './Kuis'
 import Sulit from './Sulit'
+import Bgm from './Bgm'
 import { TOTAL_DECISIONS } from './sulit'
 import Kid from './Kid'
 import DialoguePanel from './DialoguePanel'
@@ -587,6 +588,7 @@ export default function App() {
 
   return (
     <div className={still ? 'app still' : 'app'}>
+      <Bgm />
       {stage === 'intro' && (
         <section className="screen" key="intro">
           <Classroom

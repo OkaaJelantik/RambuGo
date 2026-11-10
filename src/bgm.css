@@ -1,0 +1,45 @@
+/*
+ * Tombol musik latar: kecil, tenang, di pojok kanan atas. z-index 35 menaruhnya
+ * di atas isi layar tetapi di bawah scrim lembar (40 di index.css), jadi lembar
+ * rambu tetap menutupinya saat terbuka.
+ */
+.bgm-toggle {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top, 0px));
+  right: 12px;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 999px;
+  border: 2px solid rgba(42, 35, 32, 0.14);
+  background: rgba(255, 249, 238, 0.72);
+  color: var(--ink);
+  opacity: 0.55;
+  transition: opacity 0.16s ease, background 0.16s ease;
+}
+
+.bgm-toggle:hover,
+.bgm-toggle:focus-visible {
+  opacity: 1;
+  background: rgba(255, 249, 238, 0.95);
+}
+
+/* Mati = lebih pudar lagi, tetapi tetap terlihat supaya bisa dinyalakan. */
+.bgm-toggle[aria-pressed='false'] {
+  opacity: 0.4;
+}
+
+.bgm-toggle svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bgm-toggle {
+    transition: none;
+  }
+}

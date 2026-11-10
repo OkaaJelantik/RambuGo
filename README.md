@@ -123,6 +123,11 @@ produk.
 **Sumber materi** — `docs/MODUL_AJAR.md` dan bahan acuan di `Assets/`; ringkasan keputusan ada di
 `PRODUCT.md` dan `AGENTS.md`.
 
+**Musik latar** — "Video Background Animasi Suasana Hutan no copyright" (kanal YouTube Guru Les
+Kupang), 60 detik, diunduh dengan yt-dlp lalu di-encode ke `public/bgm.mp3` (MP3 128 kbps stereo,
+tanpa sampul). Klaim bebas royalti berasal dari pengunggah; verifikasi lisensi sebelum dipakai di
+luar keperluan kelas.
+
 ## Rujukan
 
 - Agitha et al. (2021).
