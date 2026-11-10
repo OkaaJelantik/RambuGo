@@ -3,11 +3,18 @@ import type { RefObject } from 'react'
 import { CASES, TOTAL_DECISIONS, orderedOptions, type CaseAsk } from './sulit'
 import { SulitScene } from './art/sulitScene'
 import { initialSeed } from './run'
+import { saveAnswer, scoreOf } from './progress'
 import './sulit.css'
 
 /**
  * Layar "Studi Kasus Rambu": lima kasus, tiap kasus tiga tahap
  * (makna → alasan → tindakan), jadi 15 keputusan.
+ *
+ * **Controlled**: posisi keputusan (`pos`, 0..14) datang dari hash lewat App,
+ * bukan state internal. `caseIndex = floor(pos/3)` dan `stepIndex = pos % 3`.
+ * Skor tidak disimpan di komponen; setiap jawaban ditulis ke `progress.ts`
+ * (`studi`) dan skor dibaca dari sana, jadi back/refresh mempertahankan skor
+ * dan jawaban ulang memotong ekor alih-alih menghitung dua kali.
  *
  * Bentuknya mengikuti contoh `Assets/ExampleLevelHard.jpeg`: satu gambar situasi
  * di atas (jalan + rambu kasus itu), lalu blok "Cerita" yang hanya muncul di
@@ -16,7 +23,7 @@ import './sulit.css'
  * contoh — karena di 360×640 tiga blok sekaligus membuat layar menggulir, dan
  * umpan balik harus terbaca tanpa menggulir (handoff §10).
  *
- * Pola interaksi dan a11y-nya sama dengan kuis lama, bukan pola baru: wilayah
+ * Pola interaksi dan a11y-nya sama dengan kuis awal, bukan pola baru: wilayah
  * live sudah terpasang sebelum teks pertama, kunci jawaban menempel pada
  * `correct` (bukan posisi huruf), dan fokus tidak pernah jatuh ke `<body>`.
  */
@@ -29,19 +36,24 @@ const STAGE_TITLE: Record<CaseAsk, string> = {
 }
 
 type Props = {
+  /** Nomor keputusan sekarang, 0..14. Datang dari hash lewat App. */
+  pos: number
+  /** Maju ke keputusan berikutnya; App yang menulis hash + history. */
+  onPos: (pos: number) => void
   onDone: (score: number) => void
   /** Kartu soal; App memfokuskannya saat layar kuis menjadi tujuan fokus. */
   cardRef?: RefObject<HTMLDivElement | null>
 }
 
-export default function Sulit({ onDone, cardRef }: Props) {
+export default function Sulit({ pos, onPos, onDone, cardRef }: Props) {
   // Seed dibekukan sekali: urutan opsi tidak boleh berubah di tengah kasus.
   const [seed] = useState(initialSeed)
-  const [caseIndex, setCaseIndex] = useState(0)
-  const [stepIndex, setStepIndex] = useState(0)
-  const [picked, setPicked] = useState<number | null>(null)
-  const [score, setScore] = useState(0)
+  // `picked` lokal hanya untuk tampilan; pos-nya disimpan supaya pindah tahap
+  // (termasuk lewat back) otomatis menghapus umpan balik tahap sebelumnya.
+  const [picked, setPicked] = useState<{ pos: number; option: number } | null>(null)
 
+  const caseIndex = Math.floor(pos / 3)
+  const stepIndex = pos % 3
   const kase = CASES[caseIndex]
   const step = kase.steps[stepIndex]
   const options = useMemo(
@@ -49,21 +61,25 @@ export default function Sulit({ onDone, cardRef }: Props) {
     [caseIndex, stepIndex, seed],
   )
   /** Nomor keputusan 1–15; satu-satunya angka yang dilihat anak. */
-  const decision = caseIndex * 3 + stepIndex
-  const isLast = decision + 1 >= TOTAL_DECISIONS
+  const decision = pos
+  const isLast = pos + 1 >= TOTAL_DECISIONS
   const right = options.findIndex((option) => option.correct)
+  /** Opsi yang sudah dipilih **di keputusan ini**; `null` = belum menjawab. */
+  const shown = picked !== null && picked.pos === pos ? picked.option : null
+  /** Skor sesi dibaca dari storage, bukan state lokal. */
+  const score = scoreOf('studi')
 
   const nextRef = useRef<HTMLButtonElement>(null)
   const promptRef = useRef<HTMLParagraphElement>(null)
-  const shownRef = useRef(`${caseIndex}:${stepIndex}`)
+  const prevPosRef = useRef(pos)
 
   // Wilayah live sudah terpasang sejak render pertama; teksnya yang berganti.
   // Anak yang menjawab benar mendengar skornya sekalian, yang salah hanya
   // alasannya — skor tidak berubah, jadi tidak perlu dibacakan.
   const liveText =
-    picked === null
+    shown === null
       ? ''
-      : picked === right
+      : shown === right
         ? `${step.why} Skor ${score} dari ${TOTAL_DECISIONS}.`
         : step.why
 
@@ -71,45 +87,36 @@ export default function Sulit({ onDone, cardRef }: Props) {
   // <body>. Pindahkan ke tombol lanjut yang tetap ada, dan gulirkan ke dalam
   // layar: di 360×640 tombol ini lahir di bawah lipatan.
   useEffect(() => {
-    if (picked === null) return
+    if (shown === null) return
     nextRef.current?.scrollIntoView?.({ block: 'center' })
     nextRef.current?.focus({ preventScroll: true })
-  }, [picked, decision])
+  }, [shown, pos])
 
   // Tahap atau kasus berganti dan tombol lanjut lepas dari DOM. Fokuskan
   // pertanyaan baru (tabIndex -1), bukan membiarkan fokus ke <body>.
   useEffect(() => {
-    const key = `${caseIndex}:${stepIndex}`
-    if (shownRef.current === key) return
-    shownRef.current = key
+    if (prevPosRef.current === pos) return
+    prevPosRef.current = pos
     promptRef.current?.focus()
-  }, [caseIndex, stepIndex])
+  }, [pos])
 
-  // Jalur dev `?s=kuis` membuka layar tanpa aksi panel, jadi App tidak punya
+  // Jalur dev `?s=studi` membuka layar tanpa aksi panel, jadi App tidak punya
   // sasaran fokus. Jangan biarkan fokus tetap di <body>.
   useEffect(() => {
     if (document.activeElement === document.body) promptRef.current?.focus()
   }, [])
 
   const pick = (i: number) => {
-    if (picked !== null) return
-    setPicked(i)
-    if (options[i].correct) setScore((s) => s + 1)
+    if (shown !== null) return
+    saveAnswer('studi', pos, options[i].correct)
+    setPicked({ pos, option: i })
   }
 
   const next = () => {
-    if (stepIndex < kase.steps.length - 1) {
-      setStepIndex(stepIndex + 1)
-      setPicked(null)
-      return
-    }
-    if (caseIndex + 1 < CASES.length) {
-      setCaseIndex(caseIndex + 1)
-      setStepIndex(0)
-      setPicked(null)
-      return
-    }
-    onDone(score)
+    // Jawaban terakhir sudah tersimpan sebelum tombol ini bisa diklik; skor
+    // final dibaca dari storage supaya sama persis dengan layar rumah.
+    if (isLast) return onDone(scoreOf('studi'))
+    onPos(pos + 1)
   }
 
   return (
@@ -127,7 +134,7 @@ export default function Sulit({ onDone, cardRef }: Props) {
         <span className="bar">
           <span
             style={{
-              width: `${((decision + (picked !== null ? 1 : 0)) / TOTAL_DECISIONS) * 100}%`,
+              width: `${((decision + (shown !== null ? 1 : 0)) / TOTAL_DECISIONS) * 100}%`,
             }}
           />
         </span>
@@ -165,16 +172,16 @@ export default function Sulit({ onDone, cardRef }: Props) {
         <div className="options">
           {options.map((option, i) => {
             let cls = 'option'
-            if (picked !== null) {
+            if (shown !== null) {
               if (option.correct) cls += ' correct'
-              else if (i === picked) cls += ' wrong'
+              else if (i === shown) cls += ' wrong'
             }
             return (
               <button
                 key={option.text}
                 className={cls}
                 onClick={() => pick(i)}
-                disabled={picked !== null}
+                disabled={shown !== null}
               >
                 {option.text}
               </button>
@@ -182,9 +189,9 @@ export default function Sulit({ onDone, cardRef }: Props) {
           })}
         </div>
 
-        {picked !== null && (
+        {shown !== null && (
           <>
-            <p className={`feedback ${picked === right ? 'ok' : 'no'}`}>{step.why}</p>
+            <p className={`feedback ${shown === right ? 'ok' : 'no'}`}>{step.why}</p>
             <div className="sulit-next">
               <button className="btn" onClick={next} ref={nextRef}>
                 {isLast ? 'Sampai di rumah →' : 'Tahap berikutnya →'}

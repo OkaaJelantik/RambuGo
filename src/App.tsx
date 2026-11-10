@@ -14,20 +14,24 @@ import Kid from './Kid'
 import DialoguePanel from './DialoguePanel'
 import { beatById, openingFor, stopBeat, type StoryButton, type StoryId } from './story'
 import { starsFor } from './sortir'
+import { formatHash, parseHash, stageLimit, type Route, type Stage } from './route'
+import {
+  clearJalur,
+  clearLastJalur,
+  clearLastScore,
+  loadLastJalur,
+  loadLastScore,
+  saveLastJalur,
+  saveLastScore,
+  scoreOf,
+  type Jalur,
+} from './progress'
 
 /**
- * Tujuh adegan. `kuis` adalah kuis awal jalur Belajar (5 soal), `studi` adalah
+ * Delapan adegan. `kuis` adalah kuis awal jalur Belajar (5 soal), `studi` adalah
  * studi kasus papan timur (5 kasus × 3 tahap). Keduanya tidak memakai panel.
+ * Himpunan stage dimiliki `route.ts`; App hanya memegang rutenya.
  */
-type Stage =
-  | 'intro'
-  | 'walk'
-  | 'crossroad'
-  | 'materi'
-  | 'kuis'
-  | 'sortir'
-  | 'studi'
-  | 'home'
 
 function HomeHouse({ className }: { className?: string }) {
   return (
@@ -178,8 +182,61 @@ const STAGES: Stage[] = [
 // ?s=walk untuk lompat langsung ke satu adegan (buat cek tampilan).
 // Parameter ini alat bantu developer, jadi hanya dibaca di build dev.
 const devParams = import.meta.env.DEV ? new URLSearchParams(window.location.search) : null
-const start = devParams?.get('s') as Stage | null
-const initial: Stage = start && STAGES.includes(start) ? start : 'intro'
+
+/**
+ * Rute saat pertama kali dipasang. Hash adalah sumber utama, jadi refresh
+ * melanjutkan di adegan yang sama. `?s=` (alat bantu dev) hanya mengisi bila
+ * hash belum menunjuk adegan lain — mis. URL polos atau `#/intro`.
+ *
+ * Dipanggil untuk dua state awal (rute dan beat), jadi harus deterministik
+ * terhadap URL saat itu dan tidak menulis apa pun.
+ */
+function bootRoute(): Route {
+  const fromHash = parseHash(window.location.hash)
+  if (fromHash.stage !== 'intro' || fromHash.pos !== 0) return fromHash
+
+  const start = devParams?.get('s') as Stage | null
+  if (!start || !STAGES.includes(start)) return fromHash
+
+  // `?step=` tetap khusus walk (tiga leg), sama seperti dev shortcut lama;
+  // stage lain selalu mulai dari posisi 0.
+  const stepParam = start === 'walk' ? Number(devParams?.get('step')) : 0
+  const step = Number.isFinite(stepParam) && stepParam > 0 ? stepParam : 0
+  return { stage: start, pos: Math.min(step, stageLimit(start)) }
+}
+
+/** Jalur terakhir -> kalimat "bagaimana kamu sampai rumah" di kartu rumah. */
+function viaFor(jalur: Jalur): 'materi' | 'sortir' | 'studi' {
+  // Kuis awal selalu dibuka dari panel materi, jadi jalurnya tetap jalur materi.
+  if (jalur === 'kuis') return 'materi'
+  if (jalur === 'sortir') return 'sortir'
+  return 'studi'
+}
+
+/** Penyebut skor tiap jalur: 5 soal, 15 keputusan, 12 kartu. */
+function scoreMaxFor(jalur: Jalur): number {
+  if (jalur === 'kuis') return QUESTIONS.length
+  if (jalur === 'studi') return TOTAL_DECISIONS
+  return SIGNS.length
+}
+
+/**
+ * Skor awal untuk boot. Hash tidak membawa jalur; kalau App dibuka langsung
+ * di `#/home` (refresh atau URL), angka diambil dari jalur terakhir yang
+ * diselesaikan supaya rumah tidak berbohong "Benar 0/5".
+ */
+function bootScore(): { score: number; scoreMax: number } {
+  const boot = bootRoute()
+  if (boot.stage !== 'home') return { score: 0, scoreMax: QUESTIONS.length }
+
+  const jalur = loadLastJalur()
+  if (!jalur) return { score: 0, scoreMax: QUESTIONS.length }
+
+  // Sortir menilai sekali di tombol terakhir, jadi tidak punya jawaban per
+  // kartu di `saveAnswer`; angkanya datang dari skor yang ditulis `onDone`.
+  const score = jalur === 'sortir' ? (loadLastScore() ?? 0) : scoreOf(jalur)
+  return { score, scoreMax: scoreMaxFor(jalur) }
+}
 
 /** Beat untuk tiap leg dan tiap rambu; urutannya mengikat (naskah). */
 const LEG_BEATS: StoryId[] = ['leg-1', 'leg-2', 'leg-3']
@@ -204,32 +261,48 @@ const SHEET_GUARD_MS = 300
  */
 type FocusTarget = 'walk' | 'home' | 'intro' | 'materi' | 'sortir' | 'quiz' | 'crossroad'
 
+/**
+ * Sasaran fokus untuk sebuah stage. Dipakai saat browser back/forward
+ * memindahkan adegan: tombol yang tadinya fokus ikut lepas bersama layar,
+ * jadi fokus harus dipindahkan ke elemen yang pasti masih terpasang.
+ */
+function focusTargetFor(stage: Stage): FocusTarget {
+  if (stage === 'home') return 'home'
+  if (stage === 'intro') return 'intro'
+  if (stage === 'materi') return 'materi'
+  if (stage === 'sortir') return 'sortir'
+  if (stage === 'crossroad') return 'crossroad'
+  if (stage === 'walk') return 'walk'
+  return 'quiz'
+}
+
 function beatAt(beats: StoryId[], step: number): StoryId {
   return beats[Math.min(Math.max(step, 0), beats.length - 1)]
 }
 
-/** Beat awal mengikuti adegan yang dibuka lewat URL. */
-function startBeat(stage: Stage, walked: number): StoryId | null {
+/** Beat awal mengikuti adegan yang dibuka lewat hash/URL. */
+function startBeat(stage: Stage, pos: number): StoryId | null {
   if (stage === 'intro') return 'intro'
-  if (stage === 'walk') return beatAt(LEG_BEATS, walked)
+  if (stage === 'walk') return beatAt(LEG_BEATS, pos)
   if (stage === 'crossroad') return 'crossroad'
   if (stage === 'materi') return 'materi'
-  if (stage === 'home') return 'home'
-  // Kuis awal, studi kasus, dan sortir: panel tidak tampil selama soal/permainan.
+  // Kuis awal, studi kasus, sortir, dan rumah: panel tidak menemani layar.
   return null
 }
 
 export default function App() {
   const still = devParams?.has('still') ?? false
-  const [stage, setStage] = useState<Stage>(initial)
-  const [walked, setWalked] = useState(() => {
-    const v = Number(devParams?.get('step'))
-    return Number.isFinite(v) && v > 0 ? Math.min(v, 2) : 0
-  })
+  /**
+   * Rute hash adalah satu-satunya sumber posisi. Tidak ada state `stage` atau
+   * `walked` terpisah: keduanya dibaca dari `route`, sehingga back/refresh
+   * tidak bisa membuat dua sumber kebenaran yang berbeda.
+   */
+  const [route, setRoute] = useState<Route>(bootRoute)
+  const stage = route.stage
+  const pos = route.pos
   const [beatId, setBeatId] = useState<StoryId | null>(() => {
-    const v = Number(devParams?.get('step'))
-    const step = Number.isFinite(v) && v > 0 ? Math.min(v, 2) : 0
-    return startBeat(initial, step)
+    const boot = bootRoute()
+    return startBeat(boot.stage, boot.pos)
   })
   const [run] = useState<Run>(() => createRun(initialSeed()))
   const batch = batchOf(run)
@@ -247,13 +320,76 @@ export default function App() {
   const pendingFocusRef = useRef<FocusTarget | null>(null)
   // -Infinity: aksi panel sebelum lembar pertama pernah ditutup tidak ditahan.
   const sheetClosedAtRef = useRef(-Infinity)
-  const [via, setVia] = useState<'materi' | 'sortir' | 'studi' | null>(null)
-  const [score, setScore] = useState(0)
+  const [via, setVia] = useState<'materi' | 'sortir' | 'studi' | null>(() => {
+    // Hash tidak membawa jalur; kalau dibuka langsung di rumah, kalimat jalur
+    // ikut dipulihkan dari jalur terakhir (bukan "Petualangan selesai.").
+    const jalur = bootRoute().stage === 'home' ? loadLastJalur() : null
+    return jalur ? viaFor(jalur) : null
+  })
+  const [score, setScore] = useState(() => bootScore().score)
   /**
    * Penyebut skor mengikuti jalur: 5 soal kuis awal, 15 keputusan studi kasus,
    * atau 12 kartu sortir.
    */
-  const [scoreMax, setScoreMax] = useState(QUESTIONS.length)
+  const [scoreMax, setScoreMax] = useState(() => bootScore().scoreMax)
+  /**
+   * Skor sudah diisi alur normal (onDone) atau hidrasi boot. Efek rumah hanya
+   * mengisi dari `loadLastJalur()` kalau angka masih default boot; kalau tidak,
+   * sortir (yang skornya tidak tersimpan di `progress.ts`) bisa tertimpa 0.
+   */
+  const scoreKnownRef = useRef(stage === 'home')
+
+  /** Stage yang sudah ter-commit; popstate memakainya untuk tahu adegan berganti. */
+  const stageRef = useRef(stage)
+  useEffect(() => {
+    stageRef.current = stage
+  }, [stage])
+
+  // `#/home` bisa dicapai lewat history tanpa melewati onDone (mis. App dibuka
+  // di adegan lain lalu forward ke rumah). Hash tidak membawa jalur, jadi
+  // angka diambil sekali dari jalur terakhir yang diselesaikan.
+  useEffect(() => {
+    if (stage !== 'home' || scoreKnownRef.current) return
+    scoreKnownRef.current = true
+    const jalur = loadLastJalur()
+    if (!jalur) return
+    setScore(jalur === 'sortir' ? (loadLastScore() ?? 0) : scoreOf(jalur))
+    setScoreMax(scoreMaxFor(jalur))
+    setVia((current) => current ?? viaFor(jalur))
+  }, [stage])
+
+  /**
+   * Satu pintu navigasi: tulis rute ke state lalu ke URL. Semua perpindahan
+   * adegan lewat sini supaya hash tidak pernah tertinggal dari layar.
+   * Perubahan yang bukan navigasi (buka/tutup lembar, beat, fokus) tidak
+   * memanggil ini dan tidak menambah entri history.
+   */
+  const navigate = (nextStage: Stage, nextPos: number) => {
+    const next: Route = { stage: nextStage, pos: nextPos }
+    setRoute(next)
+    window.history.pushState(null, '', formatHash(next))
+  }
+
+  // Tombol back/forward browser: URL sudah berubah duluan, App hanya
+  // mengikuti. Tidak ada pushState di sini — entri history itu milik browser.
+  useEffect(() => {
+    const onPop = () => {
+      const next = parseHash(window.location.hash)
+      // Kalau adegan berganti, tombol yang tadinya fokus ikut lepas bersama
+      // layar; pindahkan ke elemen tetap di adegan baru. Kalau hanya pos yang
+      // berubah (walk/kuis/studi), komponen tujuan memfokuskan pertanyaannya.
+      if (next.stage !== stageRef.current) pendingFocusRef.current = focusTargetFor(next.stage)
+      stageRef.current = next.stage
+      setRoute(next)
+      setBeatId(startBeat(next.stage, next.pos))
+      // Lembar rambu dan balon narasi milik adegan lama, bukan adegan baru.
+      setOpen(null)
+      setMateriOpen(null)
+      setNarration(null)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   /** Catat waktu tutup lembar; aksi panel sesudahnya ditahan sebentar. */
   const closeWalkSheet = () => {
@@ -270,12 +406,19 @@ export default function App() {
   }
 
   const restart = () => {
+    // Sesi baru: skor tiap jalur milik sesi lama, jangan dibawa ke kelas.
+    clearJalur('kuis')
+    clearJalur('studi')
+    clearJalur('sortir')
+    clearLastJalur()
+    clearLastScore()
+    scoreKnownRef.current = false
     pendingFocusRef.current = 'intro'
-    setStage('intro')
-    setWalked(0)
+    navigate('intro', 0)
     setBeatId('intro')
     setOpen(null)
     setMateriOpen(null)
+    setNarration(null)
     setVia(null)
     setScore(0)
     setScoreMax(QUESTIONS.length)
@@ -315,23 +458,22 @@ export default function App() {
     setNarration(null)
     if (stage === 'intro') {
       pendingFocusRef.current = 'walk'
-      setStage('walk')
-      setWalked(0)
+      navigate('walk', 0)
       setBeatId(beatAt(LEG_BEATS, 0))
       return
     }
     if (stage !== 'walk') return
 
-    if (walked + 1 >= batch.length) {
+    if (pos + 1 >= batch.length) {
       // Persimpangan memfokuskan judulnya sendiri saat terpasang.
-      setStage('crossroad')
+      navigate('crossroad', 0)
       setBeatId('crossroad')
     } else {
       // Tombol "Lanjut jalan" ikut terlepas; wadah scene tetap ada, jadi
       // fokus ditahan di sana sebelum tombolnya hilang.
       walkSceneRef.current?.focus()
-      setWalked(walked + 1)
-      setBeatId(beatAt(LEG_BEATS, walked + 1))
+      navigate('walk', pos + 1)
+      setBeatId(beatAt(LEG_BEATS, pos + 1))
     }
   }
 
@@ -346,50 +488,14 @@ export default function App() {
         continueWalk()
         return
       case 'learn':
-        if (stage === 'walk') setOpen(batch[walked])
-        return
-      case 'sortir':
-        // Papan utara: permainan mengelompokkan rambu. Panel tidak menemani
-        // permainan; layar sortir punya wilayah live sendiri.
-        pendingFocusRef.current = 'sortir'
-        setVia('sortir')
-        setStage('sortir')
-        setBeatId(null)
-        return
-      case 'materi':
-        pendingFocusRef.current = 'materi'
-        setVia('materi')
-        setStage('materi')
-        setBeatId('materi')
-        return
-      case 'studi':
-        // Papan timur: studi kasus 15 keputusan. Panel tidak menemani soal;
-        // beat kuis baru muncul sebagai pembuka layar hasil.
-        pendingFocusRef.current = 'quiz'
-        setVia('studi')
-        setStage('studi')
-        setBeatId(null)
+        if (stage === 'walk') setOpen(batch[pos])
         return
       case 'kuis':
         // Kuis awal 5 soal, dibuka dari panel materi. Jalurnya tetap jalur
         // materi (`via` tidak diubah): anak belajar dulu, lalu mengerjakan kuis.
         pendingFocusRef.current = 'quiz'
-        setStage('kuis')
+        navigate('kuis', 0)
         setBeatId(null)
-        return
-      case 'home':
-        // "Selesai" menutup kuis, "Pulang" menutup panel di rumah. Keduanya
-        // mendarat di judul rumah yang tetap terpasang.
-        pendingFocusRef.current = 'home'
-        if (beatId === 'kuis') setBeatId('home')
-        else if (beatId === 'home') setBeatId(null)
-        else {
-          setStage('home')
-          setBeatId('home')
-        }
-        return
-      case 'restart':
-        restart()
         return
     }
   }
@@ -402,8 +508,7 @@ export default function App() {
             headingRef={classroomHeadingRef}
             onStart={() => {
               pendingFocusRef.current = 'walk'
-              setWalked(0)
-              setStage('walk')
+              navigate('walk', 0)
               setBeatId(beatAt(LEG_BEATS, 0))
             }}
           />
@@ -414,7 +519,7 @@ export default function App() {
         <section className="screen" key="walk">
           <WalkScene
             signs={batch}
-            step={walked}
+            step={pos}
             onOpen={(sign) => setOpen(sign)}
             onStop={() => {
               setNarration(null)
@@ -445,19 +550,19 @@ export default function App() {
             onSortir={() => {
               pendingFocusRef.current = 'sortir'
               setVia('sortir')
-              setStage('sortir')
+              navigate('sortir', 0)
               setBeatId(null)
             }}
             onMateri={() => {
               pendingFocusRef.current = 'materi'
               setVia('materi')
-              setStage('materi')
+              navigate('materi', 0)
               setBeatId('materi')
             }}
             onStudi={() => {
               pendingFocusRef.current = 'quiz'
               setVia('studi')
-              setStage('studi')
+              navigate('studi', 0)
               setBeatId(null)
             }}
           />
@@ -505,12 +610,16 @@ export default function App() {
             headingRef={sortirHeadingRef}
             onDone={(benar) => {
               pendingFocusRef.current = 'home'
+              // Sortir tidak punya posisi per kartu di hash, jadi skornya
+              // datang dari layar permainan (bukan `progress.ts`).
+              saveLastJalur('sortir')
+              saveLastScore(benar)
+              scoreKnownRef.current = true
               setScore(benar)
               setScoreMax(SIGNS.length)
-              setStage('home')
-              // Ringkasan sortir sudah ditutup tombol "Selesai"; layar rumah
-              // langsung memakai beat rumah, bukan beat kuis.
-              setBeatId('home')
+              navigate('home', 0)
+              // Selesai permainan: layar hasil bicara sendiri, tanpa panel.
+              setBeatId(null)
             }}
           />
         </section>
@@ -519,14 +628,22 @@ export default function App() {
       {stage === 'kuis' && (
         <section className="screen quiz-screen" key="kuis">
           <Kuis
+            pos={pos}
+            onPos={(next) => navigate('kuis', next)}
             cardRef={quizCardRef}
-            onDone={(s) => {
+            onDone={() => {
               pendingFocusRef.current = 'home'
-              setScore(s)
+              // Skor final dibaca dari storage yang sama dengan tempat soal
+              // menulis jawaban, jadi refresh di tengah kuis tidak menghapus
+              // skor yang sudah dikumpulkan.
+              saveLastJalur('kuis')
+              saveLastScore(scoreOf('kuis'))
+              scoreKnownRef.current = true
+              setScore(scoreOf('kuis'))
               setScoreMax(QUESTIONS.length)
-              setStage('home')
-              // Beat kuis ("Kalau benar, aku dapat bintang.") membuka layar hasil.
-              setBeatId('kuis')
+              navigate('home', 0)
+              // Selesai kuis: layar hasil bicara sendiri, tanpa panel.
+              setBeatId(null)
             }}
           />
         </section>
@@ -535,24 +652,27 @@ export default function App() {
       {stage === 'studi' && (
         <section className="screen quiz-screen sulit-screen" key="studi">
           <Sulit
+            pos={pos}
+            onPos={(next) => navigate('studi', next)}
             cardRef={quizCardRef}
-            onDone={(s) => {
+            onDone={() => {
               pendingFocusRef.current = 'home'
-              setScore(s)
+              // Sama seperti kuis: skor final adalah isi storage saat itu.
+              saveLastJalur('studi')
+              saveLastScore(scoreOf('studi'))
+              scoreKnownRef.current = true
+              setScore(scoreOf('studi'))
               setScoreMax(TOTAL_DECISIONS)
-              setStage('home')
-              // Beat kuis ("Kalau benar, aku dapat bintang.") membuka layar hasil.
-              setBeatId('kuis')
+              navigate('home', 0)
+              // Selesai studi kasus: layar hasil bicara sendiri, tanpa panel.
+              setBeatId(null)
             }}
           />
         </section>
       )}
 
       {stage === 'home' && (
-        <section
-          className={`screen home-screen${beatId ? ' dlg-space' : ''}`}
-          key="home"
-        >
+        <section className="screen home-screen" key="home">
           <div className="home-card">
             <div className="house">
               <HomeHouse />
@@ -589,7 +709,7 @@ export default function App() {
                 className="btn"
                 onClick={() => {
                   pendingFocusRef.current = 'crossroad'
-                  setStage('crossroad')
+                  navigate('crossroad', 0)
                   setBeatId('crossroad')
                 }}
               >
@@ -613,7 +733,7 @@ export default function App() {
           stage === 'intro'
             ? null
             : beatId === STOP_BEAT
-              ? stopBeat(batch[walked])
+              ? stopBeat(batch[pos])
               : beatById(beatId)
         }
         onAction={handleAction}

@@ -4,9 +4,17 @@ import { QUESTIONS, SIGNS, type Question } from './data'
 import { SignArt, describeSign } from './SignArt'
 import { createRng } from './scene/spawner'
 import { initialSeed } from './run'
+import { saveAnswer, scoreOf } from './progress'
 
 /**
  * Kuis awal jalur Belajar: lima soal, satu soal per layar.
+ *
+ * **Controlled**: posisi soal datang dari luar (`pos`), karena App memegang
+ * hash sebagai satu-satunya sumber posisi. Komponen ini tidak menyimpan
+ * indeks maupun skor; setiap jawaban ditulis ke `progress.ts` (`kuis`), dan
+ * skor yang diumumkan selalu dibaca dari sana. Itulah yang membuat tombol
+ * back dan refresh konsisten: kembali ke soal sebelumnya lalu menjawab ulang
+ * memotong ekor jawaban, bukan menambah skor dua kali.
  *
  * Sama seperti kuis lama, dengan satu perbaikan: dulu kunci jawaban 4 dari 5
  * soal adalah huruf A, jadi anak bisa menang dengan menghafal posisi. Sekarang
@@ -63,57 +71,64 @@ export function optionOrder(question: Question, seed: number, questionIndex: num
 }
 
 type Props = {
+  /** Soal sekarang, 0..4. Datang dari hash lewat App. */
+  pos: number
+  /** Maju ke soal berikutnya; App yang menulis hash + history. */
+  onPos: (pos: number) => void
   onDone: (score: number) => void
   /** Kartu soal; App memfokuskannya saat layar kuis menjadi tujuan fokus. */
   cardRef?: RefObject<HTMLDivElement | null>
 }
 
-export default function Kuis({ onDone, cardRef }: Props) {
+export default function Kuis({ pos, onPos, onDone, cardRef }: Props) {
   // Seed dibekukan sekali: urutan opsi tidak boleh berubah di tengah kuis.
   const [seed] = useState(initialSeed)
-  const [idx, setIdx] = useState(0)
-  const [picked, setPicked] = useState<number | null>(null)
-  const [score, setScore] = useState(0)
+  // `picked` lokal hanya untuk tampilan; pos-nya disimpan supaya pindah soal
+  // (termasuk lewat back) otomatis menghapus umpan balik soal sebelumnya.
+  const [picked, setPicked] = useState<{ pos: number; option: number } | null>(null)
 
-  const q = QUESTIONS[idx]
+  const q = QUESTIONS[pos]
   const sign = q.signId ? SIGNS.find((s) => s.id === q.signId) : undefined
-  const order = optionOrder(q, seed, idx)
+  const order = optionOrder(q, seed, pos)
   /** Posisi tampil jawaban benar (bukan `q.answer`: itu indeks asli). */
   const right = order.indexOf(q.answer)
+  /** Opsi yang sudah dipilih **di soal ini**; `null` = belum menjawab. */
+  const shown = picked !== null && picked.pos === pos ? picked.option : null
+  /** Skor sesi dibaca dari storage, bukan state: refresh/back tidak menghapusnya. */
+  const score = scoreOf('kuis')
 
   const nextRef = useRef<HTMLButtonElement>(null)
   const promptRef = useRef<HTMLParagraphElement>(null)
-  const prevIdxRef = useRef(idx)
+  const prevPosRef = useRef(pos)
 
   const feedbackText =
-    picked === null
+    shown === null
       ? ''
-      : `${picked === right ? 'Tepat sekali! ' : 'Belum tepat. '}${q.why}`
+      : `${shown === right ? 'Tepat sekali! ' : 'Belum tepat. '}${q.why}`
 
   // Wilayah live yang sama membawa umpan balik dan, saat jawaban menambah
-  // skor, skor baru. `score` sudah diperbarui di render ini, jadi yang
-  // diumumkan adalah angka yang terlihat anak.
+  // skor, skor baru. `score` dibaca setelah jawaban tersimpan di render ini.
   const liveText =
-    picked === null
+    shown === null
       ? ''
-      : `${feedbackText}${picked === right ? ` Skor ${score} dari ${QUESTIONS.length}.` : ''}`
+      : `${feedbackText}${shown === right ? ` Skor ${score} dari ${QUESTIONS.length}.` : ''}`
 
   // Memilih opsi menonaktifkan tombol yang sedang fokus, jadi fokus jatuh ke
   // <body>. Pindahkan ke "Soal berikutnya" yang tetap ada, dan gulirkan ke
   // dalam layar: pada 360×640 tombol ini lahir di bawah lipatan.
   useEffect(() => {
-    if (picked === null) return
+    if (shown === null) return
     nextRef.current?.scrollIntoView?.({ block: 'center' })
     nextRef.current?.focus({ preventScroll: true })
-  }, [picked, idx])
+  }, [shown, pos])
 
-  // Soal berganti dan tombol "Soal berikutnya" lepas dari DOM. Fokuskan
+  // Posisi berganti dan tombol "Soal berikutnya" lepas dari DOM. Fokuskan
   // pertanyaan baru (tabIndex -1), bukan membiarkan fokus ke <body>.
   useEffect(() => {
-    if (prevIdxRef.current === idx) return
-    prevIdxRef.current = idx
+    if (prevPosRef.current === pos) return
+    prevPosRef.current = pos
     promptRef.current?.focus()
-  }, [idx])
+  }, [pos])
 
   // Jalur dev `?s=kuis` membuka layar tanpa aksi panel, jadi App tidak punya
   // sasaran fokus. Jangan biarkan fokus tetap di <body>.
@@ -122,15 +137,16 @@ export default function Kuis({ onDone, cardRef }: Props) {
   }, [])
 
   const pick = (i: number) => {
-    if (picked !== null) return
-    setPicked(i)
-    if (i === right) setScore((s) => s + 1)
+    if (shown !== null) return
+    saveAnswer('kuis', pos, i === right)
+    setPicked({ pos, option: i })
   }
 
   const next = () => {
-    if (idx + 1 >= QUESTIONS.length) return onDone(score)
-    setIdx(idx + 1)
-    setPicked(null)
+    // Jawaban terakhir sudah tersimpan sebelum tombol ini bisa diklik; skor
+    // final dibaca dari storage supaya sama persis dengan layar rumah.
+    if (pos + 1 >= QUESTIONS.length) return onDone(scoreOf('kuis'))
+    onPos(pos + 1)
   }
 
   return (
@@ -144,11 +160,11 @@ export default function Kuis({ onDone, cardRef }: Props) {
 
       <div className="quiz-progress">
         <span>
-          Soal {idx + 1}/{QUESTIONS.length}
+          Soal {pos + 1}/{QUESTIONS.length}
         </span>
         <span className="bar">
           <span
-            style={{ width: `${((idx + (picked !== null ? 1 : 0)) / QUESTIONS.length) * 100}%` }}
+            style={{ width: `${((pos + (shown !== null ? 1 : 0)) / QUESTIONS.length) * 100}%` }}
           />
         </span>
       </div>
@@ -169,16 +185,16 @@ export default function Kuis({ onDone, cardRef }: Props) {
         <div className="options">
           {order.map((original, i) => {
             let cls = 'option'
-            if (picked !== null) {
+            if (shown !== null) {
               if (original === q.answer) cls += ' correct'
-              else if (i === picked) cls += ' wrong'
+              else if (i === shown) cls += ' wrong'
             }
             return (
               <button
                 key={q.options[original]}
                 className={cls}
                 onClick={() => pick(i)}
-                disabled={picked !== null}
+                disabled={shown !== null}
               >
                 {q.options[original]}
               </button>
@@ -186,12 +202,12 @@ export default function Kuis({ onDone, cardRef }: Props) {
           })}
         </div>
 
-        {picked !== null && (
+        {shown !== null && (
           <>
-            <p className={`feedback ${picked === right ? 'ok' : 'no'}`}>{feedbackText}</p>
+            <p className={`feedback ${shown === right ? 'ok' : 'no'}`}>{feedbackText}</p>
             <div style={{ marginTop: '1rem' }}>
               <button className="btn" onClick={next} ref={nextRef}>
-                {idx + 1 >= QUESTIONS.length ? 'Sampai di rumah →' : 'Soal berikutnya →'}
+                {pos + 1 >= QUESTIONS.length ? 'Sampai di rumah →' : 'Soal berikutnya →'}
               </button>
             </div>
           </>

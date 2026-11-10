@@ -600,12 +600,8 @@ export default function Classroom({
         </div>
 
         <div className="cr-card">
-          <p className="cr-eyebrow">
-            <span className="cr-dot" aria-hidden="true" />
-            Kelas 2 SD
-          </p>
           <h1 className="cr-title" id="cr-title" ref={headingRef} tabIndex={-1}>
-            Petualangan <span className="cr-mark">Rambu Lalu Lintas</span>
+            Rambu<span className="cr-mark">GO!</span>
           </h1>
           <p className="cr-lead">{INTRO_LINE}</p>
           <button className="cr-cta" type="button" onClick={onStart}>

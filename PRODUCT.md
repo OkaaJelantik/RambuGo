@@ -1,4 +1,4 @@
-# PRODUCT.md — Petualangan Rambu Lalu Lintas
+# PRODUCT.md — RambuGO!
 
 PRD hidup. Perbarui berkas ini ketika keputusan produk berubah; `AGENTS.md` memuat cara kerjanya,
 `DESIGN.md` memuat aturan visualnya.

@@ -15,16 +15,7 @@ function countSentences(text: string): number {
   return (text.match(/[.!?]+(?=\s|$)/g) ?? []).length
 }
 
-const ACTIONS: StoryAction[] = [
-  'continue',
-  'learn',
-  'materi',
-  'sortir',
-  'studi',
-  'kuis',
-  'home',
-  'restart',
-]
+const ACTIONS: StoryAction[] = ['continue', 'learn', 'kuis']
 
 const EXPECTED_IDS = [
   'intro',
@@ -33,13 +24,11 @@ const EXPECTED_IDS = [
   'leg-3',
   'crossroad',
   'materi',
-  'kuis',
-  'home',
 ]
 
 describe('naskah cerita', () => {
-  it('memuat 9 beat statis dengan urutan naskah (perhentian diturunkan dari rambu)', () => {
-    expect(STORY).toHaveLength(8)
+  it('memuat 6 beat statis dengan urutan naskah (perhentian diturunkan dari rambu)', () => {
+    expect(STORY).toHaveLength(6)
     expect(STORY.map((beat) => beat.id)).toEqual(EXPECTED_IDS)
   })
 
@@ -49,24 +38,20 @@ describe('naskah cerita', () => {
     expect(INTRO_LINE).toContain('Bu Guru')
   })
 
-  it('setiap balon maksimal 2 kalimat (penutup 3) dan 90 karakter', () => {
+  it('setiap balon maksimal 2 kalimat dan 90 karakter', () => {
     for (const beat of STORY) {
       expect(beat.text.length, `${beat.id}: "${beat.text}"`).toBeLessThanOrEqual(90)
-      // Beat penutup di rumah memakai tiga kalimat pendek — satu perasaan,
-      // satu ajakan bercerita. Balon lain tetap dua kalimat supaya panel
-      // tidak berubah jadi paragraf.
-      const maxSentences = beat.id === 'home' ? 3 : 2
-      expect(countSentences(beat.text), `${beat.id}: "${beat.text}"`).toBeLessThanOrEqual(
-        maxSentences,
-      )
+      expect(countSentences(beat.text), `${beat.id}: "${beat.text}"`).toBeLessThanOrEqual(2)
       expect(beat.text.trim().length).toBeGreaterThan(0)
     }
   })
 
-  it('setiap beat punya tombol dengan aksi yang dikenal, kecuali leg', () => {
+  it('setiap beat punya tombol dengan aksi yang dikenal, kecuali leg dan persimpangan', () => {
+    // Leg tampil otomatis dan hilang sendiri; persimpangan bercerita saja —
+    // papan tujuan di layar yang memilih jalur.
+    const withoutButtons = ['leg-1', 'leg-2', 'leg-3', 'crossroad']
     for (const beat of STORY) {
-      if (beat.id.startsWith('leg-')) {
-        // Naskah: kalimat leg tampil otomatis dan hilang sendiri, tanpa tombol.
+      if (withoutButtons.includes(beat.id)) {
         expect(beat.buttons, `${beat.id} tidak boleh punya tombol`).toEqual([])
         continue
       }
@@ -78,18 +63,16 @@ describe('naskah cerita', () => {
     }
   })
 
-  it('naskah persimpangan menawarkan tiga jalur berbeda', () => {
+  it('naskah persimpangan bercerita dan menyerahkan pilihan jalur ke papan', () => {
     const text = beatById('crossroad')?.text ?? ''
     // Literal (bukan turunan STORY) supaya perubahan kata di sumber tertangkap.
-    expect(text).toBe(
-      'Sampai di persimpangan. Kiri belajar, lurus kelompokkan, kanan studi kasus.',
-    )
-    // Jalur kanan adalah studi kasus, bukan kuis biasa: panel dan papan harus
-    // menyebut hal yang sama.
-    expect(text).toContain('studi kasus')
+    expect(text).toBe('Sampai di persimpangan. Kemana kita akan pergi?')
+    // Panel tidak lagi menyebut nama jalur: papan tujuan di layar yang
+    // memberi tahu ke mana setiap jalan pergi.
+    expect(text).not.toContain('studi kasus')
     expect(text.length).toBeLessThanOrEqual(90)
-    const buttons = beatById('crossroad')?.buttons ?? []
-    expect(buttons.map((button) => button.action)).toEqual(['materi', 'sortir', 'studi'])
+    // Panel tidak menawarkan tombol: hanya papan tujuan yang bisa diklik.
+    expect(beatById('crossroad')?.buttons).toEqual([])
   })
 
   it('tombol baku sesuai tempatnya', () => {
@@ -108,10 +91,11 @@ describe('naskah cerita', () => {
       ])
     }
 
-    expect(labels('crossroad')).toEqual(['Ke materi', 'Ke kelompokkan', 'Ke studi kasus'])
+    expect(labels('crossroad')).toEqual([])
     expect(labels('materi')).toEqual(['Sudah paham, coba kuis'])
-    expect(labels('kuis')).toEqual(['Selesai'])
-    expect(labels('home')).toEqual(['Pulang', 'Main lagi'])
+    // Layar hasil (rumah) tidak memakai panel: tidak ada beat kuis/home.
+    expect(beatById('kuis')).toBeNull()
+    expect(beatById('home')).toBeNull()
   })
 
   it('tombol stop menawarkan belajar dan lanjut; leg tidak punya tombol', () => {

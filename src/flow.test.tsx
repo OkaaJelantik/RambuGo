@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import Junction from './Junction'
 import { KINDS, QUESTIONS, SIGNS, type Question } from './data'
 import { CASES, TOTAL_DECISIONS } from './sulit'
+import { loadAnswers, loadLastJalur, saveLastJalur, saveLastScore, scoreOf } from './progress'
 import { METERS } from './scene/meters'
 import { LEG_SECONDS } from './scene/world'
 import { INTRO_LINE } from './story'
@@ -65,6 +66,9 @@ beforeEach(() => {
   // App reads `?s=` / `?step=` / `?still` at module load (DEV only); a clean
   // URL keeps every test on the real `intro` entry point.
   window.history.replaceState({}, '', '/')
+  // Jawaban per jalur hidup di sessionStorage; sesi tes tidak boleh mewarisi
+  // skor dari tes sebelumnya (dulu urutan tes sempat menentukan hasil).
+  sessionStorage.clear()
   frames = installFrames()
 })
 
@@ -150,11 +154,8 @@ const OPENINGS: Record<string, string> = {
   'belok-kanan': 'Panah ke kanan di bulat biru. Kendaraan wajib belok kanan.',
 }
 
-const CROSSROAD_LINE =
-  'Sampai di persimpangan. Kiri belajar, lurus kelompokkan, kanan studi kasus.'
+const CROSSROAD_LINE = 'Sampai di persimpangan. Kemana kita akan pergi?'
 const MATERI_LINE = 'Rambu yang tadi kulihat, aku kenali satu-satu.'
-const KUIS_LINE = 'Kalau benar, aku dapat bintang.'
-const HOME_LINE = 'Sampai di rumah. Rambu itu kawan di jalan! besok aku cerita ke Bu Guru.'
 
 /**
  * Wilayah live panel yang selalu terpasang; teksnya mengikuti beat yang
@@ -168,6 +169,13 @@ function panel(): HTMLElement {
 /** Panel dialog yang benar-benar digambar di layar, atau `null` saat kosong. */
 function panelEl(): HTMLElement | null {
   return document.querySelector<HTMLElement>('.dlg')
+}
+
+/** Papan tujuan di persimpangan adalah satu-satunya pemilih jalur. */
+function expectCrossroadBoards() {
+  expect(screen.getByRole('button', { name: /^Belajar —/ })).toBeTruthy()
+  expect(screen.getByRole('button', { name: /^Pilah —/ })).toBeTruthy()
+  expect(screen.getByRole('button', { name: /^Studi Kasus —/ })).toBeTruthy()
 }
 
 /** Panel harus benar-benar lepas dari DOM, bukan sekadar `aria-hidden`. */
@@ -251,9 +259,9 @@ async function clearWalk() {
   }
 
   expectPanelLine(CROSSROAD_LINE)
-  expect(screen.getByRole('button', { name: 'Ke materi' })).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Ke kelompokkan' })).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Ke studi kasus' })).toBeTruthy()
+  // Panel hanya bercerita: tombol jalur ada di papan, bukan di panel.
+  expect(panelEl()?.querySelectorAll('button')).toHaveLength(0)
+  expectCrossroadBoards()
 }
 
 /**
@@ -312,13 +320,12 @@ function answerKuisAwal(correct: (question: Question, index: number) => boolean)
 }
 
 /**
- * Setelah soal terakhir: layar rumah tampil, tetapi panel masih memutar beat
- * kuis ("Kalau benar, aku dapat bintang.") dengan tombol "Selesai".
+ * Setelah soal terakhir: layar rumah tampil tanpa panel — hasil permainan
+ * dibaca dari kartu rumah, bukan dari balon penutup.
  */
-function finishQuizPanel() {
-  expectPanelLine(KUIS_LINE)
-  fireEvent.click(screen.getByRole('button', { name: 'Selesai' }))
-  expectPanelLine(HOME_LINE)
+async function finishQuizPanel() {
+  await waitFor(() => expectNoPanel())
+  expect(panel().textContent).toBe('')
 }
 
 /** Enter the classroom, walk to the crossroad, and assert we arrived. */
@@ -328,7 +335,7 @@ async function reachCrossroad() {
   // Di kelas panel belum tampil: kartu kelas yang memegang kalimat intro.
   expectNoPanel()
   expect(screen.getByText(INTRO_LINE)).toBeTruthy()
-  expect(screen.getByRole('heading', { name: /Petualangan Rambu Lalu Lintas/ })).toBeTruthy()
+  expect(screen.getByRole('heading', { name: /RambuGO!/ })).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /Keluar kelas/ }))
 
   // WalkScene is on screen and its HUD names the road ahead.
@@ -345,7 +352,7 @@ async function reachCrossroad() {
  */
 async function reachKuisAwal() {
   await reachCrossroad()
-  fireEvent.click(screen.getByRole('button', { name: 'Ke materi' }))
+  fireEvent.click(screen.getByRole('button', { name: /^Belajar —/ }))
   expect(screen.getByRole('heading', { name: 'Jalur Materi' })).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: 'Sudah paham, coba kuis' }))
   await waitFor(() => expectNoPanel())
@@ -476,7 +483,7 @@ describe('alur aplikasi', () => {
 
   it('studi kasus: fokus tidak jatuh ke <body>, umpan balik diumumkan, rambu terbaca', async () => {
     await reachCrossroad()
-    fireEvent.click(screen.getByRole('button', { name: 'Ke studi kasus' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Studi Kasus —/ }))
     expect(screen.getByText('Tahap 1/15')).toBeTruthy()
 
     // Deskripsi visual (bentuk + gambar) ikut pertanyaan, bukan nama rambu:
@@ -505,7 +512,7 @@ describe('alur aplikasi', () => {
 
   it('studi kasus: deskripsi gambarnya tidak memuat teks jawaban', async () => {
     await reachCrossroad()
-    fireEvent.click(screen.getByRole('button', { name: 'Ke studi kasus' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Studi Kasus —/ }))
 
     CASES.forEach((oneCase, caseIndex) => {
       oneCase.steps.forEach((step, stepIndex) => {
@@ -583,7 +590,7 @@ describe('alur aplikasi', () => {
   it('jalur materi: 3 rambu, papan rambu, lalu 5/5 dengan teks jalur materi', async () => {
     await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ke materi' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Belajar —/ }))
     expect(screen.getByRole('heading', { name: 'Jalur Materi' })).toBeTruthy()
     expectPanelLine(MATERI_LINE)
 
@@ -604,7 +611,7 @@ describe('alur aplikasi', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sudah paham, coba kuis' }))
     await waitFor(() => expectNoPanel())
     answerKuisAwal(() => true)
-    finishQuizPanel()
+    await finishQuizPanel()
 
     expect(screen.getByText('Benar 5/5')).toBeTruthy()
     expect(screen.getByText('Bintang 3 ⭐')).toBeTruthy()
@@ -612,11 +619,9 @@ describe('alur aplikasi', () => {
     expect(screen.getByText('Kamu belajar dulu, lalu mengerjakan kuis.')).toBeTruthy()
     expect(screen.queryByText('Kamu berani mencoba studi kasus lebih dulu.')).toBeNull()
 
-    // "Pulang" menutup panel di rumah; kartu rumah tetap punya tombol main lagi.
-    fireEvent.click(screen.getByRole('button', { name: 'Pulang' }))
-    await waitFor(() => expectNoPanel())
+    // Tanpa panel penutup, kartu rumah tetap punya tombol main lagi.
     fireEvent.click(screen.getByRole('button', { name: 'Main lagi dari kelas' }))
-    expect(screen.getByRole('heading', { name: /Petualangan Rambu Lalu Lintas/ })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /RambuGO!/ })).toBeTruthy()
   })
 
   it('kuis awal: fokus tidak jatuh ke <body>, umpan balik diumumkan, rambu terbaca', async () => {
@@ -710,7 +715,7 @@ describe('alur aplikasi', () => {
     expect(screen.queryByText('Studi Kasus Rambu')).toBeNull()
 
     answerKuisAwal((_, index) => index < 2)
-    finishQuizPanel()
+    await finishQuizPanel()
 
     expect(screen.getByText('Benar 2/5')).toBeTruthy()
     expect(screen.getByText('Bintang 2 ⭐')).toBeTruthy()
@@ -720,9 +725,9 @@ describe('alur aplikasi', () => {
   it('rumah: "Kembali ke persimpangan" kembali ke persimpangan tanpa mengulang kelas atau jalan', async () => {
     await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ke studi kasus' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Studi Kasus —/ }))
     answerQuiz(() => true)
-    finishQuizPanel()
+    await finishQuizPanel()
     expect(screen.getByText('Benar 15/15')).toBeTruthy()
 
     // Dua tombol di kartu rumah, urutannya: kembali dulu, lalu main lagi.
@@ -731,19 +736,15 @@ describe('alur aplikasi', () => {
     ).map((button) => button.textContent?.trim())
     expect(homeButtons).toEqual(['Kembali ke persimpangan', 'Main lagi dari kelas'])
 
-    // "Pulang" menutup panel rumah; tombol kembali tetap ada di kartu rumah.
-    fireEvent.click(screen.getByRole('button', { name: 'Pulang' }))
-    await waitFor(() => expectNoPanel())
     fireEvent.click(screen.getByRole('button', { name: 'Kembali ke persimpangan' }))
 
-    // Kembali ke layar persimpangan yang sama: judulnya difokuskan dan panel
-    // menawarkan tiga jalur lagi.
+    // Kembali ke layar persimpangan yang sama: judulnya difokuskan, panel
+    // kembali hanya bercerita, dan papan menawarkan tiga jalur lagi.
     const heading = screen.getByRole('heading', { name: 'Kamu sampai di persimpangan' })
     expect(document.activeElement).toBe(heading)
     expectPanelLine(CROSSROAD_LINE)
-    expect(screen.getByRole('button', { name: 'Ke materi' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Ke kelompokkan' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Ke studi kasus' })).toBeTruthy()
+    expect(panelEl()?.querySelectorAll('button')).toHaveLength(0)
+    expectCrossroadBoards()
 
     // Tidak mengulang kelas maupun perjalanan kaki.
     expect(screen.queryByText(INTRO_LINE)).toBeNull()
@@ -751,10 +752,10 @@ describe('alur aplikasi', () => {
     expect(screen.queryByRole('button', { name: /Keluar kelas/ })).toBeNull()
   })
 
-  it('panel persimpangan: tombol "Ke kelompokkan" membuka layar sortir tanpa panel', async () => {
+  it('papan persimpangan: papan "Pilah" membuka layar sortir tanpa panel', async () => {
     await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ke kelompokkan' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Pilah —/ }))
     const heading = screen.getByRole('heading', { name: 'Kelompokkan Rambu' })
     expect(heading).toBeTruthy()
     expect(document.activeElement).toBe(heading)
@@ -767,7 +768,7 @@ describe('alur aplikasi', () => {
   it('jalur sortir: dua belas kartu dikelompokkan, Selesai, rumah menampilkan Benar 12/12', async () => {
     await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ke kelompokkan' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Pilah —/ }))
     const sortirHeading = screen.getByRole('heading', { name: 'Kelompokkan Rambu' })
     expect(sortirHeading).toBeTruthy()
     // Fokus pindah ke judul layar baru, bukan jatuh ke <body>.
@@ -809,14 +810,14 @@ describe('alur aplikasi', () => {
   it('jalur studi kasus: 9 dari 15 benar, Bintang 2, dan teks jalur studi kasus', async () => {
     await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ke studi kasus' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Studi Kasus —/ }))
     expect(screen.getByText('Tahap 1/15')).toBeTruthy()
     // Selama menjawab, panel tidak menemani (tidak ada tombol yang bisa
     // dipakai melewati studi kasus).
     await waitFor(() => expectNoPanel())
 
     answerQuiz((caseIndex, stepIndex) => caseIndex * 3 + stepIndex < 9)
-    finishQuizPanel()
+    await finishQuizPanel()
 
     expect(screen.getByText('Benar 9/15')).toBeTruthy()
     expect(screen.getByText('Bintang 2 ⭐')).toBeTruthy()
@@ -827,9 +828,9 @@ describe('alur aplikasi', () => {
   it('jalur studi kasus: tepat 12 dari 15 benar dapat Bintang 3', async () => {
     await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ke studi kasus' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Studi Kasus —/ }))
     answerQuiz((caseIndex, stepIndex) => caseIndex * 3 + stepIndex < 12)
-    finishQuizPanel()
+    await finishQuizPanel()
 
     // The 0,8 rule lives exactly on this boundary: 12/15 (0,8) is three stars,
     // 11/15 (0,73) is not.
@@ -840,26 +841,24 @@ describe('alur aplikasi', () => {
   it('skor 0 tetap pulang dengan Bintang 1', async () => {
     await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ke studi kasus' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Studi Kasus —/ }))
     answerQuiz(() => false)
-    finishQuizPanel()
+    await finishQuizPanel()
 
     expect(screen.getByText('Benar 0/15')).toBeTruthy()
     expect(screen.getByText('Bintang 1 ⭐')).toBeTruthy()
   })
 
-  it('Pulang melepas panel dari DOM dan fokus mendarat di judul rumah', async () => {
+  it('akhir permainan tidak memasang panel; fokus mendarat di judul rumah', async () => {
     await reachCrossroad()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ke studi kasus' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Studi Kasus —/ }))
     answerQuiz(() => true)
-    finishQuizPanel()
+    await finishQuizPanel()
 
-    // Beat home tampil dengan tombol "Pulang"; klik itu harus melepas panel
-    // (bukan cuma menyembunyikannya dengan aria-hidden).
-    fireEvent.click(screen.getByRole('button', { name: 'Pulang' }))
-    await waitFor(() => expectNoPanel())
+    // Layar hasil bicara sendiri: tidak ada balon penutup, tidak ada "Pulang".
     expect(panel().textContent).toBe('')
+    expect(screen.queryByRole('button', { name: 'Pulang' })).toBeNull()
 
     const heading = screen.getByRole('heading', { name: 'Kamu sampai di rumah!' })
     expect(document.activeElement).toBe(heading)
@@ -903,5 +902,170 @@ describe('narasi sebagai balon ucapan (Task 24)', () => {
     // "Lanjut jalan" menutup balon dan mengembalikan anak ke punggung.
     expect(document.querySelector('.wk-bubble')).toBeNull()
     expect(document.querySelector('.wk-kid-talk')).toBeNull()
+  })
+})
+
+describe('hash: back/refresh sebagai sumber posisi', () => {
+  /** Set hash tanpa menambah entri history; App membacanya saat mount. */
+  function setHash(hash: string): void {
+    window.history.replaceState({}, '', hash)
+  }
+
+  /** Satu keputusan studi kasus: langkah milik nomor 0..14. */
+  function decisionStep(decision: number) {
+    const step = CASES[Math.floor(decision / 3)].steps[decision % 3]
+    if (!step) throw new Error(`keputusan ${decision} tidak ada`)
+    return step
+  }
+
+  it('refresh #/studi/7 membuka Tahap 8/15', () => {
+    setHash('#/studi/7')
+    render(<App />)
+    expect(screen.getByText('Tahap 8/15')).toBeTruthy()
+  })
+
+  it('refresh #/kuis/3 membuka Soal 4/5', () => {
+    setHash('#/kuis/3')
+    render(<App />)
+    expect(screen.getByText('Soal 4/5')).toBeTruthy()
+  })
+
+  it('refresh #/walk/2 membuka leg ketiga, bukan kelas atau leg pertama', () => {
+    setHash('#/walk/2')
+    render(<App />)
+    // Leg ketiga punya kalimat sendiri dan tiga titik HUD menyala.
+    expectPanelLine(LEG_LINES[2])
+    expect(document.querySelectorAll('.wk-pips i.on')).toHaveLength(3)
+    expect(screen.queryByRole('button', { name: /Keluar kelas/ })).toBeNull()
+  })
+
+  it('back dari Tahap 2/15 ke Tahap 1/15: jawaban ulang tidak menambah skor dobel', async () => {
+    setHash('#/studi/0')
+    render(<App />)
+    expect(screen.getByText('Tahap 1/15')).toBeTruthy()
+
+    const first = decisionStep(0)
+    const right = first.options.find((option) => option.correct)
+    if (!right) throw new Error('tahap pertama tanpa jawaban benar')
+
+    fireEvent.click(screen.getByRole('button', { name: right.text }))
+    expect(scoreOf('studi')).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Tahap berikutnya →' }))
+    expect(screen.getByText('Tahap 2/15')).toBeTruthy()
+
+    // Browser mengubah URL lebih dulu, baru mengirim popstate.
+    setHash('#/studi/0')
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+
+    expect(screen.getByText('Tahap 1/15')).toBeTruthy()
+    // Menjawab ulang tahap yang sama memotong ekor, bukan menghitung lagi.
+    fireEvent.click(screen.getByRole('button', { name: right.text }))
+    expect(scoreOf('studi')).toBe(1)
+    const live = document.querySelector<HTMLElement>('.quiz-live') as HTMLElement
+    expect(live.textContent).toBe(`${first.why} Skor 1 dari 15.`)
+  })
+
+  it('skor 3 benar tetap 3 sesudah refresh di #/studi/3', async () => {
+    setHash('#/studi/0')
+    const view = render(<App />)
+
+    for (let decision = 0; decision < 3; decision += 1) {
+      const step = decisionStep(decision)
+      const right = step.options.find((option) => option.correct)
+      if (!right) throw new Error(`keputusan ${decision} tanpa jawaban benar`)
+      expect(screen.getByText(`Tahap ${decision + 1}/${TOTAL_DECISIONS}`)).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: right.text }))
+      fireEvent.click(screen.getByRole('button', { name: 'Tahap berikutnya →' }))
+    }
+    expect(screen.getByText('Tahap 4/15')).toBeTruthy()
+    expect(scoreOf('studi')).toBe(3)
+
+    // "Refresh": lepas App, lalu pasang lagi dengan hash posisi terakhir.
+    view.unmount()
+    setHash('#/studi/3')
+    render(<App />)
+    expect(screen.getByText('Tahap 4/15')).toBeTruthy()
+
+    // Sisa dua belas keputusan dijawab salah: skor lama tetap utuh.
+    for (let decision = 3; decision < TOTAL_DECISIONS; decision += 1) {
+      const step = decisionStep(decision)
+      const wrong = step.options.find((option) => !option.correct)
+      if (!wrong) throw new Error(`keputusan ${decision} tanpa jawaban salah`)
+      expect(screen.getByText(`Tahap ${decision + 1}/${TOTAL_DECISIONS}`)).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: wrong.text }))
+      fireEvent.click(
+        screen.getByRole('button', {
+          name:
+            decision + 1 === TOTAL_DECISIONS ? 'Sampai di rumah →' : 'Tahap berikutnya →',
+        }),
+      )
+    }
+
+    expect(scoreOf('studi')).toBe(3)
+    await finishQuizPanel()
+    expect(screen.getByText('Benar 3/15')).toBeTruthy()
+  })
+
+  it('"Main lagi dari kelas" mengosongkan progres dan kembali ke kelas', async () => {
+    await reachKuisAwal()
+    answerKuisAwal(() => true)
+    await finishQuizPanel()
+    expect(screen.getByText('Benar 5/5')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Main lagi dari kelas' }))
+
+    expect(scoreOf('kuis')).toBe(0)
+    expect(loadAnswers('kuis').every((answer) => answer === null)).toBe(true)
+    expect(loadLastJalur()).toBeNull()
+    expect(screen.getByRole('heading', { name: /RambuGO!/ })).toBeTruthy()
+    expect(window.location.hash).toBe('#/intro')
+  })
+})
+
+describe('skor rumah tahan refresh (jalur terakhir)', () => {
+  function openHomeDirectly(): void {
+    window.history.replaceState({}, '', '#/home')
+  }
+
+  it('refresh di #/home menampilkan skor jalur terakhir, bukan 0/5', async () => {
+    await reachKuisAwal()
+    // Tiga benar dari lima soal, lalu selesai ke layar rumah.
+    answerKuisAwal((_, index) => index < 3)
+    await finishQuizPanel()
+    expect(screen.getByText('Benar 3/5')).toBeTruthy()
+
+    // "Refresh" di #/home: hash tidak membawa jalur, jadi skor dibaca dari
+    // penanda jalur terakhir + jawaban yang tersimpan.
+    cleanup()
+    openHomeDirectly()
+    render(<App />)
+
+    expect(screen.getByText('Benar 3/5')).toBeTruthy()
+    expect(screen.getByText('Bintang 2 ⭐')).toBeTruthy()
+    expect(panel().textContent).toBe('')
+  })
+
+  it('refresh di #/home sesudah Pilah tetap Benar 12/12, bukan 0/12', () => {
+    // Sortir dinilai sekali di tombol "Sudah Selesai", jadi tidak ada jawaban
+    // per kartu di storage: skornya datang dari `saveLastScore`.
+    saveLastJalur('sortir')
+    saveLastScore(12)
+    openHomeDirectly()
+    render(<App />)
+
+    expect(screen.getByText('Benar 12/12')).toBeTruthy()
+    expect(screen.getByText('Bintang 3 ⭐')).toBeTruthy()
+    expect(screen.getByText('Kamu mengelompokkan rambu dulu, lalu pulang.')).toBeTruthy()
+    expect(panel().textContent).toBe('')
+  })
+
+  it('#/home tanpa riwayat tetap Benar 0/5 + Bintang 1, tanpa melempar', () => {
+    openHomeDirectly()
+    expect(() => render(<App />)).not.toThrow()
+    expect(screen.getByText('Benar 0/5')).toBeTruthy()
+    expect(screen.getByText('Bintang 1 ⭐')).toBeTruthy()
+    expect(panel().textContent).toBe('')
   })
 })

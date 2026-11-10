@@ -4,3 +4,7 @@ tsconfig.tsbuildinfo
 .superpowers/
 .dsh/
 .dsh-im/
+
+.vercel/
+.vercel
+.env*

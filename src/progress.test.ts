@@ -4,7 +4,19 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearJalur, loadAnswers, saveAnswer, scoreOf, type Jalur } from './progress'
+import {
+  clearJalur,
+  clearLastJalur,
+  clearLastScore,
+  loadAnswers,
+  loadLastJalur,
+  loadLastScore,
+  saveAnswer,
+  saveLastJalur,
+  saveLastScore,
+  scoreOf,
+  type Jalur,
+} from './progress'
 
 /** Panjang tetap tiap jalur, ditulis sebagai angka harfiah (bukan salinan tabel). */
 const JALURS: Jalur[] = ['kuis', 'studi', 'sortir']
@@ -188,5 +200,128 @@ describe('pilihan storage', () => {
     expect(saveAnswer('kuis', 0, true)).toEqual([true, null, null, null, null])
     expect(scoreOf('kuis')).toBe(0)
     expect(() => clearJalur('kuis')).not.toThrow()
+  })
+})
+
+describe('jalur terakhir (skor rumah tahan refresh)', () => {
+  /**
+   * Kunci storage penanda jalur terakhir. Modul tidak mengekspor kuncinya,
+   * jadi ditemukan lewat jalur produksi: kosongkan storage, simpan penanda,
+   * lalu ambil satu-satunya kunci yang ada.
+   */
+  function lastJalurKey(): string {
+    sessionStorage.clear()
+    saveLastJalur('kuis')
+    const key = sessionStorage.key(0)
+    if (key === null) throw new Error('tidak ada kunci last-jalur')
+    return key
+  }
+
+  it('roundtrip: jalur apa pun yang disimpan terbaca lagi', () => {
+    for (const jalur of JALURS) {
+      saveLastJalur(jalur)
+      expect(loadLastJalur()).toBe(jalur)
+    }
+  })
+
+  it('belum pernah disimpan berarti null', () => {
+    expect(loadLastJalur()).toBeNull()
+  })
+
+  it('data rusak atau asing dianggap null, tanpa melempar', () => {
+    const rusak = [
+      'bukan-jalur',
+      'KUIS',
+      'studi2',
+      '',
+      'null',
+      '"kuis"',
+      '{"jalur":"kuis"}',
+    ]
+    for (const raw of rusak) {
+      sessionStorage.setItem(lastJalurKey(), raw)
+      expect(loadLastJalur()).toBeNull()
+    }
+  })
+
+  it('clearLastJalur mengosongkan penanda, dan aman saat kosong', () => {
+    saveLastJalur('studi')
+    clearLastJalur()
+    expect(loadLastJalur()).toBeNull()
+    expect(() => clearLastJalur()).not.toThrow()
+  })
+
+  it('clearJalur tidak menyentuh penanda jalur terakhir', () => {
+    saveAnswer('studi', 0, true)
+    saveLastJalur('studi')
+
+    clearJalur('studi')
+
+    expect(scoreOf('studi')).toBe(0)
+    expect(loadLastJalur()).toBe('studi')
+  })
+
+  it('memakai sessionStorage, bukan localStorage', () => {
+    saveLastJalur('kuis')
+    expect(sessionStorage.length).toBe(1)
+    expect(localStorage.length).toBe(0)
+  })
+
+  it('tanpa sessionStorage tidak melempar', () => {
+    vi.stubGlobal('sessionStorage', undefined)
+    expect(() => saveLastJalur('kuis')).not.toThrow()
+    expect(loadLastJalur()).toBeNull()
+    expect(() => clearLastJalur()).not.toThrow()
+  })
+})
+
+describe('skor jalur terakhir (sortir dinilai sekali, bukan per kartu)', () => {
+  it('menyimpan dan membaca ulang skor bulat', () => {
+    sessionStorage.clear()
+    expect(loadLastScore()).toBeNull()
+    saveLastScore(12)
+    expect(loadLastScore()).toBe(12)
+    saveLastScore(0)
+    expect(loadLastScore()).toBe(0)
+  })
+
+  it('menolak angka yang bukan bilangan bulat tak negatif', () => {
+    sessionStorage.clear()
+    saveLastScore(12)
+    for (const bad of [-1, 2.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      saveLastScore(bad)
+      expect(loadLastScore(), `nilai ${bad} tidak boleh menimpa`).toBe(12)
+    }
+  })
+
+  it('data rusak di storage dibaca sebagai null, bukan angka karangan', () => {
+    sessionStorage.clear()
+    // Kunci ditemukan lewat jalur produksi: satu-satunya kunci sesudah simpan.
+    saveLastScore(12)
+    const key = sessionStorage.key(0)
+    if (key === null) throw new Error('tidak ada kunci last-score')
+
+    for (const raw of ['', 'dua belas', '-3', '2.5', 'NaN', 'null', '[12]']) {
+      sessionStorage.setItem(key, raw)
+      expect(loadLastScore(), `isi ${JSON.stringify(raw)}`).toBeNull()
+    }
+  })
+
+  it('clearLastScore mengosongkan skor tanpa menyentuh penanda jalur', () => {
+    sessionStorage.clear()
+    saveLastJalur('sortir')
+    saveLastScore(12)
+    clearLastScore()
+    expect(loadLastScore()).toBeNull()
+    expect(loadLastJalur()).toBe('sortir')
+    expect(() => clearLastScore()).not.toThrow()
+  })
+
+  it('tanpa sessionStorage tidak melempar', () => {
+    vi.stubGlobal('sessionStorage', undefined)
+    expect(() => saveLastScore(3)).not.toThrow()
+    expect(loadLastScore()).toBeNull()
+    expect(() => clearLastScore()).not.toThrow()
+    vi.unstubAllGlobals()
   })
 })

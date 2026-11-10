@@ -1,5 +1,5 @@
 /**
- * Naskah cerita "Petualangan Rambu-Rambu Lalu Lintas".
+ * Naskah cerita "RambuGO!".
  *
  * Sumber: docs/superpowers/specs/2026-11-07-naskah-cerita.md. Satu suara —
  * Aku, anak perempuan kelas II SD. Semua kalimat maksimal 2 kalimat dan 90
@@ -15,14 +15,8 @@ import { KINDS, type Sign } from './data'
 export type StoryAction =
   | 'continue'
   | 'learn'
-  | 'materi'
-  | 'sortir'
-  /** Papan timur: studi kasus (15 keputusan). */
-  | 'studi'
   /** Kuis awal 5 soal, dibuka dari panel materi. */
   | 'kuis'
-  | 'home'
-  | 'restart'
 
 export type StoryButton = {
   label: string
@@ -39,8 +33,6 @@ export type StoryId =
   | 'stop'
   | 'crossroad'
   | 'materi'
-  | 'kuis'
-  | 'home'
 
 export type StoryBeat = {
   id: StoryId
@@ -82,31 +74,14 @@ export const STORY: StoryBeat[] = [
   },
   {
     id: 'crossroad',
-    text: 'Sampai di persimpangan. Kiri belajar, lurus kelompokkan, kanan studi kasus.',
-    buttons: [
-      { label: 'Ke materi', action: 'materi' },
-      { label: 'Ke kelompokkan', action: 'sortir' },
-      { label: 'Ke studi kasus', action: 'studi' },
-    ],
+    text: 'Sampai di persimpangan. Kemana kita akan pergi?',
+    // Papan tujuan di layar yang memilih jalur; panel hanya bercerita.
+    buttons: [],
   },
   {
     id: 'materi',
     text: 'Rambu yang tadi kulihat, aku kenali satu-satu.',
     buttons: [{ label: 'Sudah paham, coba kuis', action: 'kuis' }],
-  },
-  {
-    id: 'kuis',
-    text: 'Kalau benar, aku dapat bintang.',
-    buttons: [{ label: 'Selesai', action: 'home' }],
-  },
-  {
-    id: 'home',
-    // Naskah menulis tiga kalimat; dipisah em dash supaya tetap ≤2 kalimat.
-    text: 'Sampai di rumah. Rambu itu kawan di jalan! besok aku cerita ke Bu Guru.',
-    buttons: [
-      { label: 'Pulang', action: 'home' },
-      { label: 'Main lagi', action: 'restart' },
-    ],
   },
 ]
 

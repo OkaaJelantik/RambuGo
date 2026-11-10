@@ -28,6 +28,7 @@ const SIZES: Record<Jalur, number> = {
 }
 
 const PREFIX = 'ina:progress:'
+const LAST_SCORE_KEY = 'ina:last-score'
 
 function keyOf(jalur: Jalur): string {
   return `${PREFIX}${jalur}`
@@ -132,5 +133,99 @@ export function clearJalur(jalur: Jalur): void {
     store.removeItem(keyOf(jalur))
   } catch {
     // Tidak ada yang bisa dilakukan; pemanggilan berikutnya membaca kosong.
+  }
+}
+
+/**
+ * Jalur terakhir yang diselesaikan, untuk layar rumah yang dibuka langsung
+ * lewat `#/home` (refresh/URL). Hash tidak membawa jalur, jadi tanpa penanda
+ * ini rumah menampilkan "Benar 0/5" padahal anak baru saja main.
+ *
+ * Kunci terpisah dari jawaban: `clearJalur` tidak menyentuhnya, sedangkan
+ * `clearLastJalur` dipakai saat "Main lagi dari kelas".
+ */
+const LAST_JALUR_KEY = 'ina:last-jalur'
+
+/** Nama jalur yang sah, dibaca dari data mentah storage. */
+function isJalur(value: string): value is Jalur {
+  return value === 'kuis' || value === 'studi' || value === 'sortir'
+}
+
+/** Catat jalur yang barusan selesai. */
+export function saveLastJalur(jalur: Jalur): void {
+  const store = storage()
+  if (!store) return
+  try {
+    store.setItem(LAST_JALUR_KEY, jalur)
+  } catch {
+    // Storage penuh/diblokir: rumah jatuh ke skor default, layar tetap jalan.
+  }
+}
+
+/** Jalur yang terakhir selesai, atau `null` kalau belum ada/data rusak. */
+export function loadLastJalur(): Jalur | null {
+  const store = storage()
+  if (!store) return null
+
+  let raw: string | null
+  try {
+    raw = store.getItem(LAST_JALUR_KEY)
+  } catch {
+    return null
+  }
+  if (raw === null || !isJalur(raw)) return null
+  return raw
+}
+
+/**
+ * Skor akhir jalur terakhir. Sortir menilai sekali di tombol "Sudah Selesai"
+ * (bukan per kartu), jadi jawabannya tidak pernah masuk `saveAnswer`; angka ini
+ * yang membuat rumah tetap jujur sesudah refresh.
+ */
+export function saveLastScore(score: number): void {
+  const store = storage()
+  if (!store) return
+  if (!Number.isInteger(score) || score < 0) return
+  try {
+    store.setItem(LAST_SCORE_KEY, String(score))
+  } catch {
+    // Storage penuh/diblokir: rumah jatuh ke skor default, layar tetap jalan.
+  }
+}
+
+/** Skor tersimpan, atau `null` kalau belum ada/data rusak. */
+export function loadLastScore(): number | null {
+  const store = storage()
+  if (!store) return null
+
+  let raw: string | null
+  try {
+    raw = store.getItem(LAST_SCORE_KEY)
+  } catch {
+    return null
+  }
+  if (raw === null || !/^\d+$/.test(raw)) return null
+  return Number(raw)
+}
+
+/** Kosongkan skor tersimpan bersama penanda jalur. */
+export function clearLastScore(): void {
+  const store = storage()
+  if (!store) return
+  try {
+    store.removeItem(LAST_SCORE_KEY)
+  } catch {
+    // Tidak ada yang bisa dilakukan; pembacaan berikutnya jatuh ke null.
+  }
+}
+
+/** Kosongkan penanda jalur terakhir; dipakai saat mulai sesi baru. */
+export function clearLastJalur(): void {
+  const store = storage()
+  if (!store) return
+  try {
+    store.removeItem(LAST_JALUR_KEY)
+  } catch {
+    // Tidak ada yang bisa dilakukan; pembacaan berikutnya jatuh ke null.
   }
 }
