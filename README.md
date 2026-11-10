@@ -118,8 +118,7 @@ pnpm build && vercel deploy   # preview URL
 **Oka Jelantik** — pengelolaan web, konsultan, prototipe, dan implementasi konsep abstrak menjadi
 produk.
 
-**Pengembangan web** — agen AI **DeepSeek Harness** (lead agent + subagent lane Sortir dan lane
-Materi): kode React/TS, tes, verifikasi browser (Playwright), dokumentasi, dan deploy Vercel.
+**Pengembangan web** — agen AI **DeepSeek Harness**: kode React/TS, tes, verifikasi browser (Playwright), dokumentasi, dan deploy Vercel.
 
 **Sumber materi** — `docs/MODUL_AJAR.md` dan bahan acuan di `Assets/`; ringkasan keputusan ada di
 `PRODUCT.md` dan `AGENTS.md`.
