@@ -38,10 +38,12 @@ function sentenceCase(name: string): string {
  * di tiga bidang, lalu dipindahkan ke empat kotak kayu.
  *
  * Aturan mainnya sengaja longgar — **tidak ada penolakan**. Rambu boleh masuk
- * kotak mana pun; sistem baru menilai saat anak menekan "Sudah Selesai".
- * Penilaian yang gagal menandai rambu yang belum pas (tanda merah) dan anak
- * boleh memindahkannya dari kotak yang salah ke kotak lain, lalu menekan
- * tombol itu lagi. Layar selesai menyebut percobaan ke berapa yang berhasil.
+ * kotak mana pun; sistem baru menilai saat anak menekan "Sudah Selesai", dan
+ * tombol itu boleh ditekan kapan pun. Hasilnya langsung berupa skor
+ * penempatan tepat dari dua belas ("Skor 7/12"), bukan nomor percobaan.
+ * Rambu yang sudah ditempatkan tetapi salah kotak ditandai merah; anak bisa
+ * menekan "Coba Lagi" untuk mengosongkan papan lalu memperbaikinya, atau
+ * "Selesai" untuk menyerahkan skor yang sedang tampil.
  *
  * Tiga jalur interaksi tetap setara:
  *
@@ -61,9 +63,6 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   /** Rambu yang ditandai belum pas sesudah tombol "Sudah Selesai" ditekan. */
   const [wrong, setWrong] = useState<ReadonlySet<string>>(() => new Set<string>())
-  const [attempts, setAttempts] = useState(0)
-  /** Benar saat tombol ditekan pertama kali; App memakainya untuk bintang. */
-  const [firstCorrect, setFirstCorrect] = useState<number | null>(null)
   const [done, setDone] = useState(false)
   const [live, setLive] = useState('')
   /** Hiasan yang sedang diseret; satu-satunya `setState` sepanjang gestur. */
@@ -92,6 +91,12 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
     signs: cards.filter((sign) => placedBy[sign.id] === kind),
   }))
 
+  /**
+   * Skor selalu diturunkan dari papan, bukan disimpan: angka yang tampil di
+   * layar hasil dan angka yang diserahkan `onDone` tidak pernah bisa berbeda.
+   */
+  const score = cards.filter((sign) => placedBy[sign.id] === sign.kind).length
+
   // Seed baru = permainan baru. App memasang ulang layar per masuk, tetapi
   // reset ini menjaga kontrak komponen tetap benar kalau seed berganti.
   const seedRef = useRef(seed)
@@ -101,8 +106,6 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
     setPlacedBy({})
     setSelected(null)
     setWrong(new Set<string>())
-    setAttempts(0)
-    setFirstCorrect(null)
     setDone(false)
     setLive('')
     setDragCard(null)
@@ -146,6 +149,9 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
    * ikut hilang begitu ia dipindah, karena tanda itu milik penilaian sebelumnya.
    */
   const assign = (signId: string, kind: Kind, from: Kind | null) => {
+    // Papan dibekukan saat hasil tampil: skor yang dibaca `onDone` harus sama
+    // dengan skor yang baru saja dilihat anak.
+    if (done) return
     const sign = cards.find((candidate) => candidate.id === signId)
     if (!sign) return
     if (from === kind) {
@@ -169,6 +175,7 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
   }
 
   const selectSign = (id: string) => {
+    if (done) return
     if (suppressClickRef.current) {
       suppressClickRef.current = false
       return
@@ -192,31 +199,37 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
   }
 
   /**
-   * Satu-satunya tempat yang menilai. Setiap tekanan menghitung satu
-   * percobaan, termasuk tekanan pertama yang masih salah; keberhasilan
-   * dilaporkan bersama nomor percobaannya.
+   * Satu-satunya tempat yang menilai, dan bisa dipanggil kapan pun — papan
+   * kosong, separuh penuh, atau masih salah. Skor adalah penempatan tepat
+   * dari seluruh dua belas kartu; tanda merah hanya untuk rambu yang sudah
+   * ditempatkan tetapi salah kotak, jadi rambu yang belum dipindah tidak
+   * dihukum.
    */
   const finish = () => {
-    const attemptNumber = attempts + 1
-    const wrongIds = cards.filter((sign) => placedBy[sign.id] !== sign.kind).map((sign) => sign.id)
-    const correctNow = cards.length - wrongIds.length
-    setAttempts(attemptNumber)
-    setFirstCorrect((current) => (current === null ? correctNow : current))
-
-    if (wrongIds.length === 0) {
-      setWrong(new Set<string>())
-      setDone(true)
-      setLive(
-        `Berhasil dalam percobaan ke-${attemptNumber}. Semua ${cards.length} rambu ada di kotak yang tepat.`,
-      )
-      pendingFocusRef.current = { type: 'summary' }
-      return
-    }
-
+    const wrongIds = cards
+      .filter((sign) => placedBy[sign.id] !== undefined && placedBy[sign.id] !== sign.kind)
+      .map((sign) => sign.id)
     setWrong(new Set(wrongIds))
+    setDone(true)
     setLive(
-      `${wrongIds.length} rambu belum pas. Pindahkan rambu bertanda merah ke kotak lain, lalu tekan Sudah Selesai lagi.`,
+      `Skor ${score} dari ${cards.length}.${
+        score < cards.length ? ' Kamu bisa coba lagi.' : ' Semua rambu sudah tepat.'
+      }`,
     )
+    pendingFocusRef.current = { type: 'summary' }
+  }
+
+  /**
+   * "Coba Lagi" mengosongkan papan dan kembali ke permainan tanpa mengacak
+   * ulang urutan kartu (`cards` hanya bergantung pada `seed`), supaya anak
+   * mengenali posisi yang sama saat memperbaiki.
+   */
+  const retry = () => {
+    setPlacedBy({})
+    setWrong(new Set<string>())
+    setSelected(null)
+    setDone(false)
+    setLive('Papan direset. Kelompokkan lagi, ya.')
     pendingFocusRef.current = { type: 'finish' }
   }
 
@@ -225,6 +238,7 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
     sign: Sign,
     fromKind: Kind | null,
   ) => {
+    if (done) return
     if (event.pointerType === 'mouse' && event.button !== 0) return
     // Safari tidak memfokuskan tombol saat diketuk; fokuskan sendiri supaya
     // fokus tidak pernah tertinggal di <body> sesudah gestur.
@@ -336,8 +350,11 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
 
       {/* Panggung: dinding kafe polos + satu papan 4 × 3. Dua belas slot selalu
           dipetakan dari `cards` (bukan dari sisa), jadi hiasan yang pindah
-          meninggalkan paku di posisinya dan panggung tidak pernah reflow. */}
-      <div className="sr-stage">
+          meninggalkan paku di posisinya dan panggung tidak pernah reflow.
+          Saat hasil tampil panggung dan kotak di-`inert`: tombol yang sudah
+          tidak mengubah apa pun tidak boleh ikut jangkauan Tab (anak tidak
+          pernah mendarat di tombol yang diam). */}
+      <div className="sr-stage" inert={done || undefined}>
         <KafeScene className="sr-stage__art" />
         <div className="sr-board" role="group" aria-label="Dinding pajangan">
           {cards.map((card) => {
@@ -369,7 +386,7 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
         </div>
       </div>
 
-      <div className="sr-bins">
+      <div className="sr-bins" inert={done || undefined}>
         {bins.map(({ kind, signs }) => {
           const headLabel = `Kotak ${KINDS[kind].label}`
           const hasWrong = signs.some((sign) => wrong.has(sign.id))
@@ -446,14 +463,21 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
       {done && (
         <div className="sr-done" role="group" aria-labelledby="sr-done-title">
           <h3 id="sr-done-title" ref={summaryRef} tabIndex={-1}>
-            Berhasil dalam percobaan ke-{attempts}.
+            Skor {score}/{cards.length}
           </h3>
           <p className="sr-done__text">
-            Semua {cards.length} rambu ada di kotak yang tepat.
+            {score < cards.length
+              ? `${score} dari ${cards.length} rambu ada di kotak yang tepat. Tekan Coba Lagi untuk memperbaiki.`
+              : `${score} dari ${cards.length} rambu ada di kotak yang tepat.`}
           </p>
-          <button type="button" className="btn" onClick={() => onDone(firstCorrect ?? cards.length)}>
-            Selesai
-          </button>
+          <div className="sr-done__actions">
+            <button type="button" className="btn" onClick={retry}>
+              Coba Lagi
+            </button>
+            <button type="button" className="btn" onClick={() => onDone(score)}>
+              Selesai
+            </button>
+          </div>
         </div>
       )}
 

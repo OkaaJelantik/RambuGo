@@ -13,7 +13,7 @@ import { TOTAL_DECISIONS } from './sulit'
 import Kid from './Kid'
 import DialoguePanel from './DialoguePanel'
 import { beatById, openingFor, stopBeat, type StoryButton, type StoryId } from './story'
-import { starsFor } from './sortir'
+import { KIND_ORDER, starsFor } from './sortir'
 import { formatHash, parseHash, stageLimit, type Route, type Stage } from './route'
 import {
   clearJalur,
@@ -55,17 +55,34 @@ function kindChipText(kind: Kind) {
   return `${label} · ${shape.split(' ')[0]}`
 }
 
+/**
+ * Katalog materi dikelompokkan per jenis, urutannya milik `KIND_ORDER`
+ * (`sortir.ts`) supaya katalog dan permainan mengelompokkan dengan urutan yang
+ * sama — satu daftar, bukan dua yang bisa lepas. Kelompok kosong dibuang.
+ */
+const MATERI_GROUPS = KIND_ORDER.map((kind) => ({
+  kind,
+  signs: SIGNS.filter((sign) => sign.kind === kind),
+})).filter((group) => group.signs.length > 0)
+
 function SignSheet({
   sign,
   onClose,
   cta,
   fallbackFocus,
+  lean = false,
 }: {
   sign: Sign
   onClose: () => void
   cta: string
   /** Fokus cadangan bila pemicu asli tidak bisa difokuskan lagi. */
   fallbackFocus?: RefObject<HTMLElement | null>
+  /**
+   * Lembar ramping untuk stage materi: gambar + nama + arti + tip saja. Jenis
+   * sudah dipegang header kelompok, jadi chip, baris "Bentuk:", dan aturan
+   * jenis tidak diulang. Default `false` = lembar lengkap (jalur walk).
+   */
+  lean?: boolean
 }) {
   const ctaRef = useRef<HTMLButtonElement>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
@@ -140,16 +157,20 @@ function SignSheet({
               masih terbaca. Pelat persegi tetap 124. */}
           <SignArt art={sign.art} size={ART_BOX[sign.art].w > ART_BOX[sign.art].h ? 216 : 124} />
         </div>
-        <span
-          className="kind-chip"
-          style={{ '--kind-color': KINDS[sign.kind].color } as CSSProperties}
-        >
-          Rambu {kindChipText(sign.kind)}
-        </span>
-        <p className="kind-shape">Bentuk: {KINDS[sign.kind].shape}</p>
-        {/* Ciri jenis, bukan ciri rambu: inilah yang berlaku untuk semua rambu
-            sejenis, dan yang dibaca anak saat mengelompokkan nanti. */}
-        <p className="kind-shape">{KINDS[sign.kind].rule}</p>
+        {!lean && (
+          <>
+            <span
+              className="kind-chip"
+              style={{ '--kind-color': KINDS[sign.kind].color } as CSSProperties}
+            >
+              Rambu {kindChipText(sign.kind)}
+            </span>
+            <p className="kind-shape">Bentuk: {KINDS[sign.kind].shape}</p>
+            {/* Ciri jenis, bukan ciri rambu: inilah yang berlaku untuk semua rambu
+                sejenis, dan yang dibaca anak saat mengelompokkan nanti. */}
+            <p className="kind-shape">{KINDS[sign.kind].rule}</p>
+          </>
+        )}
 
         {/* Isi lembar = keterangan resmi saja. Narasi Aku pindah ke balon
             ucapan di scene, muncul setelah lembar ditutup. */}
@@ -577,28 +598,47 @@ export default function App() {
             </h2>
             <p>Klik rambu untuk tahu artinya.</p>
           </div>
-          <div className="grid">
-            {SIGNS.map((s) => (
-              <button key={s.id} className="sign-card" onClick={() => setMateriOpen(s)}>
-                <div className="art">
-                  <SignArt art={s.art} size={80} />
+          {MATERI_GROUPS.map(({ kind, signs }) => {
+            const meta = KINDS[kind]
+            return (
+              <section
+                key={kind}
+                className="materi-group"
+                data-kind={kind}
+                aria-labelledby={`materi-${kind}`}
+                style={{ '--kind-color': meta.color } as CSSProperties}
+              >
+                <header className="materi-group__head">
+                  <h3 className="materi-group__title" id={`materi-${kind}`}>
+                    {meta.label}
+                  </h3>
+                  {/* Blok bentuk: satu jenis satu penjelasan, bukan satu per
+                      kartu. Isinya `KINDS[kind]`, sumber yang sama dengan
+                      lembar di jalur walk. */}
+                  <h4 className="materi-group__label">Tentang Bentuk</h4>
+                  <p className="materi-group__shape">{meta.shape}</p>
+                  <p className="materi-group__rule">{meta.rule}</p>
+                </header>
+                <div className="grid">
+                  {signs.map((s) => (
+                    <button
+                      key={s.id}
+                      className="sign-card"
+                      onClick={() => setMateriOpen(s)}
+                    >
+                      <div className="art">
+                        <SignArt art={s.art} size={80} />
+                      </div>
+                      {/* Tanpa chip jenis: header kelompok sudah memegangnya. */}
+                      <h4>{s.name}</h4>
+                    </button>
+                  ))}
                 </div>
-                <h4>{s.name}</h4>
-                <span
-                  className="kind-chip"
-                  style={{ '--kind-color': KINDS[s.kind].color } as CSSProperties}
-                >
-                  {kindChipText(s.kind)}
-                </span>
-              </button>
-            ))}
-          </div>
+              </section>
+            )
+          })}
           {materiOpen && (
-            <SignSheet
-              sign={materiOpen}
-              onClose={closeMateriSheet}
-              cta="Tutup"
-            />
+            <SignSheet sign={materiOpen} onClose={closeMateriSheet} cta="Tutup" lean />
           )}
         </section>
       )}

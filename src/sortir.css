@@ -371,6 +371,14 @@
   text-wrap: pretty;
 }
 
+/* Dua tindakan berdampingan: "Coba Lagi" lebih dulu, "Selesai" sesudahnya. */
+.sr-done__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
 /* ---------- hantu seret ---------- */
 
 .sr-ghost {

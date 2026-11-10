@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import Junction from './Junction'
@@ -112,6 +112,46 @@ const WALK_SHAPES: Record<string, string> = {
   'jalan-terus': 'bulat biru',
   'belok-kanan': 'bulat biru',
 }
+
+/**
+ * Katalog materi: empat kelompok, urutan dan kalimatnya literal (bukan turunan
+ * `KIND_ORDER`/`KINDS`). Kalau data atau urutan tertukar, tes harus merah —
+ * assertion yang membaca sumbernya sendiri tidak bisa gagal.
+ */
+const MATERI_GROUPS = [
+  {
+    kind: 'larangan',
+    label: 'Larangan',
+    shape: 'bulat putih bertepi merah',
+    rule: 'Bulat putih dengan tepi merah: ada yang tidak boleh dilakukan.',
+    names: ['Dilarang Berhenti', 'Dilarang Parkir', 'Dilarang Putar Balik'],
+  },
+  {
+    kind: 'peringatan',
+    label: 'Peringatan',
+    shape: 'belah ketupat kuning',
+    rule: 'Belah ketupat kuning: ada yang perlu diwaspadai di depan.',
+    names: [
+      'Akan Ada Penyeberangan',
+      'Akan Ada Lampu Lalu Lintas',
+      'Akan Ada Persimpangan',
+    ],
+  },
+  {
+    kind: 'perintah',
+    label: 'Perintah',
+    shape: 'bulat biru',
+    rule: 'Bulat biru dengan panah: kita wajib mengikuti arahnya.',
+    names: ['Wajib Belok Kiri', 'Wajib Jalan Terus', 'Wajib Belok Kanan'],
+  },
+  {
+    kind: 'petunjuk',
+    label: 'Petunjuk',
+    shape: 'persegi hijau',
+    rule: 'Persegi hijau dengan tulisan putih: memberi petunjuk arah atau tempat.',
+    names: ['Petunjuk Arah', 'Titik Kumpul', 'Jalur Evakuasi'],
+  },
+]
 
 /**
  * Naskah yang dipin apa adanya. Literal (bukan impor `STORY`) supaya
@@ -344,6 +384,15 @@ async function reachCrossroad() {
 
   await clearWalk()
   expect(screen.getByRole('heading', { name: 'Kamu sampai di persimpangan' })).toBeTruthy()
+}
+
+/**
+ * Sampai di layar materi lewat papan "Belajar" di persimpangan.
+ */
+async function reachMateri() {
+  await reachCrossroad()
+  fireEvent.click(screen.getByRole('button', { name: /^Belajar —/ }))
+  expect(screen.getByRole('heading', { name: 'Jalur Materi' })).toBeTruthy()
 }
 
 /**
@@ -587,6 +636,43 @@ describe('alur aplikasi', () => {
     expectNoPanel()
   })
 
+  it('materi: katalog dikelompokkan per jenis, tiap kelompok punya Tentang Bentuk', async () => {
+    await reachMateri()
+
+    // Empat kelompok dengan urutan KIND_ORDER; urutannya literal di
+    // MATERI_GROUPS, bukan dibaca dari data produksi.
+    const groups = Array.from(document.querySelectorAll<HTMLElement>('.materi-group'))
+    expect(groups.map((group) => group.dataset.kind)).toEqual(
+      MATERI_GROUPS.map((group) => group.kind),
+    )
+
+    // Satu katalog utuh: dua belas kartu, tiga per kelompok.
+    expect(document.querySelectorAll('.sign-card')).toHaveLength(SIGNS.length)
+
+    for (const [index, expected] of MATERI_GROUPS.entries()) {
+      const group = groups[index]
+      expect(group, `kelompok ${expected.kind} tidak ada`).toBeTruthy()
+      // Jenis dipegang header: judul + blok "Tentang Bentuk" berisi bentuk
+      // dan aturan jenisnya (satu sumber: KINDS[kind].shape/.rule).
+      expect(within(group).getByRole('heading', { name: expected.label })).toBeTruthy()
+      expect(within(group).getByText('Tentang Bentuk')).toBeTruthy()
+      expect(within(group).getByText(expected.shape)).toBeTruthy()
+      expect(within(group).getByText(expected.rule)).toBeTruthy()
+
+      const cards = Array.from(group.querySelectorAll<HTMLElement>('.sign-card'))
+      expect(cards, `kartu kelompok ${expected.kind}`).toHaveLength(expected.names.length)
+      for (const card of cards) {
+        // Jenis sudah terbaca dari header kelompok, chip di kartu hanya
+        // mengulang informasi yang sama.
+        expect(card.querySelector('.kind-chip')).toBeNull()
+        expect(expected.names).toContain(card.querySelector('h4')?.textContent)
+      }
+    }
+
+    // Di katalog tidak ada chip jenis tersisa (dulu satu per kartu).
+    expect(document.querySelectorAll('.kind-chip')).toHaveLength(0)
+  })
+
   it('jalur materi: 3 rambu, papan rambu, lalu 5/5 dengan teks jalur materi', async () => {
     await reachCrossroad()
 
@@ -594,14 +680,29 @@ describe('alur aplikasi', () => {
     expect(screen.getByRole('heading', { name: 'Jalur Materi' })).toBeTruthy()
     expectPanelLine(MATERI_LINE)
 
-    // Kartu membuka lembar keterangan resmi yang sama — tanpa narasi Aku,
-    // karena di jalur materi anak memang sedang membaca, bukan bercerita.
+    // Kartu membuka lembar ramping — tanpa narasi Aku, karena di jalur materi
+    // anak memang sedang membaca, bukan bercerita.
     const card = screen.getByRole('button', { name: /Akan Ada Penyeberangan/ })
     // jsdom tidak memindahkan fokus saat klik; browser sungguhan melakukannya.
     card.focus()
     fireEvent.click(card)
-    expect(screen.getByRole('dialog', { name: 'Rambu Akan Ada Penyeberangan' })).toBeTruthy()
+    const dialog = screen.getByRole('dialog', { name: 'Rambu Akan Ada Penyeberangan' })
     expect(screen.queryByText(OPENINGS['peringatan-penyeberangan'])).toBeNull()
+
+    // Lembar materi ramping: gambar + nama + arti + tip saja. Jenis sudah
+    // dipegang header kelompok, jadi chip, baris "Bentuk:", dan aturan jenis
+    // tidak diulang di sini.
+    const sign = SIGNS.find((candidate) => candidate.id === 'peringatan-penyeberangan')
+    expect(sign, 'rambu peringatan-penyeberangan').toBeTruthy()
+    if (!sign) throw new Error('rambu contoh tidak ada')
+    expect(dialog.querySelector('.kind-chip')).toBeNull()
+    expect(dialog.querySelectorAll('.kind-shape')).toHaveLength(0)
+    expect(within(dialog).queryByText(/^Bentuk:/)).toBeNull()
+    expect(within(dialog).queryByText(KINDS.peringatan.rule)).toBeNull()
+    expect(within(dialog).getByRole('heading', { name: sign.name })).toBeTruthy()
+    expect(within(dialog).getByText(sign.meaning)).toBeTruthy()
+    expect(within(dialog).getByText(sign.tip)).toBeTruthy()
+
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(card)
@@ -798,7 +899,7 @@ describe('alur aplikasi', () => {
     expect(document.querySelector('.sr-done')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Sudah Selesai' }))
 
-    const summary = screen.getByRole('heading', { name: 'Berhasil dalam percobaan ke-1.' })
+    const summary = screen.getByRole('heading', { name: 'Skor 12/12' })
     expect(document.activeElement).toBe(summary)
 
     fireEvent.click(screen.getByRole('button', { name: 'Selesai' }))

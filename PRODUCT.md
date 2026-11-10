@@ -57,8 +57,8 @@ kelas ──"Keluar kelas"──> jalan (3 rambu, berhenti di tiap rambu)
 | `intro` | layar kelas, satu kalimat Bu Guru | tombol "Keluar kelas" |
 | `walk` | scene 2.5D berjalan; anak berhenti di rambu ke-1..3 | "Apa ini?" / "Lanjut jalan" |
 | `crossroad` | tiga papan satu kata: Belajar (kiri), Pilah (lurus), Kuis (kanan) | pilih papan |
-| `materi` | semua rambu + papan penjelas | "Sudah paham, coba kuis" |
-| `sortir` | 12 kartu dipindahkan ke 4 keranjang jenis | semua kartu masuk → "Selesai" |
+| `materi` | 12 rambu dikelompokkan per jenis; tiap kelompok punya "Tentang Bentuk" | "Sudah paham, coba kuis" |
+| `sortir` | 12 kartu dipindahkan ke 4 keranjang jenis; nilai kapan pun | "Sudah Selesai" → skor X/12, "Coba Lagi" / "Selesai" |
 | `kuis` | 5 soal pilihan ganda | jawab semua → "Selesai" |
 | `home` | rumah + bintang + ringkasan | "Pulang" / "Mulai lagi" |
 
@@ -98,10 +98,14 @@ soal punya `why` yang tampil setelah dijawab — penjelasan, bukan hukuman.
 
 Aturan bintang itu satu rumus untuk dua jalur (`src/sortir.ts` `starsFor`): rasio ≥ 0,8 → 3 bintang,
 ≥ 0,4 → 2, sisanya 1. Untuk kuis 5 soal hasilnya tetap 4/5 → 3, 2–3/5 → 2, 0–1/5 → 1. Untuk
-kelompokkan 12 kartu: 10/12 → 3, 5–9/12 → 2, 0–4/12 → 1. Yang dihitung hanya penempatan yang tepat
-pada **percobaan pertama**; salah keranjang tidak mengurangi nyawa maupun skor.
+kelompokkan 12 kartu: 10/12 → 3, 5–9/12 → 2, 0–4/12 → 1.
 
----
+Sortir tidak punya syarat "semua benar dulu": **"Sudah Selesai" boleh ditekan kapan pun**, termasuk
+saat papan masih kosong atau separuh terisi. Hasilnya bukan nomor percobaan, melainkan skor
+penempatan tepat dari 12 (mis. "Skor 0/12", "Skor 7/12"). Rambu yang sudah ditempatkan tetapi salah
+kotak ditandai merah; rambu yang belum dipindah tidak dihukum. "Coba Lagi" mengosongkan papan tanpa
+mengacak ulang urutan kartu, dan skor akhir yang dibawa ke rumah adalah skor penilaian terakhir yang
+ditampilkan. Salah keranjang tidak mengurangi nyawa maupun skor.
 
 ## 6. Non-goal (disengaja, jangan dikerjakan tanpa permintaan)
 

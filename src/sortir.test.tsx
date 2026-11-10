@@ -216,66 +216,124 @@ describe('Sortir (DOM)', () => {
     expect(liveText()).toContain('dipindah ke kotak')
   })
 
-  it('Sudah Selesai saat masih ada yang belum pas: menandai, tidak menyelesaikan', () => {
+  it('Sudah Selesai saat papan kosong langsung menampilkan Skor 0/12', () => {
     renderSortir()
     fireEvent.click(finishButton())
 
-    expect(document.querySelector('.sr-done')).toBeNull()
-    expect(document.querySelectorAll('[data-wrong]').length).toBeGreaterThan(0)
-    expect(liveText()).toContain('belum pas')
-    expect(screen.getByRole('button', { name: 'Sudah Selesai' })).toBeTruthy()
+    const summary = screen.getByRole('heading', { name: 'Skor 0/12' })
+    expect(document.activeElement).toBe(summary)
+    expect(document.querySelector('.sr-done')).not.toBeNull()
+    // Papan dan kotak di-inert saat hasil tampil: tombol yang sudah tidak
+    // mengubah skor tidak boleh ikut jangkauan Tab.
+    expect(document.querySelector('.sr-stage')?.hasAttribute('inert')).toBe(true)
+    expect(document.querySelector('.sr-bins')?.hasAttribute('inert')).toBe(true)
+    expect(liveText()).toBe('Skor 0 dari 12. Kamu bisa coba lagi.')
+    expect(
+      screen.getByText(
+        '0 dari 12 rambu ada di kotak yang tepat. Tekan Coba Lagi untuk memperbaiki.',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Coba Lagi' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Selesai' })).toBeTruthy()
 
-    // Tanda hilang begitu rambu dipindah, bukan menempel selamanya.
-    const card = firstCard()
-    const sign = signOf(card)
-    expect(card.getAttribute('data-wrong')).toBe('true')
-    fireEvent.click(card)
-    fireEvent.click(bin(sign.kind))
-    // Rambu yang dipindah menjadi tombol baru di kotak; tanda merah tidak
-    // ikut berpindah karena tanda itu milik penilaian sebelumnya.
-    const moved = document.querySelector(`[data-kind="${sign.kind}"] .sr-placed`)
-    expect(moved).not.toBeNull()
-    expect(moved?.getAttribute('data-wrong')).toBeNull()
+    // Rambu yang belum dipindah tidak ditandai merah.
+    expect(document.querySelectorAll('[data-wrong]')).toHaveLength(0)
+    // Copy percobaan ke-N sudah tidak ada.
+    expect(document.querySelector('.sr-done')?.textContent).not.toContain('percobaan')
   })
 
-  it('berhasil pada percobaan pertama: ringkasan ke-1 dan skor 12/12', () => {
-    const { onDone } = renderSortir()
-    placeAllCorrect()
-
-    expect(document.querySelectorAll('.sr-pajang')).toHaveLength(0)
+  it('papan belum penuh: skor hanya menghitung rambu yang sudah di kotak', () => {
+    renderSortir()
+    for (let i = 0; i < 3; i += 1) {
+      const card = firstCard()
+      const sign = signOf(card)
+      fireEvent.click(card)
+      fireEvent.click(bin(sign.kind))
+    }
     fireEvent.click(finishButton())
 
-    const summary = screen.getByRole('heading', { name: 'Berhasil dalam percobaan ke-1.' })
+    expect(screen.getByRole('heading', { name: 'Skor 3/12' })).toBeTruthy()
+    expect(liveText()).toBe('Skor 3 dari 12. Kamu bisa coba lagi.')
+    expect(document.querySelectorAll('[data-wrong]')).toHaveLength(0)
+  })
+
+  it('Skor 11/12 menandai rambu salah; Coba Lagi mereset papan, lalu 12/12', () => {
+    const { onDone } = renderSortir()
+    const order = [...document.querySelectorAll<HTMLElement>('.sr-pajang')].map(
+      (el) => el.dataset.sign,
+    )
+
+    // Semua dua belas ditaruh; satu sengaja di kotak yang salah.
+    const first = firstCard()
+    const wrongSign = signOf(first)
+    const wrong = wrongKind(wrongSign.kind)
+    fireEvent.click(first)
+    fireEvent.click(bin(wrong))
+    placeAllCorrect()
+
+    fireEvent.click(finishButton())
+
+    const summary = screen.getByRole('heading', { name: 'Skor 11/12' })
     expect(document.activeElement).toBe(summary)
+    expect(liveText()).toBe('Skor 11 dari 12. Kamu bisa coba lagi.')
+    expect(
+      screen.getByText(
+        '11 dari 12 rambu ada di kotak yang tepat. Tekan Coba Lagi untuk memperbaiki.',
+      ),
+    ).toBeTruthy()
+    // Hanya rambu yang sudah ditempatkan tapi salah kotak yang bertanda merah.
+    const marked = document.querySelector<HTMLElement>(
+      `[data-kind="${wrong}"] .sr-placed[data-wrong]`,
+    )
+    expect(marked?.dataset.sign).toBe(wrongSign.id)
+    expect(document.querySelectorAll('.sr-placed[data-wrong]')).toHaveLength(1)
+
+    // Coba Lagi: papan kosong lagi, urutan kartu tidak diacak ulang, dan
+    // fokus kembali ke tombol permainan.
+    fireEvent.click(screen.getByRole('button', { name: 'Coba Lagi' }))
+    expect(document.querySelector('.sr-done')).toBeNull()
+    expect(document.querySelector('.sr-stage')?.hasAttribute('inert')).toBe(false)
+    expect(document.querySelectorAll('.sr-pajang')).toHaveLength(SIGNS.length)
+    expect(document.querySelectorAll('.sr-placed')).toHaveLength(0)
+    expect(document.querySelectorAll('[data-wrong]')).toHaveLength(0)
+    expect(liveText()).toBe('Papan direset. Kelompokkan lagi, ya.')
+    expect(document.activeElement).toBe(finishButton())
+    expect(
+      [...document.querySelectorAll<HTMLElement>('.sr-pajang')].map((el) => el.dataset.sign),
+    ).toEqual(order)
+
+    // Setelah semua tepat: Skor 12/12, lalu Selesai menyerahkan skor penuh.
+    placeAllCorrect()
+    fireEvent.click(finishButton())
+    expect(screen.getByRole('heading', { name: 'Skor 12/12' })).toBeTruthy()
+    expect(liveText()).toBe('Skor 12 dari 12. Semua rambu sudah tepat.')
+    expect(screen.queryByText(/Tekan Coba Lagi untuk memperbaiki/)).toBeNull()
+    expect(onDone).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Selesai' }))
     expect(onDone).toHaveBeenCalledTimes(1)
     expect(onDone).toHaveBeenCalledWith(SIGNS.length)
   })
 
-  it('gagal sekali lalu benar: ringkasan ke-2, skor memakai percobaan pertama', () => {
+  it('onDone menerima skor penilaian terakhir yang tampil', () => {
     const { onDone } = renderSortir()
+
+    // Penilaian pertama: papan kosong, 0/12.
+    fireEvent.click(finishButton())
+    expect(screen.getByRole('heading', { name: 'Skor 0/12' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Coba Lagi' }))
+
+    // Penilaian terakhir: 11 tepat, 1 salah.
     const first = firstCard()
-    const firstSign = signOf(first)
-    const wrong = wrongKind(firstSign.kind)
-
-    // Semua dua belas ditaruh; satu sengaja di kotak yang salah.
+    const sign = signOf(first)
     fireEvent.click(first)
-    fireEvent.click(bin(wrong))
+    fireEvent.click(bin(wrongKind(sign.kind)))
     placeAllCorrect()
-
     fireEvent.click(finishButton())
-    expect(document.querySelector('.sr-done')).toBeNull()
-    expect(document.querySelector(`[data-kind="${wrong}"] .sr-placed[data-wrong]`)).not.toBeNull()
-
-    // Pindahkan yang salah ke kotak yang benar, lalu nilai lagi.
-    fireEvent.click(document.querySelector<HTMLButtonElement>(`[data-kind="${wrong}"] .sr-placed`)!)
-    fireEvent.click(bin(firstSign.kind))
-
-    fireEvent.click(finishButton())
-    expect(screen.getByRole('heading', { name: 'Berhasil dalam percobaan ke-2.' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Skor 11/12' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Selesai' }))
+    expect(onDone).toHaveBeenCalledTimes(1)
     expect(onDone).toHaveBeenCalledWith(SIGNS.length - 1)
   })
 
