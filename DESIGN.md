@@ -18,7 +18,7 @@ ini pernah berasal dari pelanggaran prinsip itu.
    tidak pernah digambar.
 3. **Garis tebal, isian rata.** Gaya "kids comic": tinta `--ink`, garis 4 unit di viewBox art, tanpa
    gradien 3D, tanpa `filter`. Bayangan = elips tinta 14–16 % di dalam art, bukan efek.
-4. **Bentuk sebelum kata.** Rambu harus terbaca dari siluetnya (segitiga/bulat/persegi) di 74 px.
+4. **Bentuk sebelum kata.** Rambu harus terbaca dari siluetnya (belah ketupat / bulat / bulat bertepi) di 74 px.
 5. **Hidup, bukan realistis.** Objek berdenyut, tumbuh, dan lewat; tidak ada fisika.
 
 ---
@@ -60,7 +60,10 @@ Turunan warna selalu lewat `color-mix(in srgb, var(--x) n%, var(--y))` di CSS **
 | isi, panel, tombol | `Nunito` → system | x-height besar, ramah anak |
 | label jenis rambu | inherit | `text-transform: uppercase`, `letter-spacing: 0.06em` |
 
-Font **tidak diunduh**; kalau tidak tersedia di perangkat, sistem yang dipakai. Jangan menambah
+Font **diunduh dari Google Fonts**: `index.html` memuat `Fredoka` 400–700 dan `Nunito` 400–800 lewat
+`<link>` ke `fonts.googleapis.com`; bila jaringan tidak tersedia, fallback `system` di atas yang
+dipakai. Ini satu-satunya permintaan jaringan aplikasi dan tercatat sebagai **utang T8** — memutusnya
+berarti membundel kedua berkas font lalu mengganti `<link>` dengan `@font-face`. Jangan menambah
 `@font-face` tanpa membundel berkasnya.
 
 ---
@@ -204,10 +207,13 @@ render @360×800   pelat 97,6 px, tiang 279 px, seluruh gambar 377 px
   render rambu; `METERS` tidak pernah diskalakan.
 - Seluruh rambu adalah **satu `<svg>`** (`SignFigure`) dengan viewBox `120 × 462,9` unit; pelat
   menempati 120 unit pertama, tiang 342,9 unit di bawahnya. Satu unit = 0,945 m / 120.
-- Art pelat memakai `ART` dari `SignArt.tsx` (viewBox 120×120), jadi lembar rambu, kuis, dan scene
-  memakai gambar yang sama.
-- Tidak ada kanvas di belakang pelat: bentuknya sudah digambar di art (`warningFrame`, `circle`,
-  `rect`). Bayangan kotak di balik segitiga adalah bug yang pernah ada.
+- Art pelat memakai `ART` dari `SignArt.tsx` (geometri 100 unit dari `Assets/rambu_lalu_lintas.html`,
+  dipetakan ke 120 unit oleh `ArtInk`), jadi lembar rambu, kuis, dan scene memakai gambar yang sama.
+- `ART_BOX` menyatakan kotak tiap gambar: sembilan rambu jalan 100 × 100 (masuk pelat 120 × 120),
+  tiga papan petunjuk lebih lebar dari tingginya (278,6 × 100 dan 208,7 × 100, tinggi dinormalkan).
+  Papan tinggal di lembar/kartu/kuis; ia tidak berdiri di trotoar karena `SIGN_BOX` jalan satu lebar.
+- Tidak ada kanvas di belakang pelat: bentuknya sudah digambar di art (`ketupat`, `circle`, `rect`).
+  Bayangan kotak di belakang rambu adalah bug yang pernah ada.
 - **Tidak ada denyut "ketuk aku".** Rambu adalah objek dunia; afordansi ketuk datang dari teks panel.
 
 ---

@@ -4,7 +4,7 @@ PRD hidup. Perbarui berkas ini ketika keputusan produk berubah; `AGENTS.md` memu
 `DESIGN.md` memuat aturan visualnya.
 
 **Repo:** `/home/lann/Projects/Ina` · React 19 + Vite 8 + TypeScript 7 · tanpa backend
-**Status verifikasi terakhir:** `pnpm test` 200/200 (10 berkas) · `tsc -b` bersih · `vite build` hijau
+**Status verifikasi terakhir:** `pnpm test` 256/256 (12 berkas) · `tsc -b` bersih · `vite build` hijau
 
 ---
 
@@ -17,13 +17,17 @@ lupa daftarnya karena tidak ada yang menghubungkan bentuk dengan makna.
 
 | bentuk + warna | jenis | contoh |
 |---|---|---|
-| segitiga kuning | peringatan | banyak anak menyeberang |
-| bulat merah | larangan | dilarang masuk, dilarang parkir |
-| bulat biru | perintah | belok kiri |
-| persegi biru | petunjuk | tempat menyeberang |
+| belah ketupat kuning | peringatan | penyeberangan, lampu lalu lintas, persimpangan |
+| bulat putih bertepi merah | larangan | dilarang berhenti / parkir / putar balik |
+| bulat biru | perintah | wajib belok kiri, jalan terus, belok kanan |
+| persegi hijau | petunjuk | petunjuk arah, titik kumpul, jalur evakuasi |
 
-Kalau anak bisa berkata "segitiga kuning berarti ada yang harus kuhindari", ia sudah mencapai tujuan —
-tanpa menghafal keenam nama.
+Kalau anak bisa berkata "belah ketupat kuning berarti ada yang harus kuhindari", ia sudah mencapai
+tujuan — tanpa menghafal kedua belas nama.
+
+Grafis rambu berasal dari ekstraksi modul (`Assets/rambu_lalu_lintas.html`), bukan gambar tangan.
+Keempat jenis diajarkan. Jenis Petunjuk (persegi/persegi panjang hijau, tulisan putih) tidak ada di
+matriks `MODUL_AJAR.md` karena kelalaian ekstraksi; síntesis modul memastikannya sah.
 
 ---
 
@@ -43,17 +47,18 @@ tanpa menghafal keenam nama.
 kelas ──"Keluar kelas"──> jalan (3 rambu, berhenti di tiap rambu)
                               │
                               └─> persimpangan
-                                     ├── lurus  → jalan lagi (3 rambu berikutnya)
-                                     ├── kiri   → materi (3 rambu + papan)
-                                     └── kanan  → kuis (5 soal) ─> rumah
+                                     ├── kiri   → materi (semua rambu + papan) → kuis
+                                     ├── lurus  → pilah rambu (12 kartu) ────────┤
+                                     └── kanan  → kuis (5 soal) ───────────────┴─> rumah
 ```
 
 | stage | isi | keluar lewat |
 |---|---|---|
 | `intro` | layar kelas, satu kalimat Bu Guru | tombol "Keluar kelas" |
 | `walk` | scene 2.5D berjalan; anak berhenti di rambu ke-1..3 | "Apa ini?" / "Lanjut jalan" |
-| `crossroad` | tiga papan: lurus, materi, kuis | pilih papan |
-| `materi` | tiga rambu + papan penjelas | "Ke kuis" / "Ke jalan" |
+| `crossroad` | tiga papan satu kata: Belajar (kiri), Pilah (lurus), Kuis (kanan) | pilih papan |
+| `materi` | semua rambu + papan penjelas | "Sudah paham, coba kuis" |
+| `sortir` | 12 kartu dipindahkan ke 4 keranjang jenis | semua kartu masuk → "Selesai" |
 | `kuis` | 5 soal pilihan ganda | jawab semua → "Selesai" |
 | `home` | rumah + bintang + ringkasan | "Pulang" / "Mulai lagi" |
 
@@ -66,10 +71,11 @@ bisa difokus dan diketuk, panel bawah menampilkan kalimat perhentian + dua tombo
 
 | konten | jumlah | berkas |
 |---|---|---|
-| rambu | 6 (`anak`, `zebra`, `dilarang-masuk`, `belok-kiri`, `hati-hati`, `dilarang-parkir`) | `src/data.ts` `SIGNS` |
-| rambu per perjalanan | 3, diacak per seed | `src/run.ts` `BATCH_SIZE` |
+| rambu | 12 (3 larangan, 3 peringatan, 3 perintah, 3 petunjuk) | `src/data.ts` `SIGNS` |
+| rambu per perjalanan | 3, diacak per seed dari 9 rambu jalan | `src/run.ts` `BATCH_SIZE`, `STREET_SIGNS` |
 | beat naskah | 8 statis + kalimat perhentian dinamis | `src/story.ts` |
 | soal kuis | 5 | `src/data.ts` `QUESTIONS` |
+| kartu sortir | 12 (semua `SIGNS`, diacak per seed) | `src/sortir.ts` `sortirCards` |
 
 Tiap rambu membawa empat bidang teks: `name`, `meaning`, `tip`, dan `visual` (deskripsi gambar untuk
 pembaca layar yang **tidak** memuat nama/arti, karena itu jawaban kuis).
@@ -89,6 +95,11 @@ mengacak ulang dengan menghindari rambu terakhir yang barusan dilihat.
 
 Anak **tidak pernah gagal**: skor 0 tetap pulang dengan Bintang 1 dan kalimat yang menyemangati. Tiap
 soal punya `why` yang tampil setelah dijawab — penjelasan, bukan hukuman.
+
+Aturan bintang itu satu rumus untuk dua jalur (`src/sortir.ts` `starsFor`): rasio ≥ 0,8 → 3 bintang,
+≥ 0,4 → 2, sisanya 1. Untuk kuis 5 soal hasilnya tetap 4/5 → 3, 2–3/5 → 2, 0–1/5 → 1. Untuk
+kelompokkan 12 kartu: 10/12 → 3, 5–9/12 → 2, 0–4/12 → 1. Yang dihitung hanya penempatan yang tepat
+pada **percobaan pertama**; salah keranjang tidak mengurangi nyawa maupun skor.
 
 ---
 

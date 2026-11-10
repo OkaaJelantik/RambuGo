@@ -1,17 +1,51 @@
+/**
+ * Sumber konten: `MODUL_AJAR.md` §2–4 (larangan, peringatan, perintah) + sintesis
+ * "Rambu Petunjuk" (persegi/persegi panjang hijau, tulisan putih) dan grafis
+ * ekstraksi `Assets/rambu_lalu_lintas.html` — keempat baris, dua belas rambu.
+ *
+ * `MODUL_AJAR.md` melewatkan jenis Petunjuk; itu kelalaian ekstraksi, bukan
+ * keputusan kurikulum. Keempat jenis kini diajarkan.
+ */
+
+/** Empat jenis rambu. `petunjuk` berasal dari sintesis modul, bukan dari matriks lamanya. */
 export type Kind = 'peringatan' | 'larangan' | 'perintah' | 'petunjuk'
 
+/** Satu art per rambu; id art = id rambu, jadi tidak ada dua tabel yang bisa lepas. */
 export type Art =
-  | 'anak'
-  | 'zebra'
-  | 'dilarang-masuk'
-  | 'belok-kiri'
-  | 'hati-hati'
+  | 'dilarang-berhenti'
   | 'dilarang-parkir'
+  | 'dilarang-putar-balik'
+  | 'peringatan-penyeberangan'
+  | 'peringatan-lampu'
+  | 'peringatan-persimpangan'
+  | 'belok-kiri'
+  | 'jalan-terus'
+  | 'belok-kanan'
+  | 'petunjuk-arah'
+  | 'titik-kumpul'
+  | 'jalur-evakuasi'
+  /*
+   * Empat rambu khusus studi kasus (`src/sulit.ts`). Tidak masuk `SIGNS`:
+   * keduanya tidak berdiri di trotoar scene dan tidak ikut sortir, tetapi
+   * gambarnya tetap satu sumber dengan rambu lain — `ART`/`ART_BOX` adalah
+   * `Record<Art, …>`, jadi art baru tanpa gambar akan ditolak typecheck.
+   */
+  | 'dilarang-masuk'
+  | 'peringatan-tikungan'
+  | 'berhenti-stop'
+  | 'penyeberangan-biru'
 
 export type Sign = {
   id: string
   art: Art
   kind: Kind
+  /**
+   * Di mana rambu ini hidup. `jalan` = pelat persegi yang berdiri di trotoar
+   * (satu kotak 100 × 100 unit, tiang di bawahnya). `papan` = papan petunjuk
+   * hijau yang lebih lebar dari tingginya, jadi ia tampil di lembar, kartu, dan
+   * kuis — bukan sebagai objek jalan, karena `SIGN_BOX` jalan satu lebar.
+   */
+  place: 'jalan' | 'papan'
   name: string
   meaning: string
   tip: string
@@ -23,121 +57,164 @@ export type Sign = {
   visual: string
 }
 
-/** Bentuk & warna tiap jenis rambu — dipakai untuk kartu dan label. */
-export const KINDS: Record<Kind, { label: string; color: string; shape: string }> = {
-  peringatan: { label: 'Peringatan', color: '#F2B01E', shape: 'segitiga kuning' },
-  larangan: { label: 'Larangan', color: '#E0453F', shape: 'bulat merah' },
-  perintah: { label: 'Perintah', color: '#2E7BE0', shape: 'bulat biru' },
-  petunjuk: { label: 'Petunjuk', color: '#2E7BE0', shape: 'persegi biru' },
+/**
+ * Bentuk & warna tiap jenis — dipakai untuk kartu, lembar, dan kalimat
+ * perhentian. `shape` adalah satu-satunya sumber kalimat "Eh, ada rambu …",
+ * jadi mengganti bentuk cukup di sini.
+ */
+export const KINDS: Record<Kind, { label: string; color: string; shape: string; rule: string }> = {
+  larangan: {
+    label: 'Larangan',
+    color: '#E0453F',
+    shape: 'bulat putih bertepi merah',
+    rule: 'Bulat putih dengan tepi merah: ada yang tidak boleh dilakukan.',
+  },
+  peringatan: {
+    label: 'Peringatan',
+    color: '#FFC93C',
+    shape: 'belah ketupat kuning',
+    rule: 'Belah ketupat kuning: ada yang perlu diwaspadai di depan.',
+  },
+  perintah: {
+    label: 'Perintah',
+    color: '#2E7BE0',
+    shape: 'bulat biru',
+    rule: 'Bulat biru dengan panah: kita wajib mengikuti arahnya.',
+  },
+  petunjuk: {
+    label: 'Petunjuk',
+    color: '#007A33',
+    shape: 'persegi hijau',
+    rule: 'Persegi hijau dengan tulisan putih: memberi petunjuk arah atau tempat.',
+  },
 }
 
 export const SIGNS: Sign[] = [
   {
-    id: 'anak',
-    art: 'anak',
-    kind: 'peringatan',
-    name: 'Banyak Anak Menyeberang',
-    meaning: 'Di jalan ini banyak anak yang menyeberang.',
-    tip: 'Kendaraan harus pelan-pelan dan hati-hati.',
-    visual: 'segitiga kuning bergambar dua anak berjalan di jalan',
-  },
-  {
-    id: 'zebra',
-    art: 'zebra',
-    kind: 'petunjuk',
-    name: 'Tempat Menyeberang',
-    meaning: 'Di sini tempat yang aman untuk menyeberang.',
-    tip: 'Menyeberang di sini, jangan di sembarang tempat.',
-    visual: 'persegi biru bergambar garis-garis putih seperti zebra dan orang berjalan',
-  },
-  {
-    id: 'dilarang-masuk',
-    art: 'dilarang-masuk',
+    id: 'dilarang-berhenti',
+    art: 'dilarang-berhenti',
+    place: 'jalan',
     kind: 'larangan',
-    name: 'Dilarang Masuk',
-    meaning: 'Kendaraan tidak boleh lewat jalan ini.',
-    tip: 'Jalan itu dipakai kendaraan dari arah sebaliknya.',
-    visual: 'bulat merah dengan garis putih mendatar di tengah',
-  },
-  {
-    id: 'belok-kiri',
-    art: 'belok-kiri',
-    kind: 'perintah',
-    name: 'Wajib Belok Kiri',
-    meaning: 'Kendaraan harus belok ke kiri.',
-    tip: 'Ikuti arah yang diperintahkan rambu.',
-    visual: 'bulat biru bergambar panah putih menunjuk ke kiri',
-  },
-  {
-    id: 'hati-hati',
-    art: 'hati-hati',
-    kind: 'peringatan',
-    name: 'Hati-hati',
-    meaning: 'Ada bahaya di depan.',
-    tip: 'Kurangi kecepatan dan lihat sekeliling.',
-    visual: 'segitiga kuning bergambar tanda seru hitam',
+    name: 'Dilarang Berhenti',
+    meaning: 'Kendaraan tidak boleh berhenti di tempat ini.',
+    tip: 'Kalau berhenti di sini, kendaraan lain bisa terhalang.',
+    visual: 'bulat putih dengan huruf S hitam dan garis merah mencoretnya',
   },
   {
     id: 'dilarang-parkir',
     art: 'dilarang-parkir',
+    place: 'jalan',
     kind: 'larangan',
     name: 'Dilarang Parkir',
-    meaning: 'Kendaraan tidak boleh parkir di sini.',
-    tip: 'Jalan harus tetap lapang, tidak dipakai parkir.',
-    visual: 'bulat putih bergaris merah bergambar huruf P yang dicoret',
+    meaning: 'Kendaraan tidak boleh diparkir di tempat ini.',
+    tip: 'Cari tempat parkir lain yang memang boleh dipakai.',
+    visual: 'bulat putih dengan huruf P hitam dan garis merah mencoretnya',
+  },
+  {
+    id: 'dilarang-putar-balik',
+    art: 'dilarang-putar-balik',
+    place: 'jalan',
+    kind: 'larangan',
+    name: 'Dilarang Putar Balik',
+    meaning: 'Kendaraan tidak boleh memutar balik arah di sini.',
+    tip: 'Putar balik hanya di tempat yang memang boleh.',
+    visual: 'bulat putih dengan panah hitam berbalik arah, dicoret garis merah',
+  },
+  {
+    id: 'peringatan-penyeberangan',
+    art: 'peringatan-penyeberangan',
+    place: 'jalan',
+    kind: 'peringatan',
+    name: 'Akan Ada Penyeberangan',
+    meaning: 'Di depan ada tempat penyeberangan orang.',
+    tip: 'Pelan-pelan dan dahulukan orang yang menyeberang.',
+    visual: 'belah ketupat kuning bergambar orang berjalan di atas garis zebra',
+  },
+  {
+    id: 'peringatan-lampu',
+    art: 'peringatan-lampu',
+    place: 'jalan',
+    kind: 'peringatan',
+    name: 'Akan Ada Lampu Lalu Lintas',
+    meaning: 'Di depan ada lampu lalu lintas.',
+    tip: 'Bersiap berhenti dan ikuti nyala lampunya.',
+    visual: 'belah ketupat kuning bergambar lampu tiga warna: merah, kuning, hijau',
+  },
+  {
+    id: 'peringatan-persimpangan',
+    art: 'peringatan-persimpangan',
+    place: 'jalan',
+    kind: 'peringatan',
+    name: 'Akan Ada Persimpangan',
+    meaning: 'Di depan ada persimpangan jalan.',
+    tip: 'Lihat kendaraan dari arah lain sebelum lewat.',
+    visual: 'belah ketupat kuning bergambar dua jalan bersilang',
+  },
+  {
+    id: 'belok-kiri',
+    art: 'belok-kiri',
+    place: 'jalan',
+    kind: 'perintah',
+    name: 'Wajib Belok Kiri',
+    meaning: 'Kendaraan wajib belok ke kiri.',
+    tip: 'Ikuti arah panah, jangan lurus.',
+    visual: 'bulat biru dengan panah putih menunjuk ke kiri',
+  },
+  {
+    id: 'jalan-terus',
+    art: 'jalan-terus',
+    place: 'jalan',
+    kind: 'perintah',
+    name: 'Wajib Jalan Terus',
+    meaning: 'Kendaraan wajib jalan lurus terus.',
+    tip: 'Tidak boleh belok kiri maupun kanan.',
+    visual: 'bulat biru dengan panah putih menunjuk ke atas',
+  },
+  {
+    id: 'belok-kanan',
+    art: 'belok-kanan',
+    place: 'jalan',
+    kind: 'perintah',
+    name: 'Wajib Belok Kanan',
+    meaning: 'Kendaraan wajib belok ke kanan.',
+    tip: 'Ikuti arah panah, jangan lurus.',
+    visual: 'bulat biru dengan panah putih menunjuk ke kanan',
+  },
+  {
+    id: 'petunjuk-arah',
+    art: 'petunjuk-arah',
+    place: 'papan',
+    kind: 'petunjuk',
+    name: 'Petunjuk Arah',
+    meaning: 'Papan ini menunjukkan arah menuju suatu kota atau tempat.',
+    tip: 'Baca nama kotanya, lalu ikuti arah panahnya.',
+    visual: 'persegi panjang hijau bertuliskan nama kota dan panah penunjuk arah',
+  },
+  {
+    id: 'titik-kumpul',
+    art: 'titik-kumpul',
+    place: 'papan',
+    kind: 'petunjuk',
+    name: 'Titik Kumpul',
+    meaning: 'Di sini tempat berkumpul saat ada keadaan darurat.',
+    tip: 'Kalau ada gempa, semua orang berkumpul di tempat ini.',
+    visual: 'persegi hijau bergambar tiga orang dan empat panah di sudutnya',
+  },
+  {
+    id: 'jalur-evakuasi',
+    art: 'jalur-evakuasi',
+    place: 'papan',
+    kind: 'petunjuk',
+    name: 'Jalur Evakuasi',
+    meaning: 'Papan ini menunjukkan jalan keluar ke tempat aman.',
+    tip: 'Saat darurat, ikuti panahnya menuju pintu keluar.',
+    visual: 'persegi panjang hijau bergambar orang berlari ke pintu dan panah besar',
   },
 ]
 
-export type Question = {
-  id: string
-  prompt: string
-  signId?: string
-  options: string[]
-  answer: number
-  why: string
-}
-
-export const QUESTIONS: Question[] = [
-  {
-    id: 'q1',
-    prompt: 'Rambu ini artinya apa?',
-    signId: 'anak',
-    options: ['Banyak anak menyeberang', 'Dilarang masuk', 'Tempat parkir'],
-    answer: 0,
-    why: 'Rambu kuning bersegitiga artinya peringatan. Di sini banyak anak menyeberang, jadi kendaraan harus pelan.',
-  },
-  {
-    id: 'q2',
-    prompt: 'Rambu ini menunjukkan tempat untuk apa?',
-    signId: 'zebra',
-    options: ['Berhenti sebentar', 'Menyeberang jalan', 'Memarkir mobil'],
-    answer: 1,
-    why: 'Garis-garis putih itu disebut zebra cross. Itu tempat paling aman untuk menyeberang.',
-  },
-  {
-    id: 'q3',
-    prompt: 'Rambu bulat merah bergaris putih ini artinya?',
-    signId: 'dilarang-masuk',
-    options: ['Boleh lewat pelan-pelan', 'Kendaraan tidak boleh masuk', 'Jalan rusak'],
-    answer: 1,
-    why: 'Bulat merah artinya larangan. Jalan itu tidak boleh dimasuki kendaraan dari arah ini.',
-  },
-  {
-    id: 'q4',
-    prompt: 'Rambu bulat biru dengan panah ke kiri artinya?',
-    signId: 'belok-kiri',
-    options: ['Wajib belok kiri', 'Dilarang belok', 'Jalan buntu'],
-    answer: 0,
-    why: 'Bulat biru artinya perintah. Kendaraan harus mengikuti arah panah, yaitu belok kiri.',
-  },
-  {
-    id: 'q5',
-    prompt: 'Rambu dengan bentuk bulat dan warna dasar merah termasuk jenis?',
-    options: ['Rambu petunjuk', 'Rambu larangan', 'Rambu peringatan'],
-    answer: 1,
-    why: 'Bulat merah dipakai untuk larangan. Peringatan berwarna kuning bersegitiga, perintah bulat biru, dan petunjuk persegi biru.',
-  },
-]
-
-/** Tiga rambu yang ditemui sambil berjalan kaki ke jalan raya. */
-export const WALK_SIGNS = SIGNS.slice(0, 3)
+/**
+ * Rambu yang berdiri di trotoar dan bisa ditemui sambil berjalan. Papan
+ * petunjuk tidak ikut: bentuknya bukan pelat persegi, dan `SIGN_BOX` jalan
+ * hanya punya satu lebar.
+ */
+export const STREET_SIGNS = SIGNS.filter((sign) => sign.place === 'jalan')

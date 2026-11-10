@@ -1,15 +1,15 @@
 /**
  * Satu "perjalanan" (run): antrean rambu yang diacak dari seed.
  *
- * Dulu urutan rambu mati (`SIGNS.slice(0, 3)`), jadi setiap anak melihat
- * segitiga → persegi → bulat, dan menghafal urutan alih-alih rambunya. Modul
+ * Dulu urutan rambu mati (tiga rambu pertama), jadi setiap anak melihat
+ * kuning → putih → biru, dan menghafal urutan alih-alih rambunya. Modul
  * ini menjadikan urutan itu teracak tapi **dapat diulang**: seed yang sama
  * menghasilkan antrean yang sama, sehingga demo dan tes tetap deterministik.
  *
  * Murni: tidak ada React, tidak ada DOM, tidak ada jam.
  */
 
-import { SIGNS, type Sign } from './data'
+import { STREET_SIGNS, type Sign } from './data'
 import { createRng } from './scene/spawner'
 
 /** Berapa rambu per perjalanan kaki sebelum sampai persimpangan. */
@@ -40,7 +40,7 @@ function shuffle(rng: () => number, signs: Sign[]): Sign[] {
  */
 export function shuffleSigns(seed: number, avoidId?: string): Sign[] {
   const rng = createRng(seed)
-  const order = shuffle(rng, SIGNS)
+  const order = shuffle(rng, STREET_SIGNS)
   if (avoidId && order[0]?.id === avoidId && order.length > 1) {
     const swap = 1 + Math.floor(rng() * (order.length - 1))
     ;[order[0], order[swap]] = [order[swap], order[0]]

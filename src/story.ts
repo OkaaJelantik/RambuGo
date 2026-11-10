@@ -14,9 +14,9 @@ import { KINDS, type Sign } from './data'
 /** Aksi yang dikenal App. Panel tidak tahu artinya, hanya meneruskan. */
 export type StoryAction =
   | 'continue'
-  | 'explore'
   | 'learn'
   | 'materi'
+  | 'sortir'
   | 'kuis'
   | 'home'
   | 'restart'
@@ -79,10 +79,10 @@ export const STORY: StoryBeat[] = [
   },
   {
     id: 'crossroad',
-    text: 'Sampai di persimpangan. Lurus jalan lagi, kiri belajar, kanan kuis.',
+    text: 'Sampai di persimpangan. Kiri belajar, lurus kelompokkan, kanan kuis.',
     buttons: [
-      { label: 'Jalan lagi', action: 'explore' },
       { label: 'Ke materi', action: 'materi' },
+      { label: 'Ke kelompokkan', action: 'sortir' },
       { label: 'Ke kuis', action: 'kuis' },
     ],
   },
@@ -99,7 +99,7 @@ export const STORY: StoryBeat[] = [
   {
     id: 'home',
     // Naskah menulis tiga kalimat; dipisah em dash supaya tetap ≤2 kalimat.
-    text: 'Sampai di rumah. Rambu itu kawan di jalan — besok aku cerita ke Bu Guru.',
+    text: 'Sampai di rumah. Rambu itu kawan di jalan! besok aku cerita ke Bu Guru.',
     buttons: [
       { label: 'Pulang', action: 'home' },
       { label: 'Main lagi', action: 'restart' },
@@ -118,12 +118,18 @@ export function beatById(id: string | null): StoryBeat | null {
  * lembar terasa bercerita, bukan kamus.
  */
 export const SIGN_OPENINGS: Record<string, string> = {
-  anak: 'Aku kecil, jadi aku paling suka rambu ini.',
-  zebra: 'Kalau mau ke seberang, lewat garis putih itu.',
-  'dilarang-masuk': 'Tapi aku jalan kaki. Sepeda dan mobil yang tidak boleh.',
-  'belok-kiri': 'Bulat biru dengan panah. Kendaraan harus ikut arah panah.',
-  'hati-hati': 'Tanda seru di segitiga kuning. Ada yang harus kuhindari di depan.',
-  'dilarang-parkir': 'Huruf P dicoret. Mobil tidak boleh berhenti di sini.',
+  'dilarang-berhenti': 'Huruf S dicoret. Mobil tidak boleh berhenti di sini.',
+  'dilarang-parkir': 'Huruf P dicoret. Mobil tidak boleh diparkir di sini.',
+  'dilarang-putar-balik': 'Panah berbalik arah dicoret. Tidak boleh putar balik di sini.',
+  'peringatan-penyeberangan': 'Belah ketupat kuning. Di depan ada tempat menyeberang.',
+  'peringatan-lampu': 'Lampu tiga warna di belah ketupat. Sebentar lagi ada lampu jalan.',
+  'peringatan-persimpangan': 'Dua jalan bersilang di belah ketupat. Ada persimpangan di depan.',
+  'belok-kiri': 'Panah ke kiri di bulat biru. Kendaraan wajib belok kiri.',
+  'jalan-terus': 'Panah lurus di bulat biru. Kendaraan wajib jalan terus.',
+  'belok-kanan': 'Panah ke kanan di bulat biru. Kendaraan wajib belok kanan.',
+  'petunjuk-arah': 'Papan hijau bertuliskan nama kota. Panahnya menunjukkan arahnya.',
+  'titik-kumpul': 'Papan hijau bergambar orang. Kalau darurat, aku kumpul di sana.',
+  'jalur-evakuasi': 'Papan hijau bergambar orang berlari dan pintu. Itu jalan keluarnya.',
 }
 
 /** Baris pembuka untuk satu rambu, atau `undefined` kalau naskah tidak punya. */
@@ -133,7 +139,7 @@ export function openingFor(signId: string): string | undefined {
 
 /**
  * Kalimat berhenti, diturunkan dari rambu yang benar-benar berdiri di depan
- * anak. Dulu teksnya mati ("Eh, ada rambu segitiga kuning…"), sehingga run
+ * anak. Dulu teksnya mati ("Eh, ada rambu …"), sehingga run
  * yang diacak bisa membuat kalimat itu bohong.
  */
 export function stopLine(sign: Sign): string {

@@ -1,21 +1,98 @@
 /* ============================================================
-   Persimpangan 2.5D (Task 23).
+   Persimpangan 2.5D (kamera drone menunduk).
 
-   Posisi dan ukuran papan diisi dari proyeksi di `Junction.tsx`
-   (left/top/width/font-size dalam px), jadi CSS ini hanya rupa:
-   tiang, pelat, dan cincin fokus. Tidak ada media query
-   `max-width` — mobile-first, seperti sisa aplikasi.
+   Tata letak, proyeksi, dan posisi semua objek diisi dari
+   `scene/crossing.ts` dan `Junction.tsx` dalam px hasil proyeksi
+   meter. CSS ini hanya rupa: tanah, trotoar, jalan, marka, kerb,
+   jalan setapak, lampu lalu lintas, dan papan melayang. Tidak ada
+   `clamp()`, `vh`, `vw`, atau px literal untuk ukuran objek —
+   ukuran papan dan prop datang dari satu meter persimpangan lewat
+   `--wk-px-per-m`; geometri trotoar/jalan setapak/lampu datang dari
+   `scene/crossing.ts` dalam px hasil proyeksi.
+
+   Tidak ada `filter`/`backdrop-filter` di sini: semua bayangan
+   adalah art (elips tinta) di dalam SVG.
    ============================================================ */
 
 .jn {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: var(--sky-2);
+  /* Scene ini punya layer sendiri (lampu z 140, papan 300, judul 400). Tanpa
+     isolasi, angka-angka itu ikut menumpuk terhadap `.sheet` global (z 40) dan
+     panel chat tertutup NPC/kendaraan. Sama seperti `.wk-scene`. */
+  isolation: isolate;
+  /* Tanah persimpangan: rumput gelap di ujung jauh, terang di dekat kamera.
+     Satu-satunya gradien di scene ini dan ia bidang tanah, bukan bayangan 3D. */
+  background: linear-gradient(
+    180deg,
+    var(--grass-dark) 0%,
+    var(--grass) 46%,
+    color-mix(in srgb, var(--grass) 78%, var(--paper)) 100%
+  );
+  /* Cadangan sebelum JS mengukur; nilai asli ditulis `measure()` di
+     Junction.tsx dari `createCrossView(...).scale`. */
+  --wk-px-per-m: 148px;
 }
 
-/* Jalan samping digambar di atas GroundScene, di bawah papan. */
+/* ---------- tanah, jalan, dan marka ---------- */
+
+.jn-ground {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Jalur vertikal dan jalur melintang memakai satu isian yang sama: keduanya
+   jalan yang sama, dan warna berbeda akan membocorkan faktor kompresi yang
+   dulu membuat jalur horizontal terlihat lebih sempit. */
 .jn-road {
+  fill: var(--road);
+}
+
+/* Kerb 0,12 m di luar tepi jalur; dipotong di mulut simpang. */
+.jn-kerb {
+  fill: color-mix(in srgb, var(--road-line) 52%, var(--road));
+}
+
+.jn-mark {
+  fill: var(--road-line);
+}
+
+.jn-zebra {
+  fill: var(--road-line);
+}
+
+/* Trotoar 2,0 m di keempat sisi simpang, dipotong di mulut simpang. Warna
+   beton yang sama dengan trotoar scene berjalan (`GroundScene`): turunan
+   `--road-line` yang digelapkan sedikit, supaya garis kerb di sebelahnya tetap
+   terbaca. Trotoar ini bidang tanah + kerb, bukan kotak 3D. */
+.jn-walk {
+  fill: color-mix(in srgb, var(--road-line) 80%, var(--ink));
+}
+
+/* Jalan setapak rumah → jalan: pengganti fasad yang dihapus. Bidang tanah
+   sempit, hangat (turunan `--paper-line`), dengan dua garis tepi lebih gelap.
+   Tidak ada animasi: ini marka tanah, bukan objek yang bergerak. */
+.jn-walk-path {
+  fill: color-mix(in srgb, var(--paper-line) 72%, var(--orange));
+}
+
+.jn-walk-path-edge {
+  fill: color-mix(in srgb, var(--paper-line) 26%, var(--orange-dark));
+}
+
+/* ---------- lampu lalu lintas ---------- */
+
+/*
+ * Layer lampu: satu SVG untuk delapan unit. z-index-nya ditulis dari
+ * `LIGHT_Z` di `scene/crossing.ts` (bukan di sini), karena angka itu yang
+ * menjamin lampu di atas kanopi pohon; lihat komentar di sana. Layer ini
+ * dekoratif dan tidak pernah menangkap pointer.
+ */
+.jn-lights {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -23,6 +100,88 @@
   display: block;
   pointer-events: none;
 }
+
+/* Tiang dan lengan: logam `--road` dengan garis tepi warna kerb. Garis tepi
+   adalah campuran token (`--road` 62 % + `--sky-2` ≈ #8F9AA8), bukan palet
+   kedua di CSS. */
+.jn-tl__pole,
+.jn-tl__arm {
+  fill: var(--road);
+  stroke: color-mix(in srgb, var(--road) 62%, var(--sky-2));
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+
+/* Kotak lampu: tinta, sudut membulat kecil (radius dihitung dari meter). */
+.jn-tl__box {
+  fill: var(--ink);
+}
+
+.jn-tl__lamp--red {
+  fill: var(--red);
+}
+
+.jn-tl__lamp--yellow {
+  fill: var(--yellow);
+}
+
+.jn-tl__lamp--green {
+  fill: var(--green);
+}
+
+/* Bayangan kontak: art (elips tinta), bukan filter. */
+.jn-tl__shadow {
+  fill: var(--ink);
+  opacity: 0.16;
+}
+
+/* Bayangan papan di aspal: art, bukan efek. */
+.jn-board-shadow {
+  fill: var(--ink);
+  opacity: 0.16;
+}
+
+/* ---------- prop & ambience ---------- */
+
+.jn-props,
+.jn-ambience {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.jn-prop {
+  position: absolute;
+  /* Titik jangkar ada di kaki objek: `translate` (bukan transform) menaruh
+     kotak di atas titik tanah dan menengahkan, tanpa melawan transform loop. */
+  transform-origin: 50% 100%;
+}
+
+.jn-prop > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/*
+ * Pejalan dan mobil memakai slot `.wk-*` yang sudah ada (walk.css mengurus
+ * pemilihan varian lewat data-kind/data-face dan langkah kaki lewat CSS).
+ * Bedanya hanya tinggi: di kamera drone, 1 m tegak = 0,55 m di layar, jadi
+ * tinggi badan pejalan dikali HEIGHT_K. Kendaraan tetap dianjurkan lebar
+ * (1,8 m) karena seninya sudah menggambar atap dari sedikit atas.
+ */
+.jn .wk-ped--adult {
+  height: calc(var(--wk-px-per-m) * 1.7 * 0.55);
+  width: calc(var(--wk-px-per-m) * 1.7 * 0.55 * 0.45);
+}
+
+.jn .wk-ped--child {
+  height: calc(var(--wk-px-per-m) * 1.2 * 0.55);
+  width: calc(var(--wk-px-per-m) * 1.2 * 0.55 * 0.45);
+}
+
+/* ---------- judul ---------- */
 
 .jn-title {
   position: absolute;
@@ -41,77 +200,117 @@
   box-shadow: 0 4px 0 rgba(42, 35, 32, 0.14);
 }
 
+/* ---------- papan pilihan rute ---------- */
+
 .jn-boards {
   position: absolute;
   inset: 0;
 }
 
 /*
- * Satu papan = tombol. `left`/`top` adalah titik tanah papannya, jadi
- * `translate(-50%, -100%)` menaruh pelat di atas tiang dan tiang di atas
- * tanah — sama seperti rambu di scene berjalan.
+ * Satu papan = satu tombol. Ukuran (lebar, tinggi, font-size) diisi dari
+ * proyeksi di `Junction.tsx`; `translate: -50% -100%` menaruh titik bawah-tengah
+ * papan tepat di titik apungnya, jadi papan melayang di atas jalan — tidak ada
+ * tiang, tidak ada tempelan di kaca.
  */
 .jn-board {
   position: absolute;
-  z-index: 160;
   translate: -50% -100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
+  display: block;
+  padding: 0;
   border: 0;
   background: none;
-  padding: 0;
   cursor: pointer;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .jn-board__plate {
-  order: -1;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32em;
   width: 100%;
-  min-width: 84px;
-  min-height: 48px;
-  border: 3px solid var(--ink);
-  border-radius: 12px;
-  font-weight: 700;
-  line-height: 1.1;
+  height: 100%;
+  padding: 0.18em 0.32em;
+  border: 0.16em solid var(--ink);
+  border-radius: 0.42em;
+  font-weight: 800;
+  line-height: 1.04;
   text-align: center;
   color: var(--ink);
-  box-shadow: 0 5px 0 rgba(42, 35, 32, 0.22);
+  background: var(--paper);
+  box-shadow: 0 0.16em 0 rgba(42, 35, 32, 0.24);
 }
+
+.jn-board__label {
+  display: block;
+  text-wrap: balance;
+}
+
+/*
+ * Tidak ada panah di dalam pelat. Papan sudah melayang di atas jalan yang
+ * ditujunya, jadi arahnya terbaca dari tempatnya — dan panah 0,82em itu
+ * memakan 12–17 px dari pelat 84–111 px, yang membuat label satu kata
+ * ("Kelompok") menyempit sampai teksnya melewati padding.
+ */
 
 .jn-board--materi .jn-board__plate {
   background: color-mix(in srgb, var(--blue) 24%, var(--paper));
 }
 
-.jn-board--lurus .jn-board__plate {
-  background: color-mix(in srgb, var(--green) 30%, var(--paper));
+.jn-board--sortir .jn-board__plate {
+  /* Oranye: bukan hijau (petunjuk) dan bukan kuning (peringatan), jadi papan
+     utara tidak terbaca sebagai jenis rambu tertentu. Kadarnya 55 %, bukan
+     26 %: pada 26 % papan ini jatuh ke (255, 220, 192) dan papan kuis
+     (255, 233, 178) — selisih 13/14 per kanal, praktis warna yang sama. */
+  background: color-mix(in srgb, var(--orange) 55%, var(--paper));
 }
 
 .jn-board--kuis .jn-board__plate {
   background: color-mix(in srgb, var(--yellow) 34%, var(--paper));
 }
 
-/* Tiang pendek: 1,1 m di ruang meter, discale lewat tinggi px papan. */
-.jn-board__post {
-  width: 8px;
-  height: 26px;
-  border: 3px solid var(--ink);
-  border-top: 0;
-  border-radius: 0 0 4px 4px;
-  background: color-mix(in srgb, var(--road) 70%, var(--paper));
-}
-
 .jn-board:focus-visible {
   outline: 3px solid var(--blue-dark);
   outline-offset: 4px;
-  border-radius: 12px;
+  border-radius: 0.5em;
 }
 
+/* Papan terbaca sebagai pilihan: bayangan menebal saat ditunjuk, dan menipis
+   saat ditekan. Bukan `filter`, dan tidak ada transform yang melawan loop. */
+.jn-board:hover .jn-board__plate {
+  box-shadow: 0 0.26em 0 rgba(42, 35, 32, 0.28);
+}
+
+/* Mengambang halus. Hanya saat gerak diizinkan; `prefers-reduced-motion: reduce`
+   mematikan animasi tak terbatas, narasi tetap jalan (itu di App). */
 @media (prefers-reduced-motion: no-preference) {
+  .jn-board__plate {
+    animation: jn-float 2.6s ease-in-out infinite;
+  }
+
+  /* Tiga fase berbeda supaya ketiganya tidak bergerak serempak. */
+  .jn-board--sortir .jn-board__plate {
+    animation-delay: -0.85s;
+  }
+
+  .jn-board--kuis .jn-board__plate {
+    animation-delay: -1.7s;
+  }
+
   .jn-board:active .jn-board__plate {
-    translate: 0 2px;
+    translate: 0 0.06em;
+  }
+}
+
+@keyframes jn-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-0.2em);
   }
 }

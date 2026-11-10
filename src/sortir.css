@@ -9,7 +9,7 @@
    Kotak sengaja TIDAK berwarna jenis: warna merah/kuning/biru/hijau di kotak
    akan membocorkan jawaban sebelum anak membaca rambunya. Jenis hanya hadir
    sebagai kata (label) dan kalimat peran. Penilaian terjadi di tombol
-   "Aku selesai", bukan saat menjatuhkan rambu.
+   "Sudah Selesai", bukan saat menjatuhkan rambu.
 
    Token warna dari `index.css`. Mobile-first 360 px, target ketuk ≥ 44 px,
    tanpa gulir mendatar, tanpa filter/backdrop-filter.

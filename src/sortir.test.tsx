@@ -34,7 +34,7 @@ function binBox(kind: Kind): HTMLDivElement {
 
 /** Tombol penilaian; satu-satunya tombol yang memulai percobaan baru. */
 function finishButton(): HTMLButtonElement {
-  return screen.getByRole('button', { name: 'Aku selesai' }) as HTMLButtonElement
+  return screen.getByRole('button', { name: 'Sudah Selesai' }) as HTMLButtonElement
 }
 
 /** Menaruh semua hiasan yang tersisa ke kotak jenis yang benar. */
@@ -163,7 +163,7 @@ describe('Sortir (DOM)', () => {
     // Tidak ada bilah kemajuan: anak menilai sendiri lewat tombol, bukan
     // membaca "tinggal 3 lagi" yang membocorkan sisa langkah.
     expect(document.querySelector('.sr-progress')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Aku selesai' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sudah Selesai' })).toBeTruthy()
 
     const live = document.querySelector<HTMLElement>('.sr-live')
     expect(live).not.toBeNull()
@@ -216,14 +216,14 @@ describe('Sortir (DOM)', () => {
     expect(liveText()).toContain('dipindah ke kotak')
   })
 
-  it('Aku selesai saat masih ada yang belum pas: menandai, tidak menyelesaikan', () => {
+  it('Sudah Selesai saat masih ada yang belum pas: menandai, tidak menyelesaikan', () => {
     renderSortir()
     fireEvent.click(finishButton())
 
     expect(document.querySelector('.sr-done')).toBeNull()
     expect(document.querySelectorAll('[data-wrong]').length).toBeGreaterThan(0)
     expect(liveText()).toContain('belum pas')
-    expect(screen.getByRole('button', { name: 'Aku selesai' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sudah Selesai' })).toBeTruthy()
 
     // Tanda hilang begitu rambu dipindah, bukan menempel selamanya.
     const card = firstCard()

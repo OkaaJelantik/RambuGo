@@ -9,7 +9,7 @@
  *
  * Angka mengikuti ukuran dunia nyata yang child-friendly: anak kelas 2 SD
  * 1,35 m, mobil 1,8 m lebar, tiang listrik 9 m. Rambu memakai pelat Ø 0,60 m
- * di atas tiang 2,0 m.
+ * di atas tiang 1,8 m (tebal 0,09 m).
  *
  * Jalan sengaja sempit (2 lajur × 2,4 m = 4,8 m). Ini jalan kampung, bukan
  * jalan arteri: dengan lajur 3,5 m, garis bagi jalan berdiri 4,3 m dari garis

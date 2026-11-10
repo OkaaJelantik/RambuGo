@@ -38,7 +38,7 @@ function sentenceCase(name: string): string {
  * di tiga bidang, lalu dipindahkan ke empat kotak kayu.
  *
  * Aturan mainnya sengaja longgar — **tidak ada penolakan**. Rambu boleh masuk
- * kotak mana pun; sistem baru menilai saat anak menekan "Aku selesai".
+ * kotak mana pun; sistem baru menilai saat anak menekan "Sudah Selesai".
  * Penilaian yang gagal menandai rambu yang belum pas (tanda merah) dan anak
  * boleh memindahkannya dari kotak yang salah ke kotak lain, lalu menekan
  * tombol itu lagi. Layar selesai menyebut percobaan ke berapa yang berhasil.
@@ -59,7 +59,7 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
   /** rambuId → jenis kotak tempat hiasan itu sekarang. Satu-satunya sumber benar. */
   const [placedBy, setPlacedBy] = useState<Record<string, Kind>>({})
   const [selected, setSelected] = useState<string | null>(null)
-  /** Rambu yang ditandai belum pas sesudah tombol "Aku selesai" ditekan. */
+  /** Rambu yang ditandai belum pas sesudah tombol "Sudah Selesai" ditekan. */
   const [wrong, setWrong] = useState<ReadonlySet<string>>(() => new Set<string>())
   const [attempts, setAttempts] = useState(0)
   /** Benar saat tombol ditekan pertama kali; App memakainya untuk bintang. */
@@ -215,7 +215,7 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
 
     setWrong(new Set(wrongIds))
     setLive(
-      `${wrongIds.length} rambu belum pas. Pindahkan rambu bertanda merah ke kotak lain, lalu tekan Aku selesai lagi.`,
+      `${wrongIds.length} rambu belum pas. Pindahkan rambu bertanda merah ke kotak lain, lalu tekan Sudah Selesai lagi.`,
     )
     pendingFocusRef.current = { type: 'finish' }
   }
@@ -321,10 +321,10 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
     <div className="sr" data-done={done || undefined} onKeyDown={cancelSelection}>
       <header className="sr-head">
         <h2 className="sr-title" ref={headingRef} tabIndex={-1}>
-          Kelompokkan rambu
+          Kelompokkan Rambu
         </h2>
         <p className="sr-hint">
-          Kamu belok kiri. Di ujung jalan ada kafe — dan hiasan rambunya berantakan.
+          Kamu menyebrang lurus. Di ujung jalan ada sebuah kafe!. Dekorasinya terlihat berantakan.
         </p>
       </header>
 
@@ -438,11 +438,8 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
       {!done && (
         <div className="sr-finish">
           <button type="button" className="btn" ref={finishRef} onClick={finish}>
-            Aku selesai
+            Sudah Selesai
           </button>
-          <p className="sr-finish__hint">
-            Isi bebas. Belum pas? Pindahkan yang bertanda merah.
-          </p>
         </div>
       )}
 

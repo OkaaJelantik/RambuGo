@@ -1,16 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, RefObject } from 'react'
-import { KINDS, QUESTIONS, SIGNS, type Kind, type Sign } from './data'
-import { advanceRun, batchOf, createRun, initialSeed, type Run } from './run'
-import { SignArt, describeSign } from './SignArt'
+import { KINDS, SIGNS, type Kind, type Sign } from './data'
+import { batchOf, createRun, initialSeed, type Run } from './run'
+import { ART_BOX, SignArt } from './SignArt'
 import Classroom from './Classroom'
 import WalkScene from './WalkScene'
 import Junction from './Junction'
+import Sortir from './Sortir'
+import Sulit from './Sulit'
+import { TOTAL_DECISIONS } from './sulit'
 import Kid from './Kid'
 import DialoguePanel from './DialoguePanel'
 import { beatById, openingFor, stopBeat, type StoryButton, type StoryId } from './story'
+import { starsFor } from './sortir'
 
-type Stage = 'intro' | 'walk' | 'crossroad' | 'materi' | 'kuis' | 'home'
+type Stage = 'intro' | 'walk' | 'crossroad' | 'materi' | 'sortir' | 'kuis' | 'home'
 
 function HomeHouse({ className }: { className?: string }) {
   return (
@@ -114,7 +118,10 @@ function SignSheet({
         ref={sheetRef}
       >
         <div className="art">
-          <SignArt art={sign.art} size={124} />
+          {/* Papan petunjuk jauh lebih lebar daripada tingginya: diberi kotak
+              lebih besar supaya tulisan kecilnya (nama kota, "Titik Kumpul")
+              masih terbaca. Pelat persegi tetap 124. */}
+          <SignArt art={sign.art} size={ART_BOX[sign.art].w > ART_BOX[sign.art].h ? 216 : 124} />
         </div>
         <span
           className="kind-chip"
@@ -123,6 +130,9 @@ function SignSheet({
           Rambu {kindChipText(sign.kind)}
         </span>
         <p className="kind-shape">Bentuk: {KINDS[sign.kind].shape}</p>
+        {/* Ciri jenis, bukan ciri rambu: inilah yang berlaku untuk semua rambu
+            sejenis, dan yang dibaca anak saat mengelompokkan nanti. */}
+        <p className="kind-shape">{KINDS[sign.kind].rule}</p>
 
         {/* Isi lembar = keterangan resmi saja. Narasi Aku pindah ke balon
             ucapan di scene, muncul setelah lembar ditutup. */}
@@ -142,7 +152,7 @@ function SignSheet({
   )
 }
 
-const STAGES: Stage[] = ['intro', 'walk', 'crossroad', 'materi', 'kuis', 'home']
+const STAGES: Stage[] = ['intro', 'walk', 'crossroad', 'materi', 'sortir', 'kuis', 'home']
 // ?s=walk untuk lompat langsung ke satu adegan (buat cek tampilan).
 // Parameter ini alat bantu developer, jadi hanya dibaca di build dev.
 const devParams = import.meta.env.DEV ? new URLSearchParams(window.location.search) : null
@@ -170,7 +180,7 @@ const SHEET_GUARD_MS = 300
  * tombol layar) hampir selalu ikut lepas dari DOM, jadi fokus harus pindah
  * ke sesuatu yang tetap ada — tidak pernah dibiarkan jatuh ke `<body>`.
  */
-type FocusTarget = 'walk' | 'home' | 'intro' | 'materi' | 'quiz'
+type FocusTarget = 'walk' | 'home' | 'intro' | 'materi' | 'sortir' | 'quiz'
 
 function beatAt(beats: StoryId[], step: number): StoryId {
   return beats[Math.min(Math.max(step, 0), beats.length - 1)]
@@ -183,7 +193,7 @@ function startBeat(stage: Stage, walked: number): StoryId | null {
   if (stage === 'crossroad') return 'crossroad'
   if (stage === 'materi') return 'materi'
   if (stage === 'home') return 'home'
-  // Kuis: panel tidak tampil selama soal; beat kuis menyusul di layar rumah.
+  // Kuis dan sortir: panel tidak tampil selama soal/permainan.
   return null
 }
 
@@ -199,7 +209,7 @@ export default function App() {
     const step = Number.isFinite(v) && v > 0 ? Math.min(v, 2) : 0
     return startBeat(initial, step)
   })
-  const [run, setRun] = useState<Run>(() => createRun(initialSeed()))
+  const [run] = useState<Run>(() => createRun(initialSeed()))
   const batch = batchOf(run)
   const [open, setOpen] = useState<Sign | null>(null)
   /** Narasi Aku yang tampil sebagai balon ucapan sesudah lembar ditutup. */
@@ -208,14 +218,17 @@ export default function App() {
   const walkSceneRef = useRef<HTMLDivElement | null>(null)
   const classroomHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const materiHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  const sortirHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const homeHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const quizCardRef = useRef<HTMLDivElement | null>(null)
   const crossroadHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const pendingFocusRef = useRef<FocusTarget | null>(null)
   // -Infinity: aksi panel sebelum lembar pertama pernah ditutup tidak ditahan.
   const sheetClosedAtRef = useRef(-Infinity)
-  const [via, setVia] = useState<'materi' | 'kuis' | null>(null)
+  const [via, setVia] = useState<'materi' | 'sortir' | 'kuis' | null>(null)
   const [score, setScore] = useState(0)
+  /** Penyebut skor mengikuti jalur: 15 keputusan studi kasus atau 12 kartu sortir. */
+  const [scoreMax, setScoreMax] = useState(TOTAL_DECISIONS)
 
   /** Catat waktu tutup lembar; aksi panel sesudahnya ditahan sebentar. */
   const closeWalkSheet = () => {
@@ -240,6 +253,7 @@ export default function App() {
     setMateriOpen(null)
     setVia(null)
     setScore(0)
+    setScoreMax(TOTAL_DECISIONS)
   }
 
   // Kalimat leg hanya singgah: hilang sendiri setelah ±3 detik. Kalau dunia
@@ -266,6 +280,7 @@ export default function App() {
     else if (target === 'home') homeHeadingRef.current?.focus()
     else if (target === 'intro') classroomHeadingRef.current?.focus()
     else if (target === 'materi') materiHeadingRef.current?.focus()
+    else if (target === 'sortir') sortirHeadingRef.current?.focus()
     else quizCardRef.current?.focus()
   }, [stage, beatId])
 
@@ -307,13 +322,13 @@ export default function App() {
       case 'learn':
         if (stage === 'walk') setOpen(batch[walked])
         return
-      case 'explore':
-        // Lurus: perjalanan kaki berikutnya dengan antrean yang diacak ulang.
-        pendingFocusRef.current = 'walk'
-        setRun((current) => advanceRun(current))
-        setWalked(0)
-        setStage('walk')
-        setBeatId(beatAt(LEG_BEATS, 0))
+      case 'sortir':
+        // Papan utara: permainan mengelompokkan rambu. Panel tidak menemani
+        // permainan; layar sortir punya wilayah live sendiri.
+        pendingFocusRef.current = 'sortir'
+        setVia('sortir')
+        setStage('sortir')
+        setBeatId(null)
         return
       case 'materi':
         pendingFocusRef.current = 'materi'
@@ -395,12 +410,11 @@ export default function App() {
         <section className="screen dlg-space" key="crossroad">
           <Junction
             headingRef={crossroadHeadingRef}
-            onExplore={() => {
-              pendingFocusRef.current = 'walk'
-              setRun((current) => advanceRun(current))
-              setWalked(0)
-              setStage('walk')
-              setBeatId(beatAt(LEG_BEATS, 0))
+            onSortir={() => {
+              pendingFocusRef.current = 'sortir'
+              setVia('sortir')
+              setStage('sortir')
+              setBeatId(null)
             }}
             onMateri={() => {
               pendingFocusRef.current = 'materi'
@@ -452,13 +466,32 @@ export default function App() {
         </section>
       )}
 
+      {stage === 'sortir' && (
+        <section className="screen sortir-screen" key="sortir">
+          <Sortir
+            seed={run.seed}
+            headingRef={sortirHeadingRef}
+            onDone={(benar) => {
+              pendingFocusRef.current = 'home'
+              setScore(benar)
+              setScoreMax(SIGNS.length)
+              setStage('home')
+              // Ringkasan sortir sudah ditutup tombol "Selesai"; layar rumah
+              // langsung memakai beat rumah, bukan beat kuis.
+              setBeatId('home')
+            }}
+          />
+        </section>
+      )}
+
       {stage === 'kuis' && (
-        <section className="screen quiz-screen" key="kuis">
-          <Quiz
+        <section className="screen quiz-screen sulit-screen" key="kuis">
+          <Sulit
             cardRef={quizCardRef}
             onDone={(s) => {
               pendingFocusRef.current = 'home'
               setScore(s)
+              setScoreMax(TOTAL_DECISIONS)
               setStage('home')
               // Beat kuis ("Kalau benar, aku dapat bintang.") membuka layar hasil.
               setBeatId('kuis')
@@ -487,8 +520,10 @@ export default function App() {
               {via === 'materi'
                 ? 'Kamu belajar dulu, lalu mengerjakan kuis.'
                 : via === 'kuis'
-                  ? 'Kamu berani mencoba kuis lebih dulu.'
-                  : 'Petualangan selesai.'}
+                  ? 'Kamu berani mencoba studi kasus lebih dulu.'
+                  : via === 'sortir'
+                    ? 'Kamu mengelompokkan rambu dulu, lalu pulang.'
+                    : 'Petualangan selesai.'}
             </p>
 
             <div className="badge-card">
@@ -497,8 +532,8 @@ export default function App() {
             </div>
 
             <div className="score-line">
-              <span className="score-pill">Benar {score}/{QUESTIONS.length}</span>
-              <span className="score-pill">{score >= 4 ? 'Bintang 3 ⭐' : score >= 2 ? 'Bintang 2 ⭐' : 'Bintang 1 ⭐'}</span>
+              <span className="score-pill">Benar {score}/{scoreMax}</span>
+              <span className="score-pill">Bintang {starsFor(score, scoreMax)} ⭐</span>
             </div>
 
             <button className="btn" onClick={restart}>
@@ -527,136 +562,3 @@ export default function App() {
   )
 }
 
-function Quiz({
-  onDone,
-  cardRef,
-}: {
-  onDone: (score: number) => void
-  /** Kartu soal; App memfokuskannya saat layar kuis menjadi tujuan fokus. */
-  cardRef?: RefObject<HTMLDivElement | null>
-}) {
-  const [idx, setIdx] = useState(0)
-  const [picked, setPicked] = useState<number | null>(null)
-  const [score, setScore] = useState(0)
-  const q = QUESTIONS[idx]
-  const sign = q.signId ? SIGNS.find((s) => s.id === q.signId) : undefined
-  const nextRef = useRef<HTMLButtonElement>(null)
-  const promptRef = useRef<HTMLParagraphElement>(null)
-  const prevIdxRef = useRef(idx)
-
-  const feedbackText =
-    picked === null
-      ? ''
-      : `${picked === q.answer ? 'Tepat sekali! ' : 'Belum tepat. '}${q.why}`
-
-  // The same polite region carries the feedback and, when an answer adds a
-  // point, the new score. `score` is already updated in this render, so the
-  // announcement names the score the child can see.
-  const liveText =
-    picked === null
-      ? ''
-      : `${feedbackText}${picked === q.answer ? ` Skor ${score} dari ${QUESTIONS.length}.` : ''}`
-
-  // Memilih opsi menonaktifkan tombol yang sedang fokus, jadi fokus jatuh ke
-  // <body>. Pindahkan ke "Soal berikutnya" yang tetap ada, dan gulirkan ke
-  // dalam layar: pada 360×640 tombol ini lahir di bawah lipatan.
-  useEffect(() => {
-    if (picked === null) return
-    nextRef.current?.scrollIntoView?.({ block: 'center' })
-    nextRef.current?.focus({ preventScroll: true })
-  }, [picked, idx])
-
-  // Soal berganti dan tombol "Soal berikutnya" lepas dari DOM. Fokuskan
-  // pertanyaan baru (tabIndex -1), bukan membiarkan fokus ke <body>.
-  useEffect(() => {
-    if (prevIdxRef.current === idx) return
-    prevIdxRef.current = idx
-    promptRef.current?.focus()
-  }, [idx])
-
-  // Jalur dev `?s=kuis` membuka layar tanpa aksi panel, jadi App tidak punya
-  // sasaran fokus. Jangan biarkan fokus tetap di <body> (DoD §14.4); saat
-  // masuk lewat "Ke kuis", App sudah memfokuskan kartu, jadi ini no-op.
-  useEffect(() => {
-    if (document.activeElement === document.body) promptRef.current?.focus()
-  }, [])
-
-  const pick = (i: number) => {
-    if (picked !== null) return
-    setPicked(i)
-    if (i === q.answer) setScore((s) => s + 1)
-  }
-
-  const next = () => {
-    if (idx + 1 >= QUESTIONS.length) return onDone(score)
-    setIdx(idx + 1)
-    setPicked(null)
-  }
-
-  return (
-    <div className="quiz-wrap">
-      <h2 className="quiz-title">Kuis Rambu Lalu Lintas</h2>
-
-      {/* Wilayah live tetap terpasang; teksnya yang berganti saat menjawab. */}
-      <p
-        className="quiz-live sr-only"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        {liveText}
-      </p>
-
-      <div className="quiz-progress">
-        <span>
-          Soal {idx + 1}/{QUESTIONS.length}
-        </span>
-        <span className="bar">
-          <span style={{ width: `${((idx + (picked !== null ? 1 : 0)) / QUESTIONS.length) * 100}%` }} />
-        </span>
-      </div>
-
-      <div className="question-card" ref={cardRef} tabIndex={-1}>
-        {sign && (
-          <div style={{ display: 'grid', placeItems: 'center', marginBottom: '0.8rem' }}>
-            <SignArt art={sign.art} size={116} />
-          </div>
-        )}
-        <p className="prompt" ref={promptRef} tabIndex={-1}>
-          {q.prompt}
-          {/* Gambar aria-hidden; deskripsi visual ikut pertanyaan supaya
-              terbaca saat fokus mendarat di sini (termasuk tanpa melihat). */}
-          {sign && <span className="sr-only"> {describeSign(sign)}.</span>}
-        </p>
-
-        <div className="options">
-          {q.options.map((opt, i) => {
-            let cls = 'option'
-            if (picked !== null) {
-              if (i === q.answer) cls += ' correct'
-              else if (i === picked) cls += ' wrong'
-            }
-            return (
-              <button key={opt} className={cls} onClick={() => pick(i)} disabled={picked !== null}>
-                {opt}
-              </button>
-            )
-          })}
-        </div>
-
-        {picked !== null && (
-          <>
-            <p className={`feedback ${picked === q.answer ? 'ok' : 'no'}`}>
-              {feedbackText}
-            </p>
-            <div style={{ marginTop: '1rem' }}>
-              <button className="btn" onClick={next} ref={nextRef}>
-                {idx + 1 >= QUESTIONS.length ? 'Sampai di rumah →' : 'Soal berikutnya →'}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  )
-}

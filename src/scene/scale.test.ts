@@ -31,6 +31,7 @@ import {
   stepPropPool,
 } from './props'
 import { LEG_SECONDS, SCROLL_PER_SEC } from './world'
+import { ART_INK_BOTTOM, ART_SCALE } from '../SignArt'
 import WalkScene, {
   SIGN_PLATE_GROW,
   DASH_COUNT,
@@ -53,6 +54,7 @@ import WalkScene, {
   placeProp,
   placeVehicle,
   propBox,
+  signPoleTop,
   propZ,
   signPlatePx,
   signPolePx,
@@ -1055,3 +1057,36 @@ function opposingVisibleSeconds(spawn: Spawn, w: number, h: number): number {
   const leave = spawn.t + (1 - near) / spawn.speed
   return Math.max(0, Math.min(leave, LEG_SECONDS) - Math.max(enter, 0))
 }
+
+describe('sambungan pelat dan tiang', () => {
+  // Bug yang pernah dilaporkan: pelat tampak melayang beberapa piksel di atas
+  // tiang. Sebabnya tiang mulai di dasar kotak pelat (120) sementara tinta
+  // belah ketupat berhenti 4 unit art di atasnya.
+  const ARTS = ['dilarang-parkir', 'peringatan-lampu', 'belok-kiri'] as const
+
+  it('tinta tiap art berhenti di ketinggian yang berbeda di dalam kotak', () => {
+    // Bulat larangan: r45 + garis 10 → tinta sampai dasar kotak.
+    expect(SIGN_BOX.w - ART_INK_BOTTOM['dilarang-parkir'] * ART_SCALE).toBeCloseTo(0, 6)
+    // Belah ketupat: 50 ± 45 + garis 2 → berhenti 4 unit art (4,8 unit pelat).
+    expect(SIGN_BOX.w - ART_INK_BOTTOM['peringatan-lampu'] * ART_SCALE).toBeCloseTo(4.8, 6)
+    // Bulat perintah: cincin luar r48 + garis 1 → berhenti 1,5 unit art (1,8).
+    expect(SIGN_BOX.w - ART_INK_BOTTOM['belok-kiri'] * ART_SCALE).toBeCloseTo(1.8, 6)
+  })
+
+  it('tiang mulai di tinta terbawah pelat, bukan di 120', () => {
+    for (const art of ARTS) {
+      const inkBottom = ART_INK_BOTTOM[art] * ART_SCALE
+      // Tumpang tindih 0,5 unit pelat untuk menutup baris antialias; yang
+      // penting: TIDAK pernah di bawah tinta (= celah).
+      expect(signPoleTop(art)).toBeLessThan(inkBottom)
+      expect(inkBottom - signPoleTop(art)).toBeCloseTo(0.5, 6)
+    }
+  })
+
+  it('tiang tetap mencapai tanah dari titik atas mana pun', () => {
+    for (const art of ARTS) {
+      expect(SIGN_BOX.h - signPoleTop(art)).toBeGreaterThan(SIGN_POLE_ART.h - 6)
+      expect(signPoleTop(art)).toBeGreaterThan(SIGN_BOX.w - 6)
+    }
+  })
+})

@@ -17,8 +17,8 @@ import {
 } from './art/scenery'
 import { Car, Motorcycle } from './art/vehicles'
 import { Pedestrian } from './art/people'
-import { ART } from './SignArt'
-import type { Art, Kind, Sign } from './data'
+import { ART_INK_BOTTOM, ART_SCALE, ArtInk } from './SignArt'
+import type { Art, Sign } from './data'
 import { METERS } from './scene/meters'
 import {
   CAMERA_DEPTH,
@@ -230,8 +230,13 @@ export function pedBox(kind: 'adult' | 'child', viewportH: number): Box {
  * `poleId` unik per instance karena gradien tiang dideklarasikan di dalam SVG
  * ini; dua rambu di DOM tidak boleh berbagi id.
  */
-function SignFigure({ art, kind, poleId }: { art: Art; kind: Kind; poleId: string }) {
+function SignFigure({ art, poleId }: { art: Art; poleId: string }) {
   const poleW = SIGN_POLE_ART.w
+  // Tiang mulai di batas bawah tinta pelat, bukan di dasar kotak pelat: belah
+  // ketupat berhenti di 96/100 unit, jadi tiang di 120 meninggalkan celah.
+  // `POLE_SEAM_OVERLAP` menutup satu baris antialias di sambungan; tiang
+  // digambar lebih dulu, jadi bagian yang menumpuk pelat tidak terlihat.
+  const poleTop = signPoleTop(art)
   return (
     <svg className="wk-sign-art" viewBox={`0 0 ${SIGN_BOX.w} ${SIGN_BOX.h}`} aria-hidden="true">
       <defs>
@@ -241,22 +246,33 @@ function SignFigure({ art, kind, poleId }: { art: Art; kind: Kind; poleId: strin
         </linearGradient>
       </defs>
       {/* Tiang dulu, pelat menimpanya di sambungan. Tiang mulai tepat di bawah
-          kotak pelat (y = 120 unit) dan berakhir di tanah. */}
+          tinta pelat (`poleTop`) dan berakhir di tanah: ujung bawahnya tetap di
+          `SIGN_BOX.h`, jadi tiang tidak ikut memanjang/pendek tergantung art. */}
       <rect
         x={(SIGN_BOX.w - poleW) / 2}
-        y={SIGN_BOX.w}
+        y={poleTop}
         width={poleW}
-        height={SIGN_POLE_ART.h}
+        height={SIGN_BOX.h - poleTop}
         rx={4}
         fill={`url(#${poleId})`}
       />
-      {/* Segitiga mengisi kotaknya sendiri; diperbesar 12 % karena viewBox
-          art-nya menyisakan margin. 60 adalah pusat kotak 120 unit. */}
-      <g transform={kind === 'peringatan' ? 'translate(-7.2 -7.2) scale(1.12)' : undefined}>
-        {ART[art]}
-      </g>
+      {/* Pelat: art dari ekstraksi modul, sudah di sistem 120 unit oleh
+          `ArtInk` — faktor skala tidak ditulis di sini. */}
+      <ArtInk art={art} />
     </svg>
   )
+}
+
+/** Tumpang tindih tiang di balik tinta pelat, unit pelat (≈ 0,4 px di HP). */
+const POLE_SEAM_OVERLAP = 0.5
+
+/**
+ * Titik atas tiang, unit pelat. Diekspor supaya tes bisa menahan bug "pelat
+ * melayang": dulu tiang mulai di `SIGN_BOX.w` (120), sementara belah ketupat
+ * berhenti di 96/100 unit art = 115,2 unit pelat — 4,9 px celah di HP.
+ */
+export function signPoleTop(art: Art): number {
+  return ART_INK_BOTTOM[art] * ART_SCALE - POLE_SEAM_OVERLAP
 }
 
 /** Diameter of the sign plate at its stop depth, in px, including `SIGN_EMPHASIS`. */
@@ -1143,7 +1159,7 @@ export default function WalkScene({
           aria-hidden="true"
           ref={ghostElRef}
         >
-          <SignFigure art={passedSign.art} kind={passedSign.kind} poleId={ghostPoleId} />
+          <SignFigure art={passedSign.art} poleId={ghostPoleId} />
         </span>
       )}
 
@@ -1162,7 +1178,7 @@ export default function WalkScene({
         data-kind={sign.kind}
         aria-label={`Rambu ${sign.name}, tekan untuk melihat artinya`}
       >
-        <SignFigure art={sign.art} kind={sign.kind} poleId={poleId} />
+        <SignFigure art={sign.art} poleId={poleId} />
       </button>
 
       <div className="wk-hero-zone" style={heroStyle} ref={heroZoneRef}>

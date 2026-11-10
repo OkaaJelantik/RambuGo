@@ -16,8 +16,8 @@ Dua belas rambu adalah **hiasan kafe** yang tersebar di tiga bidang — rak dind
 atas counter, lantai dekat pintu — dan anak memindahkannya ke empat **kotak kayu**
 di bawah counter.
 
-Cerita dipegang satu baris narasi di bawah judul: "Kamu belok kiri. Di ujung jalan ada
-kafe — dan hiasan rambunya berantakan."
+Cerita dipegang satu baris narasi di bawah judul: "Kamu menyebrang lurus. Di ujung jalan
+ada sebuah kafe!. Dekorasinya terlihat berantakan."
 
 ## Non-goal
 
@@ -66,8 +66,8 @@ Target: `.sr` tidak scroll di 360×640.
 ```tsx
 <div className="sr" onKeyDown={cancelSelection}>
   <header className="sr-head">
-    <h2 className="sr-title" ref={headingRef} tabIndex={-1}>Kelompokkan rambu</h2>
-    <p className="sr-hint">Kamu belok kiri. Di ujung jalan ada kafe — dan hiasan rambunya berantakan.</p>
+    <h2 className="sr-title" ref={headingRef} tabIndex={-1}>Kelompokkan Rambu</h2>
+    <p className="sr-hint">Kamu menyebrang lurus. Di ujung jalan ada sebuah kafe!. Dekorasinya terlihat berantakan.</p>
   </header>
   <p className="sr-live sr-only" role="status" aria-live="polite" aria-atomic="true">{live}</p>
   <div className="sr-progress">…</div>
@@ -105,7 +105,7 @@ Empat perubahan, semuanya menggeser penilaian dari "setiap perpindahan" ke
 | 8 | Dinding kafe polos: satu warna rata, tanpa pintu kaca, cangkir, tanaman, plint, atau glow di dinding. Jendela (langit + potongan jalan), plafon/lampu, dan lantai papan tetap. | Bentuk di dinding membuat hiasan terbaca mengambang di tempat acak. |
 | 9 | Kotak kayu **tanpa warna jenis** (`--kind-color` dicabut dari kotak dan isi kotak). | Merah/kuning/biru/hijau di kotak membocorkan jawaban sebelum rambu dibaca. |
 | 10 | `KIND_ROLE` menjadi kalimat perintah-akibat: "Berhenti — jangan lakukan.", "Hati-hati, ada bahaya di depan.", "Ikuti agar selamat.", "Bisa bantu kita nemuin sesuatu." | Kalimat peran sebelumnya ("Aku atur jalannya.") terlalu abstrak untuk memilih. |
-| 11 | **Tidak ada penolakan.** Rambu boleh masuk kotak mana pun. Penilaian hanya saat tombol **"Aku selesai"** ditekan. Gagal = rambu yang belum pas ditandai merah (rambu + kotaknya), lalu anak memindahkannya (ketuk, seret, atau papan tombol) dan menekan tombol lagi. Berhasil = layar menyebut "Berhasil dalam percobaan ke-N." | Anak belajar dari kesalahannya sendiri, bukan dari koreksi sistem. `firstCorrect` (benar saat tekanan pertama) tetap menjadi skor untuk bintang di layar rumah. |
+| 11 | **Tidak ada penolakan.** Rambu boleh masuk kotak mana pun. Penilaian hanya saat tombol **"Sudah Selesai"** ditekan. Gagal = rambu yang belum pas ditandai merah (rambu + kotaknya), lalu anak memindahkannya (ketuk, seret, atau papan tombol) dan menekan tombol lagi. Berhasil = layar menyebut "Berhasil dalam percobaan ke-N." | Anak belajar dari kesalahannya sendiri, bukan dari koreksi sistem. `firstCorrect` (benar saat tekanan pertama) tetap menjadi skor untuk bintang di layar rumah. |
 | 12 | Bilah kemajuan dihapus. | Ia memberi hitungan sisa langkah yang tidak lagi bermakna tanpa penolakan. |
 
 Konsekuensi teknis: `placedBy` menjadi peta `rambuId → Kind` (bukan daftar
@@ -121,5 +121,5 @@ hiasan di satu kotak membuat layar 360×640 bergulir.
 | 13 | Jendela dihapus; latar hanya tiga pita rata (plafon, dinding, meja) + dua garis tipis. `preserveAspectRatio="none"` supaya pita tetap sejajar dengan baris hiasan. | "Langit bersih, meja bersih": dekorasi membuat hiasan terbaca acak. |
 | 14 | Tiga bidang (rak 48 / counter 64 / lantai 56) diganti **satu papan grid 4 × 3**, ukuran seragam 58 px, tanpa kemiringan. | Rapi dan terbaca sebagai satu koleksi; ukuran berbeda-beda dan tilt membuatnya tampak berserak. |
 
-Yang tidak berubah: slot tetap + paku, penilaian lewat "Aku selesai", kotak
+Yang tidak berubah: slot tetap + paku, penilaian lewat "Sudah Selesai", kotak
 netral tanpa warna jenis, dan seluruh jalur seret/ketuk/papan tombol.

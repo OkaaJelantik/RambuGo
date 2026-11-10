@@ -2,10 +2,12 @@
 
 Panduan kerja untuk agen/kontributor di repo ini. Baca **`PRODUCT.md`** (apa yang dibangun dan untuk
 siapa) dan **`DESIGN.md`** (aturan visual, proyeksi, dan warna) sebelum mengubah apa pun.
+Refer docs/ untuk bussiness rules repo.
 
-Ringkas: aplikasi web interaktif untuk anak kelas II SD, mengenali rambu lalu lintas lewat **bentuk +
-warna**. React 19 + Vite 8 + TypeScript 7, tanpa backend, tanpa aset eksternal — semua gambar adalah
-SVG inline dan semua ukuran berasal dari satu tabel meter.
+Ringkas: aplikasi web interaktif untuk anak kelas IV SD (Mobile First), mengenali rambu lalu lintas lewat **bentuk +
+warna**. React 19 + Vite 8 + TypeScript 7, tanpa backend dan tanpa aset gambar eksternal — semua
+gambar adalah SVG inline dan semua ukuran berasal dari satu tabel meter. Satu-satunya permintaan
+jaringan adalah Google Fonts di `index.html` (utang T8; lihat `DESIGN.md` §3).
 
 ---
 
@@ -14,7 +16,7 @@ SVG inline dan semua ukuran berasal dari satu tabel meter.
 ```bash
 pnpm install
 pnpm dev                       # http://127.0.0.1:5173 (host 0.0.0.0)
-pnpm test                      # vitest run — 200 tes, 10 berkas
+pnpm test                      # vitest run — 256 tes, 12 berkas
 pnpm exec tsc -b               # typecheck (strict)
 pnpm exec vite build           # build produksi
 pnpm preview                   # http://127.0.0.1:4173
@@ -42,14 +44,16 @@ git commit -m "…" -- src/a.tsx src/walk.css
 | berkas | tanggung jawab |
 |---|---|
 | `src/main.tsx` | mount React |
-| `src/App.tsx` | mesin stage (`intro → walk → crossroad → materi/kuis → home`), state run, lembar rambu, fokus |
+| `src/App.tsx` | mesin stage (`intro → walk → crossroad → materi/sortir/kuis → home`), state run, skor & bintang, lembar rambu, fokus |
 | `src/Classroom.tsx` | layar kelas |
-| `src/Junction.tsx` | persimpangan 2.5D, tiga tombol papan |
+| `src/Junction.tsx` | persimpangan 2.5D, tiga papan tujuan satu kata (Belajar, Pilah, Kuis) |
 | `src/DialoguePanel.tsx` | panel bawah: live region + teks + tombol beat |
 | `src/WalkScene.tsx` | **inti scene**: satu loop rAF, pool scenery, ambience, rambu, HUD |
 | `src/Kid.tsx` | anak menghadap kamera (kelas, persimpangan, pose bicara) |
-| `src/SignArt.tsx` | `ART` (bentuk rambu, viewBox 120×120) + `describeSign` |
-| `src/data.ts` | `KINDS`, `SIGNS` (6), `QUESTIONS` (5) |
+| `src/SignArt.tsx` | `ART` + `ART_BOX` (bentuk rambu, 100 unit), `ArtInk`, `SignArt`, `describeSign` |
+| `src/data.ts` | `KINDS` (4 jenis), `SIGNS` (12), `STREET_SIGNS` (9), `QUESTIONS` (5) |
+| `src/Sortir.tsx` | permainan kelompokkan rambu: kartu, 4 keranjang, seret/tap/papan tombol, wilayah live |
+| `src/sortir.ts` | logika murni sortir: `sortirCards`, `binAt`, `starsFor`, `KIND_ORDER` |
 | `src/story.ts` | beat naskah, `stopLine`, pembuka per rambu |
 | `src/run.ts` | antrean rambu diacak per seed, batch 3, `initialSeed()` |
 | `src/scene/meters.ts` | **satu tabel meter** untuk seluruh scene |
@@ -59,7 +63,8 @@ git commit -m "…" -- src/a.tsx src/walk.css
 | `src/scene/spawner.ts` | spawner trafik & pejalan (deterministik) |
 | `src/scene/GroundScene.tsx` | jalan, trotoar, kerb, bukit dari proyeksi yang sama |
 | `src/art/*` | `scenery` (rumah, pohon, tiang, halte, burung, …), `vehicles`, `people`, `HeroWalk` |
-| `src/*.css` | `index.css` (token + shell), `walk.css` (scene), `dialog.css`, `classroom.css`, `junction.css` |
+| `src/test/setup.ts` | setup vitest (jsdom) untuk seluruh berkas `*.test.*` |
+| `src/*.css` | `index.css` (token + shell), `walk.css` (scene), `dialog.css`, `classroom.css`, `junction.css`, `sortir.css` |
 
 ---
 
@@ -161,13 +166,14 @@ ada `pageerror`, dan satu anak rambu saja yang interaktif.
 
 | param | arti |
 |---|---|
-| `?s=walk` | langsung ke scene berjalan (`intro`, `walk`, `crossroad`, `materi`, `kuis`, `home`) |
+| `?s=walk` | langsung ke scene berjalan (`intro`, `walk`, `crossroad`, `materi`, `sortir`, `kuis`, `home`) |
 | `?step=N` | mulai dari langkah ke-N (0–2) |
 | `?seed=123` | paksa seed run; mengulang urutan rambu yang sama |
 | `?still` | matikan semua animasi & transisi (untuk screenshot) |
 
-`?still` menulis `.app.still * { animation: none !important }` — animasi CSS ikut mati, jadi jangan
-memakai `?still` kalau yang diuji justru animasinya.
+`?still` menambahkan kelas `.still` pada `.app`; aturan `.still *` di `index.css` mematikan animasi
+dan transisi (`!important`), termasuk animasi CSS. Jadi jangan memakai `?still` kalau yang diuji
+justru animasinya.
 
 ---
 
@@ -204,4 +210,11 @@ memakai `?still` kalau yang diuji justru animasinya.
 | `docs/superpowers/plans/` | rencana kerja yang sudah dieksekusi |
 | `docs/superpowers/specs/2026-11-07-*` | naskah cerita + desain awal |
 
-`Bug/` (screenshot bug), `Ref/` (materi acuan), `.dsh-*` (artefak tool) bukan bagian dari build.
+`Bug/` (screenshot bug), `Assets/` (materi acuan), `.dsh-*` (artefak tool) bukan bagian dari build.
+
+## 10. Lane kepemilikan untuk agen paralel
+
+- Scene lane (`WalkScene.tsx`, `walk.css`, `GroundScene.tsx`) = **satu agen, serial** (§8.1).
+- Lane lain boleh paralel **hanya jika** `Own` tidak beririsan.
+- Subagent tidak commit. Orchestrator yang commit pathspec (§1).
+- DoD setiap subagent = gerbang §1 lulus + ekor output.

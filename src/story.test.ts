@@ -17,9 +17,9 @@ function countSentences(text: string): number {
 
 const ACTIONS: StoryAction[] = [
   'continue',
-  'explore',
   'learn',
   'materi',
+  'sortir',
   'kuis',
   'home',
   'restart',
@@ -48,10 +48,16 @@ describe('naskah cerita', () => {
     expect(INTRO_LINE).toContain('Bu Guru')
   })
 
-  it('setiap balon maksimal 2 kalimat dan 90 karakter', () => {
+  it('setiap balon maksimal 2 kalimat (penutup 3) dan 90 karakter', () => {
     for (const beat of STORY) {
       expect(beat.text.length, `${beat.id}: "${beat.text}"`).toBeLessThanOrEqual(90)
-      expect(countSentences(beat.text), `${beat.id}: "${beat.text}"`).toBeLessThanOrEqual(2)
+      // Beat penutup di rumah memakai tiga kalimat pendek — satu perasaan,
+      // satu ajakan bercerita. Balon lain tetap dua kalimat supaya panel
+      // tidak berubah jadi paragraf.
+      const maxSentences = beat.id === 'home' ? 3 : 2
+      expect(countSentences(beat.text), `${beat.id}: "${beat.text}"`).toBeLessThanOrEqual(
+        maxSentences,
+      )
       expect(beat.text.trim().length).toBeGreaterThan(0)
     }
   })
@@ -87,7 +93,7 @@ describe('naskah cerita', () => {
       ])
     }
 
-    expect(labels('crossroad')).toEqual(['Jalan lagi', 'Ke materi', 'Ke kuis'])
+    expect(labels('crossroad')).toEqual(['Ke materi', 'Ke kelompokkan', 'Ke kuis'])
     expect(labels('materi')).toEqual(['Sudah paham, coba kuis'])
     expect(labels('kuis')).toEqual(['Selesai'])
     expect(labels('home')).toEqual(['Pulang', 'Main lagi'])
