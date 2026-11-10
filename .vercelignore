@@ -1,0 +1,10 @@
+# Artefak tool & bahan acuan, bukan bagian build.
+.dsh
+.dsh-im
+.dsh-verify
+.dsh-vision-router
+graphify-out
+assets
+docs
+dist
+tsconfig.tsbuildinfo
