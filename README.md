@@ -108,13 +108,21 @@ pnpm build && vercel deploy   # preview URL
 
 ## Kredit
 
-- **Penyusun & pemilik proyek:** OkaaJelantik — konsep, konteks pembelajaran, keputusan produk, dan
-  review setiap perubahan.
-- **Pengembangan web:** agen AI **DeepSeek Harness** — satu *lead agent* yang mengelola lane, plus
-  subagent untuk lane Sortir dan lane Materi. Pekerjaan mencakup kode React/TS, tes, verifikasi
-  browser (Playwright), dokumentasi, dan deploy Vercel.
-- **Sumber materi:** `docs/MODUL_AJAR.md` dan bahan acuan di `Assets/`; ringkasan keputusan ada di
-  `PRODUCT.md` dan `AGENTS.md`.
+**Tim Perumus Konsep** — mahasiswi PGSD Universitas Pendidikan Ganesha (Undiksha):
+
+- Ni Putu Riska Sathya Kumala (2411031261)
+- Pande Putu Krisna Dewi (2411031316)
+- Ida Ayu Diah Puji Wirastuti (2411031314)
+- Gusti Ayu Putu Vania Yuliantari (2411031302)
+
+**Oka Jelantik** — pengelolaan web, konsultan, prototipe, dan implementasi konsep abstrak menjadi
+produk.
+
+**Pengembangan web** — agen AI **DeepSeek Harness** (lead agent + subagent lane Sortir dan lane
+Materi): kode React/TS, tes, verifikasi browser (Playwright), dokumentasi, dan deploy Vercel.
+
+**Sumber materi** — `docs/MODUL_AJAR.md` dan bahan acuan di `Assets/`; ringkasan keputusan ada di
+`PRODUCT.md` dan `AGENTS.md`.
 
 ## Rujukan
 
