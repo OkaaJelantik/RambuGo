@@ -434,7 +434,9 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
                     data-sign={sign.id}
                     data-wrong={wrong.has(sign.id) || undefined}
                     aria-pressed={selected === sign.id}
-                    aria-label={`${sign.name}, di kotak ${KINDS[kind].label}`}
+                    aria-label={`${sign.name}, di kotak ${KINDS[kind].label}${
+                      wrong.has(sign.id) ? ', belum tepat' : ''
+                    }`}
                     ref={(el) => {
                       if (el) signRefs.current.set(sign.id, el)
                       else signRefs.current.delete(sign.id)
@@ -443,7 +445,7 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
                     onPointerDown={(event) => beginDrag(event, sign, kind)}
                     onClick={() => selectSign(sign.id)}
                   >
-                    <SignArt art={sign.art} size={22} />
+                    <SignArt art={sign.art} size={done ? 38 : 22} />
                   </button>
                 ))}
               </div>

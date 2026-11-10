@@ -290,6 +290,7 @@
 /* Rambu yang sudah masuk kotak: tombol, supaya bisa dipilih lalu dipindah
    (papan tombol) atau diseret ke kotak lain. 26 px = isi kotak kayu. */
 .sr-placed {
+  position: relative;
   display: grid;
   place-items: center;
   width: 26px;
@@ -302,9 +303,31 @@
   touch-action: none;
 }
 
+/* Rambu yang salah kotak: bidang merah muda + tepi merah tebal, jadi
+   bedanya terbaca dari jauh tanpa menutupi gambar rambunya. */
 .sr-placed[data-wrong] {
   border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(224, 69, 63, 0.32);
+  border-width: 3px;
+  background: #fdeceb;
+  box-shadow: 0 0 0 2px rgba(224, 69, 63, 0.28);
+}
+
+/* Penanda "salah" kecil di sudut: satu lambang, bukan pita atau coretan
+   besar yang menutupi rambu. */
+.sr-placed[data-wrong]::after {
+  content: '×';
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  font: 900 11px/1 'Nunito', sans-serif;
+  box-shadow: 0 0 0 1.5px var(--paper);
 }
 
 .sr-placed[aria-pressed='true'] {
@@ -409,12 +432,58 @@
   display: none;
 }
 
+/* ---------- hasil: kotak melebar setinggi sisa layar ---------- */
+
+/* Saat bermain kotak cukup ringkas supaya panggung tetap terlihat. Sesudah
+   "Sudah Selesai", panggung pergi dan keempat kotak mengambil sisa tinggi —
+   hasil penempatan jadi hal pertama yang dibaca, bukan hiasan kecil di kaki
+   layar. Ringkasan tetap di alur normal di bawahnya, jadi tidak ada yang
+   saling menimpa. */
 .sr[data-done] .sr-bins {
-  margin-top: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 6px;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.sr[data-done] .sr-bin {
+  height: 100%;
+  min-height: 0;
+  gap: 6px;
+}
+
+/* Hiasan hasil boleh membungkus ke baris berikutnya (bukan ditumpuk): di
+   kotak yang tinggi, semua kartu harus terbaca. Kalau satu kotak memuat
+   sangat banyak, isinya menggulir sendiri — kotak tidak meluber. */
+.sr[data-done] .sr-bin__slots {
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sr[data-done] .sr-bin__slots--stack .sr-placed + .sr-placed {
+  margin-left: 0;
+}
+
+.sr[data-done] .sr-placed {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+/* Kotak salah ikut menguat sedikit: cincin dalam 4 px, bukan 3 px. */
+.sr[data-done] .sr-bin[data-wrong] {
+  box-shadow:
+    inset 0 0 0 4px var(--red),
+    0 4px 0 rgba(42, 35, 32, 0.14);
 }
 
 .sr[data-done] .sr-done {
-  margin-top: auto;
+  margin-top: 0;
+  padding: 10px 12px;
+  gap: 6px;
 }
 
 /* ---------- layar lebar ---------- */
