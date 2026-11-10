@@ -465,7 +465,7 @@ export default function Junction({ onSortir, onMateri, onStudi, headingRef }: Pr
               ) : prop.kind === 'lamp' ? (
                 <StreetLamp />
               ) : prop.kind === 'bench' ? (
-                <Bench />
+                <Bench facing={prop.facing ?? 'east'} />
               ) : (
                 <Bin />
               )}
@@ -537,7 +537,9 @@ export default function Junction({ onSortir, onMateri, onStudi, headingRef }: Pr
             data-tl-side={tl.side}
           >
             <polygon className="jn-tl__pole" points={screenPoints(tl.pole)} />
-            <polygon className="jn-tl__arm" points={screenPoints(tl.armPoly)} />
+            {tl.armPoly.length > 0 && (
+              <polygon className="jn-tl__arm" points={screenPoints(tl.armPoly)} />
+            )}
             {tl.boxes.map((b, bi) => (
               <g key={bi} data-tl-mount={b.mount} data-tl-facing={b.facing}>
                 <rect

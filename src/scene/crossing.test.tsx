@@ -231,6 +231,15 @@ describe('sebaran elemen acak', () => {
       if (house.facing === 'west') expect(house.x).toBeGreaterThan(ROAD_HALF)
     }
   })
+
+  it('setiap bangku menghadap JALAN: bangku di barat menghadap timur, di timur menghadap barat', () => {
+    const benches = props.filter((p) => p.kind === 'bench')
+    expect(benches.length).toBeGreaterThan(0)
+    for (const bench of benches) {
+      expect(bench.facing).not.toBeNull()
+      expect(bench.facing).toBe(bench.x < 0 ? 'east' : 'west')
+    }
+  })
 })
 
 describe('art rumah dari ujung: fasad dihapus seluruhnya', () => {
@@ -409,8 +418,8 @@ describe('jalan setapak: pengganti fasad yang dihapus', () => {
   })
 })
 
-describe('lampu lalu lintas: delapan rangka L, dua belas kotak statis', () => {
-  it('rangka kiri menggantung dua kotak seukuran sama, kanan satu', () => {
+describe('lampu lalu lintas: delapan unit, sepuluh kotak statis (baseline Draft A v3)', () => {
+  it('unit kiri jalur vertikal memiliki lengan bentang dengan 2 kotak, lainnya tiang tunggal 1 kotak', () => {
     expect(TRAFFIC_LIGHTS).toHaveLength(8)
     const lanes = [...new Set(TRAFFIC_LIGHTS.map((u) => u.lane))].sort()
     expect(lanes).toEqual(['east', 'north', 'south', 'west'])
@@ -419,10 +428,16 @@ describe('lampu lalu lintas: delapan rangka L, dua belas kotak statis', () => {
       expect(units, lane).toHaveLength(2)
       const left = units.find((u) => u.side === 'left')
       const right = units.find((u) => u.side === 'right')
-      expect(left?.boxes, lane).toHaveLength(2)
+      if (lane === 'south' || lane === 'north') {
+        expect(left?.boxes, lane).toHaveLength(2)
+        expect(left?.boxes.map((b) => b.mount).sort(), lane).toEqual(['cross', 'upright'])
+        expect(left?.arm).not.toBe('none')
+      } else {
+        expect(left?.boxes, lane).toHaveLength(1)
+        expect(left?.arm).toBe('none')
+      }
       expect(right?.boxes, lane).toHaveLength(1)
-      // Selalu sepasang: satu tegak (belok kiri), satu telentang (lurus).
-      expect(left?.boxes.map((b) => b.mount).sort(), lane).toEqual(['cross', 'upright'])
+      expect(right?.arm).toBe('none')
     }
     expect(new Set(TRAFFIC_LIGHTS.map((u) => u.id)).size).toBe(8)
     // Tepat tiga kotak menghadap kamera.
@@ -456,13 +471,14 @@ describe('lampu lalu lintas: delapan rangka L, dua belas kotak statis', () => {
     }
   })
 
-  it('DOM: delapan rangka, dua belas kotak, tiga kotak berlampu', () => {
+  it('DOM: delapan unit tiang, dua lengan bentang, sepuluh kotak, tiga kotak berlampu', () => {
     const { container } = render(
       <Junction onSortir={() => {}} onMateri={() => {}} onStudi={() => {}} />,
     )
     expect(container.querySelectorAll('[data-tl-corner]')).toHaveLength(8)
     expect(container.querySelectorAll('.jn-tl__pole')).toHaveLength(8)
-    expect(container.querySelectorAll('.jn-tl__box')).toHaveLength(12)
+    expect(container.querySelectorAll('.jn-tl__arm')).toHaveLength(2)
+    expect(container.querySelectorAll('.jn-tl__box')).toHaveLength(10)
     const faces = [...container.querySelectorAll('[data-tl-facing]')]
     expect(faces.filter((f) => f.getAttribute('data-tl-facing') === 'view')).toHaveLength(3)
     // Tiga kotak menghadap kamera, masing-masing tiga lampu.

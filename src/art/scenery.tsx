@@ -256,40 +256,46 @@ export function Bin() {
  * memanjang ke belakang sebagai jajaran genjang, sandaran bidang tipis yang
  * naik, dan dua kaki dengan ukuran berbeda (dekat besar, jauh kecil) — bukan
  * dua kaki kembar seperti elevasi depan.
+ *
+ * Di jalan kiri (`facing: 'east'`), bangku menghadap kanan ke arah jalan.
+ * Di jalan kanan (`facing: 'west'`), bangku dibalik menghadap kiri ke jalan.
  */
-export function Bench() {
+export function Bench({ facing = 'east' }: { facing?: 'east' | 'west' } = {}) {
+  const flip = facing === 'west'
   return (
     <svg className="wk-bench" viewBox="0 0 55 70" aria-hidden="true">
-      <ellipse cx="27" cy="66" rx="22" ry="3.5" fill={INK} opacity="0.16" />
+      <g transform={flip ? 'scale(-1, 1) translate(-55, 0)' : undefined}>
+        <ellipse cx="27" cy="66" rx="22" ry="3.5" fill={INK} opacity="0.16" />
 
-      {/* sandaran: bidang tipis naik ke belakang-kanan */}
-      <polygon
-        points="10,8 20,6 22,30 12,32"
-        fill={WOOD}
-        stroke={INK}
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
+        {/* sandaran: bidang tipis naik ke belakang-kanan */}
+        <polygon
+          points="10,8 20,6 22,30 12,32"
+          fill={WOOD}
+          stroke={INK}
+          strokeWidth="4"
+          strokeLinejoin="round"
+        />
 
-      {/* dudukan: jajaran genjang memanjang ke belakang */}
-      <polygon
-        points="10,32 42,28 46,38 12,42"
-        fill={WOOD_LIGHT}
-        stroke={INK}
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
-      <polygon
-        points="12,42 46,38 46,44 12,48"
-        fill={WOOD_DARK}
-        stroke={INK}
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
+        {/* dudukan: jajaran genjang memanjang ke belakang */}
+        <polygon
+          points="10,32 42,28 46,38 12,42"
+          fill={WOOD_LIGHT}
+          stroke={INK}
+          strokeWidth="4"
+          strokeLinejoin="round"
+        />
+        <polygon
+          points="12,42 46,38 46,44 12,48"
+          fill={WOOD_DARK}
+          stroke={INK}
+          strokeWidth="4"
+          strokeLinejoin="round"
+        />
 
-      {/* kaki dekat (besar) dan kaki jauh (kecil) */}
-      <rect x="14" y="48" width="7" height="17" fill={METAL} stroke={INK} strokeWidth="4" />
-      <rect x="38" y="44" width="5" height="16" fill={METAL} stroke={INK} strokeWidth="3" />
+        {/* kaki dekat (besar) dan kaki jauh (kecil) */}
+        <rect x="14" y="48" width="7" height="17" fill={METAL} stroke={INK} strokeWidth="4" />
+        <rect x="38" y="44" width="5" height="16" fill={METAL} stroke={INK} strokeWidth="3" />
+      </g>
     </svg>
   )
 }

@@ -428,11 +428,11 @@ export function scatterProps(seed: number = JUNCTION_SEED): JunctionProp[] {
   const props = ZONES.map((zone, index) => {
     const x = round2(zone.x0 + rng() * (zone.x1 - zone.x0))
     const z = round2(zone.z0 + rng() * (zone.z1 - zone.z0))
-    // Rumah menghadap jalur vertikal di x = 0: yang di barat menghadap timur,
+    // Rumah dan bangku menghadap jalur vertikal di x = 0: yang di barat menghadap timur,
     // yang di timur menghadap barat. Diturunkan dari posisi, bukan diundi, jadi
-    // tidak mungkin ada rumah yang membelakangi jalan.
+    // tidak mungkin ada yang membelakangi jalan.
     const facing: Facing | null =
-      zone.kind === 'house' ? (x < 0 ? 'east' : 'west') : null
+      zone.kind === 'house' || zone.kind === 'bench' ? (x < 0 ? 'east' : 'west') : null
     return {
       id: `${zone.kind}-${index}`,
       kind: zone.kind,
@@ -754,8 +754,8 @@ export type TrafficAxis = 'ns' | 'ew'
 /** Sudut simpang. */
 export type TrafficCorner = 'nw' | 'ne' | 'sw' | 'se'
 
-/** Arah lengan: selalu menjulur ke jalan yang dilayani unitnya. */
-export type TrafficArm = 'north' | 'south' | 'east' | 'west'
+/** Arah lengan: menjulur ke jalan, atau 'none' untuk tiang tunggal. */
+export type TrafficArm = 'north' | 'south' | 'east' | 'west' | 'none'
 
 /**
  * Fase lampu. **Belum dipakai render ini** — kedelapan unit bersifat statis
@@ -781,7 +781,7 @@ export const TRAFFIC_LIGHT = {
   /** Tinggi tiang, meter (diproyeksikan HEIGHT_K). */
   pole: 4.2,
   /** Panjang lengan dari puncak tiang ke ujungnya, meter. */
-  arm: 1.9,
+  arm: 3.0,
   /** Tinggi kotak lampu, meter (diproyeksikan HEIGHT_K). */
   boxHeight: 1.25,
   /** Lebar kotak lampu, meter. */
@@ -861,13 +861,13 @@ export type TrafficLightBox = {
   mount: TrafficBoxMount
   /** Muka kotak menghadap kamera? */
   facing: 'view' | 'side'
-  /** Posisi sepanjang lengan: 0 = pangkal di tiang, 1 = ujung lengan. */
-  along: number
+  /** Posisi sepanjang lengan: 0 = pangkal di tiang, 1 = ujung lengan (hanya mount: 'cross'). */
+  along?: number
 }
 
 /**
- * Satu rangka lampu: **tiang tegak + satu lengan mendatar** (bentuk L terbalik),
- * bukan dua tiang terpisah. Kotak lampunya digantung di sambungan itu.
+ * Satu unit lampu: tiang tegak, opsional dengan lengan mendatar (lengan bentang).
+ * Kotak lampu digantung di tiang atau lengan sesuai mount-nya.
  */
 export type TrafficLightUnit = {
   id: string
@@ -881,48 +881,50 @@ export type TrafficLightUnit = {
   boxes: ReadonlyArray<TrafficLightBox>
 }
 
-const L_PAIR: ReadonlyArray<TrafficLightBox> = [
-  { mount: 'upright', facing: 'side', along: 0.3 },
-  { mount: 'cross', facing: 'side', along: 0.78 },
-]
-
 /**
- * Delapan rangka: satu di sisi kiri dan satu di sisi kanan tiap jalan.
+ * Delapan unit lampu: dua per jalan masuk.
  *
- * Rangka kiri menggantung **dua** kotak seukuran sama — satu berdiri (isyarat
- * belok kiri) dan satu ditelentangkan (isyarat lurus). Rangka kanan hanya satu.
- * Tiga kotak di jalan selatan menghadap kamera; sisanya menghadap seberang
- * jalur sehingga lampunya tak terlihat, seperti prototipe.
+ * Sesuai baseline desain (`Draft A v3 - wide.xml`):
+ * - Unit kiri pada jalur vertikal (selatan & utara) memiliki lengan bentang
+ *   mendatar yang menjulur di atas lajur masuk, membawa dua kotak: satu tegak di tiang
+ *   (belok) dan satu telentang di lengan (lurus).
+ * - Semua unit lainnya (sisi kanan vertikal serta semua unit lateral timur/barat)
+ *   merupakan tiang tunggal tegak (`arm: 'none'`) dengan satu kotak tegak di tiang.
+ * - Tiga kotak di jalan selatan menghadap kamera (terlihat lampunya); sisanya
+ *   menghadap samping/belakang.
  */
 export const TRAFFIC_LIGHTS: ReadonlyArray<TrafficLightUnit> = [
   // ── jalan selatan (kendaraan menuju utara): kiri = barat ──────────────────
   { id: 'south-left', lane: 'south', side: 'left', corner: 'sw', axis: 'ns', x: -(ROAD_HALF + TL_INSET),
     z: -(ROAD_HALF + TL_OUT), arm: 'east', boxes: [
-      { mount: 'upright', facing: 'view', along: 0.3 },
-      { mount: 'cross', facing: 'view', along: 0.78 },
+      { mount: 'upright', facing: 'view' },
+      { mount: 'cross', facing: 'view', along: 0.72 },
     ] },
   { id: 'south-right', lane: 'south', side: 'right', corner: 'se', axis: 'ns', x: ROAD_HALF + TL_INSET,
-    z: -(ROAD_HALF + TL_OUT), arm: 'west', boxes: [
-      { mount: 'upright', facing: 'view', along: 0.5 },
+    z: -(ROAD_HALF + TL_OUT), arm: 'none', boxes: [
+      { mount: 'upright', facing: 'view' },
     ] },
 
   // ── jalan timur (kendaraan menuju barat): kiri = selatan ──────────────────
   { id: 'east-left', lane: 'east', side: 'left', corner: 'se', axis: 'ew', x: ROAD_HALF + TL_OUT,
-    z: -(ROAD_HALF + TL_INSET), arm: 'north', boxes: L_PAIR },
+    z: -(ROAD_HALF + TL_INSET), arm: 'none', boxes: [{ mount: 'upright', facing: 'side' }] },
   { id: 'east-right', lane: 'east', side: 'right', corner: 'ne', axis: 'ew', x: ROAD_HALF + TL_OUT,
-    z: ROAD_HALF + TL_INSET, arm: 'south', boxes: [{ mount: 'upright', facing: 'side', along: 0.5 }] },
+    z: ROAD_HALF + TL_INSET, arm: 'none', boxes: [{ mount: 'upright', facing: 'side' }] },
 
   // ── jalan utara (kendaraan menuju selatan): kiri = timur ──────────────────
   { id: 'north-left', lane: 'north', side: 'left', corner: 'ne', axis: 'ns', x: ROAD_HALF + TL_INSET,
-    z: ROAD_HALF + TL_OUT, arm: 'west', boxes: L_PAIR },
+    z: ROAD_HALF + TL_OUT, arm: 'west', boxes: [
+      { mount: 'upright', facing: 'side' },
+      { mount: 'cross', facing: 'side', along: 0.72 },
+    ] },
   { id: 'north-right', lane: 'north', side: 'right', corner: 'nw', axis: 'ns', x: -(ROAD_HALF + TL_INSET),
-    z: ROAD_HALF + TL_OUT, arm: 'east', boxes: [{ mount: 'upright', facing: 'side', along: 0.5 }] },
+    z: ROAD_HALF + TL_OUT, arm: 'none', boxes: [{ mount: 'upright', facing: 'side' }] },
 
   // ── jalan barat (kendaraan menuju timur): kiri = utara ────────────────────
   { id: 'west-left', lane: 'west', side: 'left', corner: 'nw', axis: 'ew', x: -(ROAD_HALF + TL_OUT),
-    z: ROAD_HALF + TL_INSET, arm: 'south', boxes: L_PAIR },
+    z: ROAD_HALF + TL_INSET, arm: 'none', boxes: [{ mount: 'upright', facing: 'side' }] },
   { id: 'west-right', lane: 'west', side: 'right', corner: 'sw', axis: 'ew', x: -(ROAD_HALF + TL_OUT),
-    z: -(ROAD_HALF + TL_INSET), arm: 'north', boxes: [{ mount: 'upright', facing: 'side', along: 0.5 }] },
+    z: -(ROAD_HALF + TL_INSET), arm: 'none', boxes: [{ mount: 'upright', facing: 'side' }] },
 ]
 
 /**
@@ -987,59 +989,72 @@ export function trafficLightShapes(view: CrossView, unit: TrafficLightUnit): Tra
     [baseX - halfPole, topY],
   ]
 
-  const tipXm =
-    unit.x +
-    (unit.arm === 'east' ? TRAFFIC_LIGHT.arm : unit.arm === 'west' ? -TRAFFIC_LIGHT.arm : 0)
-  const tipZm =
-    unit.z +
-    (unit.arm === 'north' ? TRAFFIC_LIGHT.arm : unit.arm === 'south' ? -TRAFFIC_LIGHT.arm : 0)
-  const tipX = view.xOf(tipXm, tipZm)
-  const tipY = view.yOfZ(tipZm) - view.hOf(TRAFFIC_LIGHT.pole, tipZm)
-
+  const hasArm = unit.arm === 'east' || unit.arm === 'west'
   const armW = view.hOf(TRAFFIC_LIGHT.armWidth, unit.z)
-  const armPoly: ScreenPt[] = [
-    [baseX, topY - armW / 2],
-    [tipX, tipY - armW / 2],
-    [tipX, tipY + armW / 2],
-    [baseX, topY + armW / 2],
-  ]
+  let tipX = baseX
+  let armPoly: ScreenPt[] = []
 
-  const tipS = view.sAtZ(tipZm)
+  if (hasArm) {
+    const tipXm = unit.x + (unit.arm === 'east' ? TRAFFIC_LIGHT.arm : -TRAFFIC_LIGHT.arm)
+    tipX = view.xOf(tipXm, unit.z)
+    armPoly = [
+      [baseX, topY - armW / 2],
+      [tipX, topY - armW / 2],
+      [tipX, topY + armW / 2],
+      [baseX, topY + armW / 2],
+    ]
+  }
+
   const boxes = unit.boxes.map((b) => {
-    // Kotak digantung sepanjang lengan; pangkal di puncak tiang, ujung di tip.
-    const px = baseX + (tipX - baseX) * b.along
-    const py = topY + (tipY - topY) * b.along
     const cross = b.mount === 'cross'
-    // Ukuran kotak sama; `cross` menukar sumbu panjangnya ke mendatar.
-    const bw = (cross ? TRAFFIC_LIGHT.boxHeight : TRAFFIC_LIGHT.boxWidth) * tipS
-    const bh = view.hOf(cross ? TRAFFIC_LIGHT.boxWidth : TRAFFIC_LIGHT.boxHeight, tipZm)
-    const boxTop = py + armW / 2
+    if (cross) {
+      // Kotak telentang (lurus): digantung pada lengan mendatar di atas lajur.
+      const along = b.along ?? 0.72
+      const px = baseX + (tipX - baseX) * along
+      const bw = TRAFFIC_LIGHT.boxHeight * s
+      const bh = view.hOf(TRAFFIC_LIGHT.boxWidth, unit.z)
+      const boxTop = topY - bh / 2
+      const box = {
+        x: px - bw / 2,
+        y: boxTop,
+        w: bw,
+        h: bh,
+        rx: TRAFFIC_LIGHT.boxRadius * s,
+      }
+      const lamps =
+        b.facing === 'view'
+          ? TRAFFIC_LAMPS.map((lamp, i) => ({
+              lamp,
+              // Urutan lampu mendatar: hijau di sisi kiri/trotoar, merah di sisi kanan/tengah
+              cx: px - bw / 2 + bw * (1 - LAMP_Y[i]),
+              cy: boxTop + bh / 2,
+              rx: (TRAFFIC_LIGHT.lamp / 2) * s,
+              ry: view.hOf(TRAFFIC_LIGHT.lamp / 2, unit.z),
+            }))
+          : []
+      return { mount: b.mount, facing: b.facing, box, lamps }
+    }
+
+    // Kotak tegak (belok): dipasang tepat di tiang vertikal.
+    const bw = TRAFFIC_LIGHT.boxWidth * s
+    const bh = view.hOf(TRAFFIC_LIGHT.boxHeight, unit.z)
+    const boxTop = topY + (hasArm ? armW / 2 : view.hOf(0.12, unit.z))
     const box = {
-      x: px - bw / 2,
+      x: baseX - bw / 2,
       y: boxTop,
       w: bw,
       h: bh,
-      rx: TRAFFIC_LIGHT.boxRadius * tipS,
+      rx: TRAFFIC_LIGHT.boxRadius * s,
     }
     const lamps =
       b.facing === 'view'
-        ? TRAFFIC_LAMPS.map((lamp, i) =>
-            cross
-              ? {
-                  lamp,
-                  cx: px - bw / 2 + bw * LAMP_Y[i],
-                  cy: boxTop + bh / 2,
-                  rx: (TRAFFIC_LIGHT.lamp / 2) * tipS,
-                  ry: view.hOf(TRAFFIC_LIGHT.lamp / 2, tipZm),
-                }
-              : {
-                  lamp,
-                  cx: px,
-                  cy: boxTop + bh * LAMP_Y[i],
-                  rx: (TRAFFIC_LIGHT.lamp / 2) * tipS,
-                  ry: view.hOf(TRAFFIC_LIGHT.lamp / 2, tipZm),
-                },
-          )
+        ? TRAFFIC_LAMPS.map((lamp, i) => ({
+            lamp,
+            cx: baseX,
+            cy: boxTop + bh * LAMP_Y[i],
+            rx: (TRAFFIC_LIGHT.lamp / 2) * s,
+            ry: view.hOf(TRAFFIC_LIGHT.lamp / 2, unit.z),
+          }))
         : []
     return { mount: b.mount, facing: b.facing, box, lamps }
   })
