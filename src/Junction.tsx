@@ -41,14 +41,14 @@ import './junction.css'
 type Props = {
   onSortir: () => void
   onMateri: () => void
-  onKuis: () => void
+  onStudi: () => void
   /** Judul; App memfokuskannya saat persimpangan menjadi tujuan fokus. */
   headingRef?: RefObject<HTMLHeadingElement | null>
 }
 
 /** Satu tujuan: papan melayang di atas salah satu jalan. */
 type Route = {
-  id: 'materi' | 'sortir' | 'kuis'
+  id: 'materi' | 'sortir' | 'studi'
   label: string
   road: BoardRoad
   hint: string
@@ -109,7 +109,7 @@ function setZ(el: HTMLElement, z: number): void {
  * menghadap jalan, dan tiga papan tujuan melayang di atas tiga jalan (utara,
  * timur, barat) — tidak ada papan di selatan, arah kedatangan anak.
  */
-export default function Junction({ onSortir, onMateri, onKuis, headingRef }: Props) {
+export default function Junction({ onSortir, onMateri, onStudi, headingRef }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   // Ukuran awal dari jendela: jsdom (dan paint pertama) belum punya clientWidth,
   // dan papan yang belum terukur tidak boleh invisible — papan yang tak terlihat
@@ -289,11 +289,11 @@ export default function Junction({ onSortir, onMateri, onKuis, headingRef }: Pro
       action: onSortir,
     },
     {
-      id: 'kuis',
-      label: 'Kuis',
+      id: 'studi',
+      label: 'Studi Kasus',
       road: 'east',
-      hint: 'uji pemahaman rambu',
-      action: onKuis,
+      hint: 'selesaikan lima kisah rambu',
+      action: onStudi,
     },
   ]
 

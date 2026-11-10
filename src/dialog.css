@@ -176,17 +176,32 @@
     padding-bottom: 18px;
   }
 
+  /* Dua tombol rumah (kembali + main lagi) bertumpuk dan menambah ±55 px.
+     Semua jarak di bawah merapat satu tingkat supaya kartu tetap muat di
+     ruang 444 px di atas panel pada 360×640 — tanpa mengubah tata letak di
+     360×800 (media query ini tidak berlaku di sana). */
   .home-screen.dlg-space .house {
-    width: 96px;
+    width: 72px;
   }
 
   .home-screen.dlg-space .badge-card {
-    margin-top: 10px;
-    margin-bottom: 10px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    padding: 0.55rem 1rem;
   }
 
   .home-screen.dlg-space .score-line {
-    margin-bottom: 12px;
+    margin-bottom: 6px;
+  }
+
+  .home-screen.dlg-space .home-actions {
+    gap: 6px;
+  }
+
+  .home-screen.dlg-space .home-actions .btn {
+    /* Rapat boleh, tetapi target ketuk tidak: 44 px tetap jari anak SD. */
+    min-height: 44px;
+    padding: 0.68rem 1.4rem;
   }
 }
 

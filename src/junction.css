@@ -267,7 +267,7 @@
   background: color-mix(in srgb, var(--orange) 55%, var(--paper));
 }
 
-.jn-board--kuis .jn-board__plate {
+.jn-board--studi .jn-board__plate {
   background: color-mix(in srgb, var(--yellow) 34%, var(--paper));
 }
 
@@ -295,7 +295,7 @@
     animation-delay: -0.85s;
   }
 
-  .jn-board--kuis .jn-board__plate {
+  .jn-board--studi .jn-board__plate {
     animation-delay: -1.7s;
   }
 

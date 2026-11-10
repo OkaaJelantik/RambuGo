@@ -289,7 +289,7 @@ describe('art rumah dari ujung: fasad dihapus seluruhnya', () => {
   })
 
   it('DOM: rumah hanya dinding + gable + dua atap + skirt + bayangan', () => {
-    const { container } = render(<Junction onSortir={() => {}} onMateri={() => {}} onKuis={() => {}} />)
+    const { container } = render(<Junction onSortir={() => {}} onMateri={() => {}} onStudi={() => {}} />)
     const houses = [...container.querySelectorAll('.jn-house')]
     expect(houses).toHaveLength(2)
     for (const svg of houses) {
@@ -343,7 +343,7 @@ describe('trotoar 2,0 m di keempat sisi, dipotong di mulut simpang', () => {
 
   it('DOM: delapan bidang trotoar tergambar', () => {
     const { container } = render(
-      <Junction onSortir={() => {}} onMateri={() => {}} onKuis={() => {}} />,
+      <Junction onSortir={() => {}} onMateri={() => {}} onStudi={() => {}} />,
     )
     expect(container.querySelectorAll('.jn-walk')).toHaveLength(8)
   })
@@ -401,7 +401,7 @@ describe('jalan setapak: pengganti fasad yang dihapus', () => {
 
   it('DOM: dua bidang jalan setapak + empat garis tepi', () => {
     const { container } = render(
-      <Junction onSortir={() => {}} onMateri={() => {}} onKuis={() => {}} />,
+      <Junction onSortir={() => {}} onMateri={() => {}} onStudi={() => {}} />,
     )
     expect(container.querySelectorAll('.jn-walk-path-group')).toHaveLength(2)
     expect(container.querySelectorAll('.jn-walk-path')).toHaveLength(2)
@@ -458,7 +458,7 @@ describe('lampu lalu lintas: delapan rangka L, dua belas kotak statis', () => {
 
   it('DOM: delapan rangka, dua belas kotak, tiga kotak berlampu', () => {
     const { container } = render(
-      <Junction onSortir={() => {}} onMateri={() => {}} onKuis={() => {}} />,
+      <Junction onSortir={() => {}} onMateri={() => {}} onStudi={() => {}} />,
     )
     expect(container.querySelectorAll('[data-tl-corner]')).toHaveLength(8)
     expect(container.querySelectorAll('.jn-tl__pole')).toHaveLength(8)
@@ -494,19 +494,19 @@ describe('tiga papan rute', () => {
     }
   })
 
-  it('DOM: tiga tombol papan, label satu kata, 24 strip zebra tergambar', () => {
-    const { container } = render(<Junction onSortir={() => {}} onMateri={() => {}} onKuis={() => {}} />)
+  it('DOM: tiga tombol papan, label papan, 24 strip zebra tergambar', () => {
+    const { container } = render(<Junction onSortir={() => {}} onMateri={() => {}} onStudi={() => {}} />)
 
     const buttons = screen.getAllByRole('button')
     expect(buttons).toHaveLength(3)
     expect(buttons.map((b) => b.dataset.road).sort()).toEqual(['east', 'north', 'west'])
-    // Papan ada di dalam tombolnya. Labelnya satu kata dan tanpa panah: pelat
-    // 84–111 px tidak muat untuk frasa, dan panah 0,82em membuatnya menyempit.
+    // Papan ada di dalam tombolnya, tanpa panah. Dua papan berlabel satu kata;
+    // papan timur "Studi Kasus" dua kata dan muat karena `text-wrap: balance`.
     for (const button of buttons) {
       expect(button.querySelector('.jn-board__plate')).not.toBeNull()
       expect(button.querySelector('.jn-board__arrow')).toBeNull()
       expect(button.querySelector('.jn-board__label')?.textContent).toMatch(
-        /^(Belajar|Pilah|Kuis)$/,
+        /^(Belajar|Pilah|Studi Kasus)$/,
       )
     }
 

@@ -17,6 +17,9 @@ export type StoryAction =
   | 'learn'
   | 'materi'
   | 'sortir'
+  /** Papan timur: studi kasus (15 keputusan). */
+  | 'studi'
+  /** Kuis awal 5 soal, dibuka dari panel materi. */
   | 'kuis'
   | 'home'
   | 'restart'
@@ -79,11 +82,11 @@ export const STORY: StoryBeat[] = [
   },
   {
     id: 'crossroad',
-    text: 'Sampai di persimpangan. Kiri belajar, lurus kelompokkan, kanan kuis.',
+    text: 'Sampai di persimpangan. Kiri belajar, lurus kelompokkan, kanan studi kasus.',
     buttons: [
       { label: 'Ke materi', action: 'materi' },
       { label: 'Ke kelompokkan', action: 'sortir' },
-      { label: 'Ke kuis', action: 'kuis' },
+      { label: 'Ke studi kasus', action: 'studi' },
     ],
   },
   {

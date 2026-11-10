@@ -20,6 +20,7 @@ const ACTIONS: StoryAction[] = [
   'learn',
   'materi',
   'sortir',
+  'studi',
   'kuis',
   'home',
   'restart',
@@ -77,6 +78,20 @@ describe('naskah cerita', () => {
     }
   })
 
+  it('naskah persimpangan menawarkan tiga jalur berbeda', () => {
+    const text = beatById('crossroad')?.text ?? ''
+    // Literal (bukan turunan STORY) supaya perubahan kata di sumber tertangkap.
+    expect(text).toBe(
+      'Sampai di persimpangan. Kiri belajar, lurus kelompokkan, kanan studi kasus.',
+    )
+    // Jalur kanan adalah studi kasus, bukan kuis biasa: panel dan papan harus
+    // menyebut hal yang sama.
+    expect(text).toContain('studi kasus')
+    expect(text.length).toBeLessThanOrEqual(90)
+    const buttons = beatById('crossroad')?.buttons ?? []
+    expect(buttons.map((button) => button.action)).toEqual(['materi', 'sortir', 'studi'])
+  })
+
   it('tombol baku sesuai tempatnya', () => {
     const labels = (id: string) => beatById(id)?.buttons.map((button) => button.label)
 
@@ -93,7 +108,7 @@ describe('naskah cerita', () => {
       ])
     }
 
-    expect(labels('crossroad')).toEqual(['Ke materi', 'Ke kelompokkan', 'Ke kuis'])
+    expect(labels('crossroad')).toEqual(['Ke materi', 'Ke kelompokkan', 'Ke studi kasus'])
     expect(labels('materi')).toEqual(['Sudah paham, coba kuis'])
     expect(labels('kuis')).toEqual(['Selesai'])
     expect(labels('home')).toEqual(['Pulang', 'Main lagi'])

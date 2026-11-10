@@ -448,6 +448,15 @@ button {
   display: grid;
   place-items: center;
   overflow: hidden;
+  /* Tanpa panel, tidak ada yang perlu diberi ruang di bawah: 90 px warisan
+     `.materi-screen, .home-screen` hanya membuat kartu rumah 4 px melewati
+     lipatan di 360×640. Saat panel tampil, `.screen.dlg-space` menang dan
+     tetap memberi 170 px. */
+  padding-bottom: clamp(18px, 4vh, 40px);
+  /* Kartu rumah 92vw = 331 px, 3 px lebih lebar daripada kotak isi layar pada
+     padding 16 px. Sisa 3 px itu membuat `scrollWidth` 363 walau tidak ada
+     yang terpotong; padding horizontal 3,5vw memberi ruang 3–4 px di 360–390. */
+  padding-inline: clamp(12px, 3.5vw, 48px);
 }
 
 .home-card {
@@ -506,6 +515,15 @@ button {
   font-weight: 800;
   font-size: 0.9rem;
   box-shadow: 0 4px 0 rgba(42, 35, 32, 0.08);
+}
+
+/* Dua tombol rumah ditumpuk: "Kembali ke persimpangan" dulu, lalu "Main lagi
+   dari kelas". Ditumpuk supaya dua label panjang tidak memaksa kartu melebar
+   di 360 px; jarak antar-tombol satu skala dengan jarak opsi kuis. */
+.home-actions {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
 }
 
 .muted {

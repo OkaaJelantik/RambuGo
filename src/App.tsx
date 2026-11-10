@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, RefObject } from 'react'
-import { KINDS, SIGNS, type Kind, type Sign } from './data'
+import { KINDS, QUESTIONS, SIGNS, type Kind, type Sign } from './data'
 import { batchOf, createRun, initialSeed, type Run } from './run'
 import { ART_BOX, SignArt } from './SignArt'
 import Classroom from './Classroom'
 import WalkScene from './WalkScene'
 import Junction from './Junction'
 import Sortir from './Sortir'
+import Kuis from './Kuis'
 import Sulit from './Sulit'
 import { TOTAL_DECISIONS } from './sulit'
 import Kid from './Kid'
@@ -14,7 +15,19 @@ import DialoguePanel from './DialoguePanel'
 import { beatById, openingFor, stopBeat, type StoryButton, type StoryId } from './story'
 import { starsFor } from './sortir'
 
-type Stage = 'intro' | 'walk' | 'crossroad' | 'materi' | 'sortir' | 'kuis' | 'home'
+/**
+ * Tujuh adegan. `kuis` adalah kuis awal jalur Belajar (5 soal), `studi` adalah
+ * studi kasus papan timur (5 kasus × 3 tahap). Keduanya tidak memakai panel.
+ */
+type Stage =
+  | 'intro'
+  | 'walk'
+  | 'crossroad'
+  | 'materi'
+  | 'kuis'
+  | 'sortir'
+  | 'studi'
+  | 'home'
 
 function HomeHouse({ className }: { className?: string }) {
   return (
@@ -152,7 +165,16 @@ function SignSheet({
   )
 }
 
-const STAGES: Stage[] = ['intro', 'walk', 'crossroad', 'materi', 'sortir', 'kuis', 'home']
+const STAGES: Stage[] = [
+  'intro',
+  'walk',
+  'crossroad',
+  'materi',
+  'kuis',
+  'sortir',
+  'studi',
+  'home',
+]
 // ?s=walk untuk lompat langsung ke satu adegan (buat cek tampilan).
 // Parameter ini alat bantu developer, jadi hanya dibaca di build dev.
 const devParams = import.meta.env.DEV ? new URLSearchParams(window.location.search) : null
@@ -180,7 +202,7 @@ const SHEET_GUARD_MS = 300
  * tombol layar) hampir selalu ikut lepas dari DOM, jadi fokus harus pindah
  * ke sesuatu yang tetap ada — tidak pernah dibiarkan jatuh ke `<body>`.
  */
-type FocusTarget = 'walk' | 'home' | 'intro' | 'materi' | 'sortir' | 'quiz'
+type FocusTarget = 'walk' | 'home' | 'intro' | 'materi' | 'sortir' | 'quiz' | 'crossroad'
 
 function beatAt(beats: StoryId[], step: number): StoryId {
   return beats[Math.min(Math.max(step, 0), beats.length - 1)]
@@ -193,7 +215,7 @@ function startBeat(stage: Stage, walked: number): StoryId | null {
   if (stage === 'crossroad') return 'crossroad'
   if (stage === 'materi') return 'materi'
   if (stage === 'home') return 'home'
-  // Kuis dan sortir: panel tidak tampil selama soal/permainan.
+  // Kuis awal, studi kasus, dan sortir: panel tidak tampil selama soal/permainan.
   return null
 }
 
@@ -225,10 +247,13 @@ export default function App() {
   const pendingFocusRef = useRef<FocusTarget | null>(null)
   // -Infinity: aksi panel sebelum lembar pertama pernah ditutup tidak ditahan.
   const sheetClosedAtRef = useRef(-Infinity)
-  const [via, setVia] = useState<'materi' | 'sortir' | 'kuis' | null>(null)
+  const [via, setVia] = useState<'materi' | 'sortir' | 'studi' | null>(null)
   const [score, setScore] = useState(0)
-  /** Penyebut skor mengikuti jalur: 15 keputusan studi kasus atau 12 kartu sortir. */
-  const [scoreMax, setScoreMax] = useState(TOTAL_DECISIONS)
+  /**
+   * Penyebut skor mengikuti jalur: 5 soal kuis awal, 15 keputusan studi kasus,
+   * atau 12 kartu sortir.
+   */
+  const [scoreMax, setScoreMax] = useState(QUESTIONS.length)
 
   /** Catat waktu tutup lembar; aksi panel sesudahnya ditahan sebentar. */
   const closeWalkSheet = () => {
@@ -253,7 +278,7 @@ export default function App() {
     setMateriOpen(null)
     setVia(null)
     setScore(0)
-    setScoreMax(TOTAL_DECISIONS)
+    setScoreMax(QUESTIONS.length)
   }
 
   // Kalimat leg hanya singgah: hilang sendiri setelah ±3 detik. Kalau dunia
@@ -281,6 +306,7 @@ export default function App() {
     else if (target === 'intro') classroomHeadingRef.current?.focus()
     else if (target === 'materi') materiHeadingRef.current?.focus()
     else if (target === 'sortir') sortirHeadingRef.current?.focus()
+    else if (target === 'crossroad') crossroadHeadingRef.current?.focus()
     else quizCardRef.current?.focus()
   }, [stage, beatId])
 
@@ -336,11 +362,17 @@ export default function App() {
         setStage('materi')
         setBeatId('materi')
         return
+      case 'studi':
+        // Papan timur: studi kasus 15 keputusan. Panel tidak menemani soal;
+        // beat kuis baru muncul sebagai pembuka layar hasil.
+        pendingFocusRef.current = 'quiz'
+        setVia('studi')
+        setStage('studi')
+        setBeatId(null)
+        return
       case 'kuis':
-        // Panel tidak menemani soal; beat kuis muncul sebagai pembuka hasil.
-        // Lewat persimpangan berarti jalur kuis; lewat papan materi tetap
-        // dihitung jalur materi.
-        if (beatId === 'crossroad') setVia('kuis')
+        // Kuis awal 5 soal, dibuka dari panel materi. Jalurnya tetap jalur
+        // materi (`via` tidak diubah): anak belajar dulu, lalu mengerjakan kuis.
         pendingFocusRef.current = 'quiz'
         setStage('kuis')
         setBeatId(null)
@@ -422,10 +454,10 @@ export default function App() {
               setStage('materi')
               setBeatId('materi')
             }}
-            onKuis={() => {
+            onStudi={() => {
               pendingFocusRef.current = 'quiz'
-              setVia('kuis')
-              setStage('kuis')
+              setVia('studi')
+              setStage('studi')
               setBeatId(null)
             }}
           />
@@ -485,7 +517,23 @@ export default function App() {
       )}
 
       {stage === 'kuis' && (
-        <section className="screen quiz-screen sulit-screen" key="kuis">
+        <section className="screen quiz-screen" key="kuis">
+          <Kuis
+            cardRef={quizCardRef}
+            onDone={(s) => {
+              pendingFocusRef.current = 'home'
+              setScore(s)
+              setScoreMax(QUESTIONS.length)
+              setStage('home')
+              // Beat kuis ("Kalau benar, aku dapat bintang.") membuka layar hasil.
+              setBeatId('kuis')
+            }}
+          />
+        </section>
+      )}
+
+      {stage === 'studi' && (
+        <section className="screen quiz-screen sulit-screen" key="studi">
           <Sulit
             cardRef={quizCardRef}
             onDone={(s) => {
@@ -519,7 +567,7 @@ export default function App() {
             <p className="muted" style={{ marginTop: '0.4rem' }}>
               {via === 'materi'
                 ? 'Kamu belajar dulu, lalu mengerjakan kuis.'
-                : via === 'kuis'
+                : via === 'studi'
                   ? 'Kamu berani mencoba studi kasus lebih dulu.'
                   : via === 'sortir'
                     ? 'Kamu mengelompokkan rambu dulu, lalu pulang.'
@@ -536,9 +584,21 @@ export default function App() {
               <span className="score-pill">Bintang {starsFor(score, scoreMax)} ⭐</span>
             </div>
 
-            <button className="btn" onClick={restart}>
-              Main lagi dari kelas
-            </button>
+            <div className="home-actions">
+              <button
+                className="btn"
+                onClick={() => {
+                  pendingFocusRef.current = 'crossroad'
+                  setStage('crossroad')
+                  setBeatId('crossroad')
+                }}
+              >
+                Kembali ke persimpangan
+              </button>
+              <button className="btn" onClick={restart}>
+                Main lagi dari kelas
+              </button>
+            </div>
           </div>
         </section>
       )}

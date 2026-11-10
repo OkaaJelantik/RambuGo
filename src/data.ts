@@ -218,3 +218,65 @@ export const SIGNS: Sign[] = [
  * hanya punya satu lebar.
  */
 export const STREET_SIGNS = SIGNS.filter((sign) => sign.place === 'jalan')
+
+/**
+ * Kuis awal jalur Belajar: lima soal pilihan ganda.
+ *
+ * `answer` adalah **indeks asli** opsi di array `options`. Urutan tampil di
+ * layar diacak per seed oleh `Kuis.tsx`; karena itu kunci jawaban tidak pernah
+ * dibaca sebagai posisi huruf (dulu 4 dari 5 soal berjawab A).
+ *
+ * `signId` merujuk `SIGNS` (bukan rambu studi kasus). `q5` sengaja tanpa
+ * `signId`: soalnya tentang jenis rambu, jadi tidak ada satu gambar yang
+ * diwakilinya.
+ */
+export type Question = {
+  id: string
+  prompt: string
+  signId?: string
+  options: string[]
+  answer: number
+  why: string
+}
+
+export const QUESTIONS: Question[] = [
+  {
+    id: 'q1',
+    prompt: 'Rambu ini memberi tahu apa?',
+    signId: 'peringatan-penyeberangan',
+    options: ['Di depan ada penyeberangan', 'Dilarang parkir', 'Wajib belok kiri'],
+    answer: 0,
+    why: 'Belah ketupat kuning artinya peringatan. Di depan ada tempat menyeberang, jadi kendaraan harus pelan.',
+  },
+  {
+    id: 'q2',
+    prompt: 'Rambu ini artinya apa?',
+    signId: 'dilarang-putar-balik',
+    options: ['Dilarang putar balik', 'Tempat parkir', 'Wajib jalan terus'],
+    answer: 0,
+    why: 'Bulat bertepi merah artinya larangan. Panah berbalik arah yang dicoret berarti tidak boleh putar balik.',
+  },
+  {
+    id: 'q3',
+    prompt: 'Rambu ini memberi tahu apa?',
+    signId: 'peringatan-lampu',
+    options: ['Tempat berhenti', 'Akan ada lampu lalu lintas', 'Dilarang masuk'],
+    answer: 1,
+    why: 'Gambar lampu tiga warna di belah ketupat kuning: sebentar lagi ada lampu lalu lintas.',
+  },
+  {
+    id: 'q4',
+    prompt: 'Rambu ini memerintahkan apa?',
+    signId: 'belok-kanan',
+    options: ['Wajib belok kanan', 'Wajib belok kiri', 'Dilarang belok'],
+    answer: 0,
+    why: 'Bulat biru artinya perintah. Panahnya menunjuk ke kanan, jadi kendaraan wajib belok kanan.',
+  },
+  {
+    id: 'q5',
+    prompt: 'Rambu berbentuk persegi panjang hijau termasuk jenis apa?',
+    options: ['Petunjuk', 'Peringatan', 'Perintah'],
+    answer: 0,
+    why: 'Persegi hijau berarti petunjuk arah atau tempat. Peringatan belah ketupat kuning, perintah bulat biru.',
+  },
+]
