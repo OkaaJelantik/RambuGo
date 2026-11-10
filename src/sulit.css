@@ -66,19 +66,20 @@
 
 /* Jenis rambu → warna latar. Hanya menandai jenis (yang sudah terbaca dari
    bentuk & warna pelatnya), bukan jawaban kasus. */
-.sulit-hero--dilarang-masuk,
-.sulit-hero--berhenti-stop,
+.sulit-hero--dilarang-berhenti,
 .sulit-hero--dilarang-parkir {
   --sulit-kind: var(--red);
 }
 
-.sulit-hero--peringatan-tikungan {
+.sulit-hero--peringatan-lampu {
   --sulit-kind: var(--yellow);
 }
 
-.sulit-hero--penyeberangan-biru {
+.sulit-hero--belok-kiri {
   --sulit-kind: var(--blue);
 }
+
+/* Petunjuk memakai warna default hijau (`--sulit-kind` di `.sulit-hero`). */
 
 /* Kilau warna jenis di belakang pelat rambu: gradien radial tipis, bukan
    filter atau blur. */

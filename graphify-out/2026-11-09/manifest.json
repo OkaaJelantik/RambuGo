@@ -1,0 +1,296 @@
+{
+  "package.json": {
+    "mtime": 1794076758.4339423,
+    "seen": 1794222791.5842397,
+    "ast_hash": "501e0a3d68dc7ce86e6e37dab4a49465",
+    "semantic_hash": "501e0a3d68dc7ce86e6e37dab4a49465"
+  },
+  "src/App.tsx": {
+    "mtime": 1794110730.459651,
+    "seen": 1794222791.5842476,
+    "ast_hash": "cf28f2d0b8bd88e32c5a354f874f6b69",
+    "semantic_hash": "cf28f2d0b8bd88e32c5a354f874f6b69"
+  },
+  "src/Classroom.tsx": {
+    "mtime": 1794076758.4339423,
+    "seen": 1794222791.5842512,
+    "ast_hash": "5ebf42f20f53e22945f8a1d7e1f24f83",
+    "semantic_hash": "5ebf42f20f53e22945f8a1d7e1f24f83"
+  },
+  "src/DialoguePanel.tsx": {
+    "mtime": 1794076758.4339423,
+    "seen": 1794222791.5842535,
+    "ast_hash": "230b04fe39a080b84ff2697e8d4ab3ac",
+    "semantic_hash": "230b04fe39a080b84ff2697e8d4ab3ac"
+  },
+  "src/Junction.tsx": {
+    "mtime": 1794103872.182262,
+    "seen": 1794222791.5842552,
+    "ast_hash": "2d3fc33c07f74eec973ae8dafe24dd2e",
+    "semantic_hash": "2d3fc33c07f74eec973ae8dafe24dd2e"
+  },
+  "src/Kid.tsx": {
+    "mtime": 1794110705.8955421,
+    "seen": 1794222791.5842566,
+    "ast_hash": "f70db5640bb795d78bb6613c7cddf9ae",
+    "semantic_hash": "f70db5640bb795d78bb6613c7cddf9ae"
+  },
+  "src/SignArt.tsx": {
+    "mtime": 1794076758.4339423,
+    "seen": 1794222791.5842583,
+    "ast_hash": "6234280bec3c2683362407ed53f7de2a",
+    "semantic_hash": "6234280bec3c2683362407ed53f7de2a"
+  },
+  "src/WalkScene.tsx": {
+    "mtime": 1794129611.2755256,
+    "seen": 1794222791.5842597,
+    "ast_hash": "e609c2ad8f7c9311156dd8fdb516e355",
+    "semantic_hash": "e609c2ad8f7c9311156dd8fdb516e355"
+  },
+  "src/art/HeroWalk.test.tsx": {
+    "mtime": 1794076758.4369423,
+    "seen": 1794222791.5842612,
+    "ast_hash": "4aad77d7f04c213ffb45ea5b5fdd3301",
+    "semantic_hash": "4aad77d7f04c213ffb45ea5b5fdd3301"
+  },
+  "src/art/HeroWalk.tsx": {
+    "mtime": 1794076758.438073,
+    "seen": 1794222791.5842624,
+    "ast_hash": "b170f1882ad9a2e800f90f31c0318085",
+    "semantic_hash": "b170f1882ad9a2e800f90f31c0318085"
+  },
+  "src/art/people.tsx": {
+    "mtime": 1794076758.438073,
+    "seen": 1794222791.584264,
+    "ast_hash": "46840c478927480d1095b513ff5d4fc5",
+    "semantic_hash": "46840c478927480d1095b513ff5d4fc5"
+  },
+  "src/art/scenery.tsx": {
+    "mtime": 1794128188.9336824,
+    "seen": 1794222791.5842652,
+    "ast_hash": "ff704ab9d53645e24958958b311e503e",
+    "semantic_hash": "ff704ab9d53645e24958958b311e503e"
+  },
+  "src/art/vehicles.tsx": {
+    "mtime": 1794076758.438073,
+    "seen": 1794222791.5842667,
+    "ast_hash": "fc287dacc454e1cf570ab18f1c9e6693",
+    "semantic_hash": "fc287dacc454e1cf570ab18f1c9e6693"
+  },
+  "src/data.ts": {
+    "mtime": 1794076758.4409425,
+    "seen": 1794222791.584268,
+    "ast_hash": "60c55e87cc59ecd6dfd341766d3a998b",
+    "semantic_hash": "60c55e87cc59ecd6dfd341766d3a998b"
+  },
+  "src/flow.test.tsx": {
+    "mtime": 1794111040.7649374,
+    "seen": 1794222791.5842693,
+    "ast_hash": "bc5e7947c3b4eba6d6c264649f709d11",
+    "semantic_hash": "bc5e7947c3b4eba6d6c264649f709d11"
+  },
+  "src/main.tsx": {
+    "mtime": 1793976001.1285033,
+    "seen": 1794222791.5842705,
+    "ast_hash": "751d36d1e0ffd615ea678b3b7a1df616",
+    "semantic_hash": "751d36d1e0ffd615ea678b3b7a1df616"
+  },
+  "src/run.test.ts": {
+    "mtime": 1794108120.8959124,
+    "seen": 1794222791.584272,
+    "ast_hash": "55ab5b016c204b350354b80ceadb7dcc",
+    "semantic_hash": "55ab5b016c204b350354b80ceadb7dcc"
+  },
+  "src/run.ts": {
+    "mtime": 1794103320.027715,
+    "seen": 1794222791.5842733,
+    "ast_hash": "ff023257dbfbcd71a55ba178424f6f70",
+    "semantic_hash": "ff023257dbfbcd71a55ba178424f6f70"
+  },
+  "src/scene/GroundScene.test.tsx": {
+    "mtime": 1794076758.4409425,
+    "seen": 1794222791.5842745,
+    "ast_hash": "b2d47e1db3a44343c13f7e85ce01caa4",
+    "semantic_hash": "b2d47e1db3a44343c13f7e85ce01caa4"
+  },
+  "src/scene/GroundScene.tsx": {
+    "mtime": 1794123501.9988172,
+    "seen": 1794222791.5842757,
+    "ast_hash": "9fba9c3940392b45a6ac98d32c88bb7e",
+    "semantic_hash": "9fba9c3940392b45a6ac98d32c88bb7e"
+  },
+  "src/scene/meters.ts": {
+    "mtime": 1794222981.6442118,
+    "seen": 1794223163.384402,
+    "ast_hash": "67cb350f45744583b6ae6cb0f556ccaf",
+    "semantic_hash": ""
+  },
+  "src/scene/projection.test.ts": {
+    "mtime": 1794099875.443921,
+    "seen": 1794222791.5842786,
+    "ast_hash": "fe681587a2ff25d9256491e8a5ca5a47",
+    "semantic_hash": "fe681587a2ff25d9256491e8a5ca5a47"
+  },
+  "src/scene/projection.ts": {
+    "mtime": 1794119932.4689682,
+    "seen": 1794222791.58428,
+    "ast_hash": "ba5dbd8de22c7bd98449948a215154fb",
+    "semantic_hash": "ba5dbd8de22c7bd98449948a215154fb"
+  },
+  "src/scene/props.test.ts": {
+    "mtime": 1794121115.6398046,
+    "seen": 1794222791.5842812,
+    "ast_hash": "cf00ec88cd8eec74447219d22f7fe8bc",
+    "semantic_hash": "cf00ec88cd8eec74447219d22f7fe8bc"
+  },
+  "src/scene/props.ts": {
+    "mtime": 1794128165.6161053,
+    "seen": 1794222791.5842824,
+    "ast_hash": "c1376cb739370a83418d6cb9acdff170",
+    "semantic_hash": "c1376cb739370a83418d6cb9acdff170"
+  },
+  "src/scene/scale.test.ts": {
+    "mtime": 1794129737.2839077,
+    "seen": 1794222791.5842836,
+    "ast_hash": "facbd9fb7b3642803cc9e8148166e29f",
+    "semantic_hash": "facbd9fb7b3642803cc9e8148166e29f"
+  },
+  "src/scene/spawner.test.ts": {
+    "mtime": 1794102023.2128928,
+    "seen": 1794222791.584285,
+    "ast_hash": "68220ef354b8e113df45f3f6b2dd600c",
+    "semantic_hash": "68220ef354b8e113df45f3f6b2dd600c"
+  },
+  "src/scene/spawner.ts": {
+    "mtime": 1794102007.6127646,
+    "seen": 1794222791.5842865,
+    "ast_hash": "be0dffa74bc8361a28136006aaf6c848",
+    "semantic_hash": "be0dffa74bc8361a28136006aaf6c848"
+  },
+  "src/scene/world.test.ts": {
+    "mtime": 1794121344.644217,
+    "seen": 1794222791.5842876,
+    "ast_hash": "3ece80880a88539e1d23556273f4ba61",
+    "semantic_hash": "3ece80880a88539e1d23556273f4ba61"
+  },
+  "src/scene/world.ts": {
+    "mtime": 1794120474.72596,
+    "seen": 1794222791.584289,
+    "ast_hash": "4b6a258e933409cc8f54389da0251a68",
+    "semantic_hash": "4b6a258e933409cc8f54389da0251a68"
+  },
+  "src/story.test.ts": {
+    "mtime": 1794103642.880225,
+    "seen": 1794222791.5842903,
+    "ast_hash": "9938b034932d91844c3744a72d03f82f",
+    "semantic_hash": "9938b034932d91844c3744a72d03f82f"
+  },
+  "src/story.ts": {
+    "mtime": 1794103548.7540622,
+    "seen": 1794222791.5842917,
+    "ast_hash": "4f79ec82d28d3cbb9002e6a7d16af539",
+    "semantic_hash": "4f79ec82d28d3cbb9002e6a7d16af539"
+  },
+  "src/test/setup.ts": {
+    "mtime": 1794076758.442349,
+    "seen": 1794222791.584293,
+    "ast_hash": "61ff0ae7437852bf4007b608ac59bea8",
+    "semantic_hash": "61ff0ae7437852bf4007b608ac59bea8"
+  },
+  "tsconfig.json": {
+    "mtime": 1793976001.128055,
+    "seen": 1794222791.5842943,
+    "ast_hash": "731c913daf404abce2093aaf230b67c0",
+    "semantic_hash": "731c913daf404abce2093aaf230b67c0"
+  },
+  "vite.config.ts": {
+    "mtime": 1794076758.442349,
+    "seen": 1794222791.5842957,
+    "ast_hash": "52317f37d0e048f00b7226d2fb44c76a",
+    "semantic_hash": "52317f37d0e048f00b7226d2fb44c76a"
+  },
+  "AGENTS.md": {
+    "mtime": 1794223018.3848054,
+    "seen": 1794223163.3844268,
+    "ast_hash": "80ad3cef9bed744e6998a36331667463",
+    "semantic_hash": ""
+  },
+  "DESIGN.md": {
+    "mtime": 1794222988.5113227,
+    "seen": 1794223163.3844283,
+    "ast_hash": "66b8f7766505a5902dfba6e7d15c270e",
+    "semantic_hash": ""
+  },
+  "PRODUCT.md": {
+    "mtime": 1794133136.4204102,
+    "seen": 1794222791.5842993,
+    "ast_hash": "824a5cdbc6322364019a1cbdf16d794f",
+    "semantic_hash": "824a5cdbc6322364019a1cbdf16d794f"
+  },
+  "Ref/BAHAN AJAR_Yuk, Kenali Rambu Lalu Lintas.md": {
+    "mtime": 1794145203.6747575,
+    "seen": 1794222791.5843003,
+    "ast_hash": "e580a510076eb34a82fc2b740006ec27",
+    "semantic_hash": "e580a510076eb34a82fc2b740006ec27"
+  },
+  "Ref/ascii-art.txt": {
+    "mtime": 1794131556.4596207,
+    "seen": 1794222791.5843015,
+    "ast_hash": "0da8266f949e32543de2300f658ddac4",
+    "semantic_hash": "0da8266f949e32543de2300f658ddac4"
+  },
+  "docs/superpowers/plans/2026-11-07-walk-scene-2.5d.md": {
+    "mtime": 1794076758.4329424,
+    "seen": 1794222791.584303,
+    "ast_hash": "6b1d66d6b3cf3530046ce7346bf21a9e",
+    "semantic_hash": "6b1d66d6b3cf3530046ce7346bf21a9e"
+  },
+  "docs/superpowers/plans/2026-11-08-revisi-perspektif-trafik.md": {
+    "mtime": 1794100044.460179,
+    "seen": 1794222791.584304,
+    "ast_hash": "f306b4d52efc367d95855dbeb2aaaff3",
+    "semantic_hash": "f306b4d52efc367d95855dbeb2aaaff3"
+  },
+  "docs/superpowers/specs/2026-11-07-naskah-cerita.md": {
+    "mtime": 1794076758.4329424,
+    "seen": 1794222791.5843093,
+    "ast_hash": "47d255de82087cb01472161a73867850",
+    "semantic_hash": "47d255de82087cb01472161a73867850"
+  },
+  "docs/superpowers/specs/2026-11-07-petualangan-rambu-lalu-lintas-design.md": {
+    "mtime": 1794108187.8816001,
+    "seen": 1794222791.584311,
+    "ast_hash": "90be07a124473112ba95e5ac77984188",
+    "semantic_hash": "90be07a124473112ba95e5ac77984188"
+  },
+  "docs/superpowers/specs/2026-11-08-prd-handoff.md": {
+    "mtime": 1794133390.3592656,
+    "seen": 1794222791.5843127,
+    "ast_hash": "03cc86cca070e46700eb0c3ae9ad3ae5",
+    "semantic_hash": "03cc86cca070e46700eb0c3ae9ad3ae5"
+  },
+  "index.html": {
+    "mtime": 1793976001.12673,
+    "seen": 1794222791.5843139,
+    "ast_hash": "9616bdd265cc2e0638f62ae3206758a7",
+    "semantic_hash": "9616bdd265cc2e0638f62ae3206758a7"
+  },
+  "Ref/BAHAN AJAR_Yuk, Kenali Rambu Lalu Lintas.pdf": {
+    "mtime": 1794145189.4476202,
+    "seen": 1794222791.584315,
+    "ast_hash": "3b767fad1173e5daf96529b75af5da0d",
+    "semantic_hash": "3b767fad1173e5daf96529b75af5da0d"
+  },
+  "Ref/crossroad view.jpg": {
+    "mtime": 1794130412.797133,
+    "seen": 1794223163.3844464,
+    "ast_hash": "b40cef0812dc5b470ce846177aa37726",
+    "semantic_hash": ""
+  },
+  "pnpm-lock.yaml": {
+    "mtime": 1794076758.4339423,
+    "seen": 1794223163.3844483,
+    "ast_hash": "62ca6ae4286e1410199ca9159cd83537",
+    "semantic_hash": ""
+  }
+}

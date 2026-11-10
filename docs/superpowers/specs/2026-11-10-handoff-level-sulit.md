@@ -74,6 +74,11 @@ Kunci menempel pada `correct`, **bukan** posisi huruf — ini yang memperbaiki c
 
 ### 3.1 Isi 15 tahap (sudah ditranskrip — jangan diubah tanpa alasan)
 
+> **Catatan 2026-11-10:** `docs/STUDI_KASUS.md` direvisi — kelima kasus kini
+> memakai rambu kurikulum 12 (`Dilarang Berhenti`, `Dilarang Parkir`,
+> `Peringatan Lampu`, `Perintah Belok Kiri`, `Jalur Evakuasi`). Tabel di bawah
+> adalah riwayat; sumber kebenaran sekarang `STUDI_KASUS.md` dan `src/sulit.ts`.
+
 **Kasus 1 — `dilarang-masuk` · "Rambu Dilarang Masuk"**
 story: "Budi bersepeda bersama ayahnya. Di depan ada rambu bulat merah dengan garis putih, dan Budi ingin lewat karena jalannya lebih dekat."
 

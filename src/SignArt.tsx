@@ -44,11 +44,6 @@ export const ART_INK_BOTTOM: Record<Art, number> = {
   'petunjuk-arah': 100,
   'titik-kumpul': 98,
   'jalur-evakuasi': 100,
-  /* Studi kasus: tinta keempat rambu mencapai tepi bawah kotaknya sendiri. */
-  'dilarang-masuk': 100,
-  'peringatan-tikungan': 96,
-  'berhenti-stop': 100,
-  'penyeberangan-biru': 100,
 }
 
 export const ART_BOX: Record<Art, { w: number; h: number }> = {
@@ -66,11 +61,6 @@ export const ART_BOX: Record<Art, { w: number; h: number }> = {
   'titik-kumpul': { w: 100, h: 100 },
   /* 192 × 92 unit papan, dinormalkan ke tinggi 100 → 208,7 lebar. */
   'jalur-evakuasi': { w: 208.7, h: 100 },
-  /* Empat rambu studi kasus menggambar seluruh kotak 100 × 100. */
-  'dilarang-masuk': { w: 100, h: 100 },
-  'peringatan-tikungan': { w: 100, h: 100 },
-  'berhenti-stop': { w: 100, h: 100 },
-  'penyeberangan-biru': { w: 100, h: 100 },
 }
 
 /*
@@ -331,82 +321,6 @@ export const ART: Record<Art, ReactNode> = {
       <polygon points="115,18 132,26 132,90 115,82" fill={WHITE} />
       <polygon points="150,38 175,38 175,22 195,50 175,78 175,62 150,62" fill={WHITE} />
     </g>
-  ),
-
-  /*
-   * Empat rambu studi kasus (`src/sulit.ts`). Ketiganya rambu jalan yang
-   * bentuknya mudah dikenali dari kejauhan, jadi bentuk aslinya yang dipakai —
-   * bukan `banBase` putih bertepi merah: "dilarang masuk" di lapangan adalah
-   * cakram merah penuh dengan palang putih, dan itulah yang harus dikenali anak.
-   */
-  'dilarang-masuk': (
-    <>
-      <circle cx="50" cy="50" r="48" fill={RED} stroke={WHITE} strokeWidth="4" />
-      <rect x="22" y="44" width="56" height="12" rx="2" fill={WHITE} />
-    </>
-  ),
-
-  'peringatan-tikungan': (
-    <>
-      {ketupat}
-      {/* Jalan menikung ke kanan: batang tegak, belokan, lalu mata panah. */}
-      <path
-        d="M 42 86 L 42 58 C 42 46, 50 44, 60 44"
-        fill="none"
-        stroke={INK}
-        strokeWidth="11"
-        strokeLinecap="round"
-      />
-      <polygon points="80,44 58,29 58,59" fill={INK} />
-    </>
-  ),
-
-  'berhenti-stop': (
-    <>
-      {/* Segi delapan memenuhi kotak: 29,3 = 100 / (1 + √2). */}
-      <polygon
-        points="29.3,0 70.7,0 100,29.3 100,70.7 70.7,100 29.3,100 0,70.7 0,29.3"
-        fill={RED}
-      />
-      <polygon
-        points="29.3,0 70.7,0 100,29.3 100,70.7 70.7,100 29.3,100 0,70.7 0,29.3"
-        fill="none"
-        stroke={WHITE}
-        strokeWidth="3.5"
-        transform="translate(5.55 5.55) scale(0.889)"
-      />
-      <text
-        x="50"
-        y="61"
-        fontFamily="Nunito, Arial, sans-serif"
-        fontWeight="900"
-        fontSize="26"
-        letterSpacing="0.5"
-        textAnchor="middle"
-        fill={WHITE}
-      >
-        STOP
-      </text>
-    </>
-  ),
-
-  'penyeberangan-biru': (
-    <>
-      <rect x="2" y="2" width="96" height="96" rx="6" fill={BLUE} stroke={WHITE} strokeWidth="4" />
-      {/* Zebra di kaki gambar, lalu siluet pejalan kaki di atasnya. */}
-      <g fill={WHITE}>
-        <path d="M 14 88 L 29 88 L 33 78 L 20 78 Z" />
-        <path d="M 35 88 L 51 88 L 53 78 L 41 78 Z" />
-        <path d="M 57 88 L 73 88 L 73 78 L 61 78 Z" />
-        <path d="M 79 88 L 87 88 L 85 78 L 79 78 Z" />
-      </g>
-      <circle cx="51" cy="24" r="8" fill={WHITE} />
-      <g fill="none" stroke={WHITE} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M 51 34 C 53 44, 50 52, 47 58" />
-        <path d="M 47 58 L 39 74 M 47 58 L 60 68" />
-        <path d="M 51 38 L 40 45 L 34 36 M 51 38 L 64 48 L 58 60" />
-      </g>
-    </>
   ),
 }
 

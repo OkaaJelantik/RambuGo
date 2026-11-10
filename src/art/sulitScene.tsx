@@ -27,7 +27,7 @@ import { SignArt } from '../SignArt'
 type Props = {
   /** Rambu kasus ini — satu gambar utuh dari `SignArt`, bukan digambar ulang. */
   art: Art
-  /** id kasus (`dilarang-masuk`, `peringatan-tikungan`, …) → warna latar rambu. */
+  /** id kasus (`dilarang-berhenti`, `peringatan-lampu`, …) → warna latar rambu. */
   caseId: string
   /** Urutan kasus 0–4; sumber variasi deterministik (mobil, bukan acak). */
   caseIndex: number

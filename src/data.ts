@@ -24,16 +24,6 @@ export type Art =
   | 'petunjuk-arah'
   | 'titik-kumpul'
   | 'jalur-evakuasi'
-  /*
-   * Empat rambu khusus studi kasus (`src/sulit.ts`). Tidak masuk `SIGNS`:
-   * keduanya tidak berdiri di trotoar scene dan tidak ikut sortir, tetapi
-   * gambarnya tetap satu sumber dengan rambu lain — `ART`/`ART_BOX` adalah
-   * `Record<Art, …>`, jadi art baru tanpa gambar akan ditolak typecheck.
-   */
-  | 'dilarang-masuk'
-  | 'peringatan-tikungan'
-  | 'berhenti-stop'
-  | 'penyeberangan-biru'
 
 export type Sign = {
   id: string

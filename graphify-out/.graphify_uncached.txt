@@ -1,0 +1,13 @@
+/home/lann/Projects/Ina/AGENTS.md
+/home/lann/Projects/Ina/DESIGN.md
+/home/lann/Projects/Ina/PRODUCT.md
+/home/lann/Projects/Ina/Ref/BAHAN AJAR_Yuk, Kenali Rambu Lalu Lintas.md
+/home/lann/Projects/Ina/Ref/ascii-art.txt
+/home/lann/Projects/Ina/docs/superpowers/plans/2026-11-07-walk-scene-2.5d.md
+/home/lann/Projects/Ina/docs/superpowers/plans/2026-11-08-revisi-perspektif-trafik.md
+/home/lann/Projects/Ina/docs/superpowers/specs/2026-11-07-naskah-cerita.md
+/home/lann/Projects/Ina/docs/superpowers/specs/2026-11-07-petualangan-rambu-lalu-lintas-design.md
+/home/lann/Projects/Ina/docs/superpowers/specs/2026-11-08-prd-handoff.md
+/home/lann/Projects/Ina/index.html
+/home/lann/Projects/Ina/Ref/BAHAN AJAR_Yuk, Kenali Rambu Lalu Lintas.pdf
+/home/lann/Projects/Ina/Ref/crossroad view.jpg

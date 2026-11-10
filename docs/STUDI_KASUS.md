@@ -1,117 +1,93 @@
-*Soal 1: Rambu Dilarang Masuk*
-Cerita:
-Budi sedang mengendarai sepeda bersama ayahnya. Di depan mereka terdapat rambu berbentuk lingkaran merah dengan garis putih horizontal. Budi ingin melewati jalan tersebut karena terlihat lebih dekat menuju rumah neneknya.
+SOAL 1: RAMBU DILARANG BERHENTI
 
-Tantangan 1: Analisis makna rambu!
-Apa informasi yang disampaikan rambu tersebut?
-○ Dilarang masuk.
-○ Wajib berhenti.
-○ Tempat parkir.
+Cerita: Budi sedang bepergian bersama ayahnya menggunakan mobil. Di pinggir jalan, Budi melihat rambu berbentuk lingkaran dengan garis tepi merah dan simbol huruf S yang dicoret. Ayah Budi hendak berhenti sebentar untuk membeli makanan di toko dekat rambu tersebut.
 
-Tantangan 2: Berikan alasan!
-Mengapa Budi tidak boleh melewati jalan tersebut?
-○ Karena rambu menunjukkan bahwa kendaraan tidak boleh memasuki jalan tersebut.
-○ Karena jalan tersebut khusus untuk pejalan kaki.
-○ Karena jalan tersebut merupakan tempat parkir.
+Tantangan 1: Analisis makna rambu! Apa informasi yang disampaikan rambu tersebut?
 
-Tantangan 3: Tentukan tindakan!
-Apa yang sebaiknya dilakukan Budi?
-○ Mencari jalan lain yang diperbolehkan.
-○ Tetap melewati jalan tersebut.
-○ Mengabaikan rambu.
+A. Dilarang berhenti. B. Dilarang parkir. C. Dilarang putar balik.
 
-*Soal 2: Rambu Peringatan Tikungan*
-Cerita:
-Siti sedang bersepeda menuju sekolah. Di depan jalan terdapat rambu berbentuk segitiga dengan garis tepi merah dan gambar tikungan. Siti melihat jalan mulai berbelok ke arah kanan.
+Tantangan 2: Berikan alasan! Mengapa ayah Budi tidak boleh berhenti di tempat tersebut?
 
-Tantangan 1: Analisis makna rambu!
-Apa informasi yang disampaikan rambu tersebut?
-○ Jalan berbelok ke kanan.
-○ Dilarang bersepeda.
-○ Tempat parkir sepeda.
+A. Karena rambu menunjukkan kendaraan tidak boleh berhenti di tempat tersebut. B. Karena tempat tersebut khusus untuk pejalan kaki. C. Karena tempat tersebut merupakan tempat parkir.
 
-Tantangan 2: Berikan alasan!
-Mengapa Siti perlu memperhatikan rambu tersebut?
-○ Karena rambu memberikan peringatan adanya tikungan di depan.
-○ Karena rambu menunjukkan bahwa jalan sudah berakhir.
-○ Karena rambu menunjukkan tempat bermain.
+Tantangan 3: Tentukan tindakan! Apa yang sebaiknya dilakukan ayah Budi?
 
-Tantangan 3: Tentukan tindakan!
-Apa yang sebaiknya dilakukan Siti?
-○ Mengurangi kecepatan dan berhati-hati saat berbelok.
-○ Mempercepat sepeda agar cepat melewati tikungan.
-○ Mengabaikan rambu.
+A. Mencari tempat lain yang diperbolehkan untuk berhenti. B. Tetap berhenti di tempat tersebut. C. Mengabaikan rambu lalu lintas.
 
-*Soal 3: Rambu Wajib Berhenti*
-Cerita:
-Andi sedang berada di dalam mobil bersama keluarganya. Saat mendekati persimpangan, ia melihat rambu berbentuk segi delapan berwarna merah dengan tulisan STOP. Ayah Andi akan melanjutkan perjalanan melewati persimpangan.
+SOAL 2: RAMBU DILARANG PARKIR
 
-Tantangan 1: Analisis makna rambu!
-Apa informasi yang disampaikan rambu tersebut?
-○ Wajib berhenti.
-○ Dilarang parkir.
-○ Jalan khusus sepeda.
+Cerita: Siti sedang pergi bersama ibunya ke pasar. Ibu Siti ingin memarkir mobil di pinggir jalan agar lebih mudah membawa barang belanjaan. Namun, Siti melihat rambu berbentuk lingkaran dengan huruf P yang dicoret garis merah di tempat tersebut.
 
-Tantangan 2: Berikan alasan!
-Mengapa kendaraan harus berhenti ketika melihat rambu tersebut?
-○ Karena pengendara harus berhenti untuk memperhatikan kondisi persimpangan.
-○ Karena rambu menunjukkan tempat untuk beristirahat.
-○ Karena kendaraan harus selalu berhenti di setiap jalan.
+Tantangan 1: Analisis makna rambu! Apa informasi yang disampaikan rambu tersebut?
 
-Tantangan 3: Tentukan tindakan!
-Apa yang sebaiknya dilakukan ayah Andi?
-○ Berhenti terlebih dahulu, memastikan keadaan aman, lalu melanjutkan perjalanan.
-○ Langsung melaju tanpa memperhatikan kendaraan lain.
-○ Membunyikan klakson dan terus berjalan.
+A. Dilarang parkir. B. Dilarang berhenti. C. Dilarang putar balik.
 
-*Soal 4: Rambu Dilarang Parkir*
-Cerita:
-Rina sedang ikut ibunya berbelanja di toko. Ibu Rina ingin memarkir mobil tepat di depan toko agar lebih mudah membawa barang. Namun, di tempat tersebut terdapat rambu huruf P yang dicoret dengan garis merah.
+Tantangan 2: Berikan alasan! Mengapa ibu Siti tidak boleh memarkir mobil di tempat tersebut?
 
-Tantangan 1: Analisis makna rambu!
-Apa informasi yang disampaikan rambu tersebut?
-○ Dilarang parkir.
-○ Tempat parkir kendaraan.
-○ Dilarang masuk.
+A. Karena rambu menunjukkan kendaraan tidak boleh diparkir di tempat tersebut. B. Karena tempat tersebut khusus untuk bermain. C. Karena semua kendaraan harus berhenti di sana.
 
-Tantangan 2: Berikan alasan!
-Mengapa ibu Rina tidak boleh memarkir mobil di tempat tersebut?
-○ Karena rambu menunjukkan bahwa kendaraan tidak diperbolehkan parkir di sana.
-○ Karena tempat tersebut khusus untuk bermain.
-○ Karena semua kendaraan harus berhenti di sana.
+Tantangan 3: Tentukan tindakan! Apa yang sebaiknya dilakukan ibu Siti?
 
-Tantangan 3: Tentukan tindakan!
-Apa yang sebaiknya dilakukan ibu Rina?
-○ Mencari tempat parkir yang diperbolehkan.
-○ Tetap memarkir mobil di depan toko.
-○ Mengabaikan rambu karena hanya sebentar.
+A. Mencari tempat parkir yang diperbolehkan. B. Tetap memarkir mobil di tempat tersebut. C. Mengabaikan rambu karena hanya sebentar.
 
-*Soal 5: Rambu Penyeberangan Pejalan Kaki*
-Cerita
-Doni sedang berjalan bersama teman-temannya menuju taman. Di dekat jalan raya, mereka melihat rambu berwarna biru dengan gambar orang sedang berjalan di atas garis penyeberangan. Doni ingin segera menyeberang karena taman berada di seberang jalan.
+SOAL 3: RAMBU PERINGATAN LAMPU LALU LINTAS
 
-Tantangan 1: Analisis makna rambu!
-Apa informasi yang disampaikan rambu tersebut?
-○ Tempat penyeberangan pejalan kaki.
-○ Dilarang berjalan.
-○ Tempat parkir kendaraan.
+Cerita: Andi sedang bersepeda menuju sekolah. Di depan jalan, ia melihat rambu berbentuk belah ketupat dengan warna dasar kuning dan gambar lampu lalu lintas berwarna hitam. Andi mengetahui bahwa di depan terdapat lampu lalu lintas.
 
-Tantangan 2: Berikan alasan!
-Mengapa Doni sebaiknya menggunakan tempat penyeberangan tersebut?
-○ Karena tempat tersebut disediakan untuk membantu pejalan kaki menyeberang dengan aman.
-○ Karena semua kendaraan harus berhenti selamanya.
-○ Karena tempat tersebut merupakan jalur khusus sepeda.
+Tantangan 1: Analisis makna rambu! Apa informasi yang disampaikan rambu tersebut?
 
-Tantangan 3: Tentukan tindakan!
-Apa yang sebaiknya dilakukan Doni?
-○ Menyeberang melalui tempat penyeberangan setelah memastikan keadaan aman.
-○ Berlari menyeberang di sembarang tempat.
-○ Menyeberang sambil bermain dan tidak memperhatikan kendaraan.
+A. Peringatan adanya lampu lalu lintas di depan. B. Perintah untuk berjalan lurus. C. Petunjuk arah menuju sekolah.
 
-Kunci Jawaban:
+Tantangan 2: Berikan alasan! Mengapa Andi perlu memperhatikan rambu tersebut?
 
-1. A – A – A
-2. A – A – A
-3. A – A – A
-4. A – A – A
-5. A – A – A
+A. Karena rambu mengingatkan adanya lampu lalu lintas di depan. B. Karena rambu menunjukkan tempat parkir. C. Karena rambu melarang semua kendaraan melewati jalan.
+
+Tantangan 3: Tentukan tindakan! Apa yang sebaiknya dilakukan Andi?
+
+A. Memperhatikan isyarat lampu lalu lintas dan berhati-hati. B. Mempercepat sepeda tanpa memperhatikan lampu. C. Mengabaikan rambu tersebut.
+
+SOAL 4: RAMBU PERINTAH BELOK KE KIRI
+
+Cerita: Doni sedang ikut ayahnya mengendarai mobil menuju rumah nenek. Saat mendekati persimpangan, mereka melihat rambu berbentuk lingkaran berwarna biru dengan gambar panah putih ke arah kiri. Ayah Doni hendak melanjutkan perjalanan lurus.
+
+Tantangan 1: Analisis makna rambu! Apa informasi yang disampaikan rambu tersebut?
+
+A. Perintah belok ke arah kiri. B. Perintah berjalan lurus. C. Perintah belok ke arah kanan.
+
+Tantangan 2: Berikan alasan! Mengapa ayah Doni harus mengikuti arah panah pada rambu tersebut?
+
+A. Karena rambu memberikan perintah untuk melewati jalur sebelah kiri. B. Karena rambu menunjukkan tempat parkir. C. Karena rambu memperingatkan adanya lampu lalu lintas.
+
+Tantangan 3: Tentukan tindakan! Apa yang sebaiknya dilakukan ayah Doni?
+
+A. Mengikuti arah panah dan melewati jalur sebelah kiri. B. Tetap berjalan lurus. C. Belok ke arah kanan.
+
+SOAL 5: RAMBU JALUR EVAKUASI
+
+Cerita: Rina sedang berada di sekolah bersama teman-temannya. Tiba-tiba terjadi gempa bumi. Guru mengajak seluruh siswa menuju tempat yang aman. Rina melihat rambu berbentuk persegi panjang berwarna hijau dengan simbol dan tanda panah berwarna putih.
+
+Tantangan 1: Analisis makna rambu! Apa informasi yang disampaikan rambu tersebut?
+
+A. Jalur evakuasi. B. Dilarang masuk. C. Tempat parkir kendaraan.
+
+Tantangan 2: Berikan alasan! Mengapa Rina perlu mengikuti petunjuk pada rambu tersebut?
+
+A. Karena rambu menunjukkan arah menuju tempat yang aman saat keadaan darurat. B. Karena rambu menunjukkan arah menuju pasar. C. Karena rambu menunjukkan tempat kendaraan berhenti.
+
+Tantangan 3: Tentukan tindakan! Apa yang sebaiknya dilakukan Rina?
+
+A. Mengikuti arah jalur evakuasi menuju tempat aman. B. Berlari ke arah yang tidak diketahui. C. Mengabaikan petunjuk rambu.
+
+KUNCI JAWABAN
+
+* A – A – A
+
+* A – A – A
+
+* A – A – A
+
+* A – A – A
+
+* A – A – A
+
+# NOTE FOR AGENT: SHUFFLE OPTION.

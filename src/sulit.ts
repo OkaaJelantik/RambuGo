@@ -1,10 +1,10 @@
 /**
  * Isi level Sulit: lima kasus, tiap kasus tiga tahap (makna → alasan → tindakan).
  *
- * Sumber teks: `docs/STUDI_KASUS.md` (transkrip apa adanya, hanya ejaan nama
- * dan tanda baca yang dirapikan) + `why` baru yang ditulis di
- * `docs/superpowers/specs/2026-11-10-handoff-level-sulit.md` §3.1. Jangan
- * parafrase tanpa memperbarui spec: lane layar memasang teks ini apa adanya.
+ * Sumber teks: `docs/STUDI_KASUS.md` (revisi 2026-11-10) — pertanyaan dan opsi
+ * disalin apa adanya, hanya ejaan dan tanda baca yang dirapikan. Kelima kasus
+ * kini memakai rambu yang diajarkan di jalur lain (12 rambu `SIGNS`). `why`
+ * tidak ada di sumber; ditulis di sini, maksimal dua kalimat.
  *
  * Kunci jawaban **menempel pada `correct`**, bukan pada posisi huruf. Urutan
  * tampil lahir dari seed di `orderedOptions`, jadi kasus lama yang selalu
@@ -32,7 +32,7 @@ export type CaseStep = {
 
 export type Case = {
   id: string
-  /** "Rambu Dilarang Masuk" */
+  /** "Rambu Dilarang Berhenti" */
   title: string
   /** ≤ 2 kalimat, register kelas IV. */
   story: string
@@ -46,136 +46,53 @@ export type Case = {
 }
 
 /**
- * Lima kasus, urutan 1→5 tetap (makin sulit: larangan, peringatan, perintah,
- * larangan lagi yang mirip, lalu petunjuk biru). Salinan teks dari spec §3.1.
+ * Lima kasus, urutan 1→5 tetap mengikuti naskah: dua larangan, satu peringatan,
+ * satu perintah, lalu satu petunjuk. Salinan teks dari `STUDI_KASUS.md`.
  */
 export const CASES: Case[] = [
   {
-    id: 'dilarang-masuk',
-    title: 'Rambu Dilarang Masuk',
+    id: 'dilarang-berhenti',
+    title: 'Rambu Dilarang Berhenti',
     story:
-      'Budi bersepeda bersama ayahnya. Di depan ada rambu bulat merah dengan garis putih, dan Budi ingin lewat karena jalannya lebih dekat.',
+      'Budi dan ayahnya naik mobil. Di pinggir jalan ada rambu bulat bertepi merah dengan huruf S dicoret, padahal ayah ingin berhenti membeli makanan.',
     sign: {
-      art: 'dilarang-masuk',
-      name: 'Rambu Dilarang Masuk',
-      visual: 'bulat merah penuh dengan garis putih mendatar di tengah',
+      art: 'dilarang-berhenti',
+      name: 'Rambu Dilarang Berhenti',
+      visual: 'bulat putih dengan huruf S hitam dan garis merah mencoretnya',
     },
     steps: [
       {
         ask: 'makna',
-        prompt: 'Apa arti rambu itu?',
+        prompt: 'Apa informasi yang disampaikan rambu tersebut?',
         options: [
-          { text: 'Dilarang masuk', correct: true },
-          { text: 'Wajib berhenti', correct: false },
-          { text: 'Tempat parkir', correct: false },
-        ],
-        why: 'Bulat bertepi merah berarti larangan. Garis putih mendatar berarti jalan itu tidak boleh dimasuki.',
-      },
-      {
-        ask: 'alasan',
-        prompt: 'Mengapa Budi tidak boleh lewat jalan itu?',
-        options: [
-          { text: 'Karena rambu menunjukkan kendaraan tidak boleh masuk', correct: true },
-          { text: 'Karena jalan khusus pejalan kaki', correct: false },
-          { text: 'Karena jalan itu tempat parkir', correct: false },
-        ],
-        why: 'Larangan berlaku untuk semua kendaraan, termasuk sepeda. Kalau dilanggar, Budi bisa bertabrakan dengan kendaraan dari depan.',
-      },
-      {
-        ask: 'tindakan',
-        prompt: 'Apa yang sebaiknya Budi lakukan?',
-        options: [
-          { text: 'Mencari jalan lain yang diperbolehkan', correct: true },
-          { text: 'Tetap melewati jalan itu', correct: false },
-          { text: 'Mengabaikan rambu', correct: false },
-        ],
-        why: 'Jalan yang dilarang bukan jalan pintas. Mencari jalan lain membuat Budi tetap aman.',
-      },
-    ],
-  },
-  {
-    id: 'peringatan-tikungan',
-    title: 'Rambu Peringatan Tikungan',
-    story:
-      'Siti bersepeda menuju sekolah. Jalan di depan berbelok ke kanan, dan ada rambu kuning berbentuk belah ketupat.',
-    sign: {
-      art: 'peringatan-tikungan',
-      name: 'Rambu Peringatan Tikungan',
-      visual: 'belah ketupat kuning bergambar panah hitam yang membelok ke kanan',
-    },
-    steps: [
-      {
-        ask: 'makna',
-        prompt: 'Apa arti rambu itu?',
-        options: [
-          { text: 'Jalan berbelok ke kanan', correct: true },
-          { text: 'Dilarang bersepeda', correct: false },
-          { text: 'Tempat parkir sepeda', correct: false },
-        ],
-        why: 'Belah ketupat kuning adalah peringatan. Gambar tikungan berarti jalan di depan memang berbelok.',
-      },
-      {
-        ask: 'alasan',
-        prompt: 'Mengapa Siti harus memperhatikan rambu itu?',
-        options: [
-          { text: 'Karena rambu memberi peringatan ada tikungan di depan', correct: true },
-          { text: 'Karena jalan sudah berakhir', correct: false },
-          { text: 'Karena itu tempat bermain', correct: false },
-        ],
-        why: 'Peringatan dipasang sebelum tikungan supaya pengendara bersiap. Siti jadi tahu harus mengurangi kecepatan.',
-      },
-      {
-        ask: 'tindakan',
-        prompt: 'Apa yang sebaiknya Siti lakukan?',
-        options: [
-          { text: 'Mengurangi kecepatan dan berhati-hati', correct: true },
-          { text: 'Mempercepat sepeda', correct: false },
-          { text: 'Mengabaikan rambu', correct: false },
-        ],
-        why: 'Saat berbelok, sepeda bisa tergelincir kalau terlalu cepat. Pelan dan hati-hati membuat Siti selamat.',
-      },
-    ],
-  },
-  {
-    id: 'berhenti-stop',
-    title: 'Rambu Wajib Berhenti',
-    story:
-      'Andi di dalam mobil bersama keluarganya. Saat mendekati persimpangan, ada rambu segi delapan merah bertuliskan STOP.',
-    sign: {
-      art: 'berhenti-stop',
-      name: 'Rambu Wajib Berhenti',
-      visual: 'segi delapan merah bertuliskan STOP putih',
-    },
-    steps: [
-      {
-        ask: 'makna',
-        prompt: 'Apa arti rambu itu?',
-        options: [
-          { text: 'Wajib berhenti', correct: true },
+          { text: 'Dilarang berhenti', correct: true },
           { text: 'Dilarang parkir', correct: false },
-          { text: 'Jalan khusus sepeda', correct: false },
+          { text: 'Dilarang putar balik', correct: false },
         ],
-        why: 'Segi delapan merah selalu berarti berhenti. Rambu ini dipasang di persimpangan yang ramai.',
+        why: 'Bulat bertepi merah berarti larangan. Huruf S yang dicoret berarti kendaraan tidak boleh berhenti di situ.',
       },
       {
         ask: 'alasan',
-        prompt: 'Mengapa kendaraan harus berhenti dulu?',
+        prompt: 'Mengapa ayah Budi tidak boleh berhenti di tempat tersebut?',
         options: [
-          { text: 'Karena pengendara harus memastikan persimpangan aman', correct: true },
-          { text: 'Karena itu tempat beristirahat', correct: false },
-          { text: 'Karena semua jalan harus diakhiri', correct: false },
+          {
+            text: 'Karena rambu menunjukkan kendaraan tidak boleh berhenti di tempat tersebut',
+            correct: true,
+          },
+          { text: 'Karena tempat tersebut khusus untuk pejalan kaki', correct: false },
+          { text: 'Karena tempat tersebut merupakan tempat parkir', correct: false },
         ],
-        why: 'Berhenti sebentar memberi waktu melihat kendaraan dari arah lain. Setelah aman, perjalanan boleh dilanjutkan.',
+        why: 'Kalau berhenti di situ, kendaraan lain bisa terhalang. Larangan ini menjaga jalan tetap lancar.',
       },
       {
         ask: 'tindakan',
-        prompt: 'Apa yang sebaiknya ayah Andi lakukan?',
+        prompt: 'Apa yang sebaiknya dilakukan ayah Budi?',
         options: [
-          { text: 'Berhenti, memastikan aman, lalu jalan', correct: true },
-          { text: 'Langsung melaju', correct: false },
-          { text: 'Membunyikan klakson dan terus jalan', correct: false },
+          { text: 'Mencari tempat lain yang diperbolehkan untuk berhenti', correct: true },
+          { text: 'Tetap berhenti di tempat tersebut', correct: false },
+          { text: 'Mengabaikan rambu lalu lintas', correct: false },
         ],
-        why: 'STOP bukan berarti pelan-pelan saja. Berhenti penuh lalu memeriksa keadaan adalah cara paling aman.',
+        why: 'Mencari tempat lain yang boleh berhenti membuat ayah tetap patuh pada rambu.',
       },
     ],
   },
@@ -183,7 +100,7 @@ export const CASES: Case[] = [
     id: 'dilarang-parkir',
     title: 'Rambu Dilarang Parkir',
     story:
-      'Rina ikut ibunya berbelanja. Ibu ingin memarkir mobil tepat di depan toko, tetapi ada rambu huruf P yang dicoret garis merah.',
+      'Siti dan ibunya pergi ke pasar. Di pinggir jalan ada rambu bulat berhuruf P dicoret, padahal ibu ingin memarkir mobil.',
     sign: {
       art: 'dilarang-parkir',
       name: 'Rambu Dilarang Parkir',
@@ -192,76 +109,198 @@ export const CASES: Case[] = [
     steps: [
       {
         ask: 'makna',
-        prompt: 'Apa arti rambu itu?',
+        prompt: 'Apa informasi yang disampaikan rambu tersebut?',
         options: [
           { text: 'Dilarang parkir', correct: true },
-          { text: 'Tempat parkir kendaraan', correct: false },
-          { text: 'Dilarang masuk', correct: false },
+          { text: 'Dilarang berhenti', correct: false },
+          { text: 'Dilarang putar balik', correct: false },
         ],
-        why: 'Huruf P berarti parkir, dan garis merah mencoretnya. Artinya kendaraan tidak boleh berhenti di situ.',
+        why: 'Huruf P berarti parkir, dan garis merah mencoretnya. Artinya kendaraan tidak boleh diparkir di situ.',
       },
       {
         ask: 'alasan',
-        prompt: 'Mengapa ibu Rina tidak boleh memarkir mobil di sana?',
+        prompt: 'Mengapa ibu Siti tidak boleh memarkir mobil di tempat tersebut?',
         options: [
-          { text: 'Karena kendaraan tidak diperbolehkan parkir di sana', correct: true },
-          { text: 'Karena tempat itu untuk bermain', correct: false },
-          { text: 'Karena semua kendaraan harus berhenti', correct: false },
+          {
+            text: 'Karena rambu menunjukkan kendaraan tidak boleh diparkir di tempat tersebut',
+            correct: true,
+          },
+          { text: 'Karena tempat tersebut khusus untuk bermain', correct: false },
+          { text: 'Karena semua kendaraan harus berhenti di sana', correct: false },
         ],
-        why: 'Tempat di depan toko dipakai orang lewat. Kalau diparkir, jalan jadi sempit dan orang lain terganggu.',
+        why: 'Tempat di pinggir jalan dipakai orang lewat. Kalau diparkir, jalan jadi sempit dan orang lain terganggu.',
       },
       {
         ask: 'tindakan',
-        prompt: 'Apa yang sebaiknya ibu Rina lakukan?',
+        prompt: 'Apa yang sebaiknya dilakukan ibu Siti?',
         options: [
           { text: 'Mencari tempat parkir yang diperbolehkan', correct: true },
-          { text: 'Tetap memarkir di depan toko', correct: false },
-          { text: 'Mengabaikan karena hanya sebentar', correct: false },
+          { text: 'Tetap memarkir mobil di tempat tersebut', correct: false },
+          { text: 'Mengabaikan rambu karena hanya sebentar', correct: false },
         ],
         why: 'Sebentar pun tetap melanggar. Mencari tempat parkir yang benar membuat semua orang aman.',
       },
     ],
   },
   {
-    id: 'penyeberangan-biru',
-    title: 'Rambu Tempat Menyeberang',
+    id: 'peringatan-lampu',
+    title: 'Rambu Peringatan Lampu Lalu Lintas',
     story:
-      'Doni dan teman-temannya berjalan ke taman. Di tepi jalan ada rambu biru bergambar orang menyeberang di atas garis zebra.',
+      'Andi bersepeda ke sekolah. Di depan ada rambu belah ketupat kuning bergambar lampu lalu lintas.',
     sign: {
-      art: 'penyeberangan-biru',
-      name: 'Rambu Tempat Menyeberang',
-      visual: 'persegi biru bergambar orang berjalan di atas garis zebra putih',
+      art: 'peringatan-lampu',
+      name: 'Rambu Peringatan Lampu Lalu Lintas',
+      visual: 'belah ketupat kuning bergambar lampu tiga warna: merah, kuning, hijau',
     },
     steps: [
       {
         ask: 'makna',
-        prompt: 'Apa arti rambu itu?',
+        prompt: 'Apa informasi yang disampaikan rambu tersebut?',
         options: [
-          { text: 'Tempat penyeberangan pejalan kaki', correct: true },
-          { text: 'Dilarang berjalan', correct: false },
-          { text: 'Tempat parkir kendaraan', correct: false },
+          {
+            text: 'Peringatan adanya lampu lalu lintas di depan',
+            correct: true,
+          },
+          { text: 'Perintah untuk berjalan lurus', correct: false },
+          { text: 'Petunjuk arah menuju sekolah', correct: false },
         ],
-        why: 'Rambu ini memberi petunjuk tempat, bukan larangan. Gambar pejalan kaki di garis zebra menunjukkan tempat menyeberang.',
+        why: 'Belah ketupat kuning adalah peringatan. Gambar lampu berarti di depan ada lampu lalu lintas.',
       },
       {
         ask: 'alasan',
-        prompt: 'Mengapa Doni sebaiknya menyeberang di tempat itu?',
+        prompt: 'Mengapa Andi perlu memperhatikan rambu tersebut?',
         options: [
-          { text: 'Karena tempat itu disediakan agar pejalan kaki aman', correct: true },
-          { text: 'Karena semua kendaraan harus berhenti selamanya', correct: false },
-          { text: 'Karena itu jalur khusus sepeda', correct: false },
+          {
+            text: 'Karena rambu mengingatkan adanya lampu lalu lintas di depan',
+            correct: true,
+          },
+          { text: 'Karena rambu menunjukkan tempat parkir', correct: false },
+          {
+            text: 'Karena rambu melarang semua kendaraan melewati jalan',
+            correct: false,
+          },
         ],
-        why: 'Di tempat penyeberangan, pengendara sudah diberi tanda untuk pelan. Doni lebih aman menyeberang di sana.',
+        why: 'Peringatan dipasang sebelum lampu. Andi jadi tahu harus bersiap berhenti atau pelan.',
       },
       {
         ask: 'tindakan',
-        prompt: 'Apa yang sebaiknya Doni lakukan?',
+        prompt: 'Apa yang sebaiknya dilakukan Andi?',
         options: [
-          { text: 'Menyeberang di tempat itu setelah memastikan aman', correct: true },
-          { text: 'Berlari menyeberang di sembarang tempat', correct: false },
-          { text: 'Menyeberang sambil bermain', correct: false },
+          {
+            text: 'Memperhatikan isyarat lampu lalu lintas dan berhati-hati',
+            correct: true,
+          },
+          {
+            text: 'Mempercepat sepeda tanpa memperhatikan lampu',
+            correct: false,
+          },
+          { text: 'Mengabaikan rambu tersebut', correct: false },
         ],
-        why: 'Tempat yang benar belum cukup kalau tidak melihat kanan-kiri. Pastikan jalan aman dulu.',
+        why: 'Lampu mengatur kapan boleh jalan. Andi harus melihat nyala lampunya sebelum melintas.',
+      },
+    ],
+  },
+  {
+    id: 'belok-kiri',
+    title: 'Rambu Perintah Belok ke Kiri',
+    story:
+      'Doni dan ayahnya naik mobil ke rumah nenek. Di dekat persimpangan ada rambu bulat biru berpanah kiri, padahal ayah ingin lurus.',
+    sign: {
+      art: 'belok-kiri',
+      name: 'Rambu Perintah Belok ke Kiri',
+      visual: 'bulat biru dengan panah putih menunjuk ke kiri',
+    },
+    steps: [
+      {
+        ask: 'makna',
+        prompt: 'Apa informasi yang disampaikan rambu tersebut?',
+        options: [
+          { text: 'Perintah belok ke arah kiri', correct: true },
+          { text: 'Perintah berjalan lurus', correct: false },
+          { text: 'Perintah belok ke arah kanan', correct: false },
+        ],
+        why: 'Bulat biru adalah perintah. Panah ke kiri berarti kendaraan wajib melewati jalur sebelah kiri.',
+      },
+      {
+        ask: 'alasan',
+        prompt: 'Mengapa ayah Doni harus mengikuti arah panah pada rambu tersebut?',
+        options: [
+          {
+            text: 'Karena rambu memberikan perintah untuk melewati jalur sebelah kiri',
+            correct: true,
+          },
+          { text: 'Karena rambu menunjukkan tempat parkir', correct: false },
+          {
+            text: 'Karena rambu memperingatkan adanya lampu lalu lintas',
+            correct: false,
+          },
+        ],
+        why: 'Perintah mengatur arus jalan. Kalau ayah tetap lurus, mobil bisa bertabrakan dengan kendaraan lain.',
+      },
+      {
+        ask: 'tindakan',
+        prompt: 'Apa yang sebaiknya dilakukan ayah Doni?',
+        options: [
+          {
+            text: 'Mengikuti arah panah dan melewati jalur sebelah kiri',
+            correct: true,
+          },
+          { text: 'Tetap berjalan lurus', correct: false },
+          { text: 'Belok ke arah kanan', correct: false },
+        ],
+        why: 'Mengikuti panah membuat arus jalan teratur. Ayah belok kiri, bukan lurus atau ke kanan.',
+      },
+    ],
+  },
+  {
+    id: 'jalur-evakuasi',
+    title: 'Rambu Jalur Evakuasi',
+    story:
+      'Rina sedang di sekolah saat gempa. Guru mengajak semua siswa ke tempat aman, dan Rina melihat rambu hijau berpanah putih.',
+    sign: {
+      art: 'jalur-evakuasi',
+      name: 'Rambu Jalur Evakuasi',
+      visual: 'persegi panjang hijau bergambar orang berlari ke pintu dan panah besar',
+    },
+    steps: [
+      {
+        ask: 'makna',
+        prompt: 'Apa informasi yang disampaikan rambu tersebut?',
+        options: [
+          { text: 'Jalur evakuasi', correct: true },
+          { text: 'Dilarang masuk', correct: false },
+          { text: 'Tempat parkir kendaraan', correct: false },
+        ],
+        why: 'Persegi hijau adalah petunjuk. Gambar orang dan panah menunjukkan jalan keluar saat darurat.',
+      },
+      {
+        ask: 'alasan',
+        prompt: 'Mengapa Rina perlu mengikuti petunjuk pada rambu tersebut?',
+        options: [
+          {
+            text: 'Karena rambu menunjukkan arah menuju tempat yang aman saat keadaan darurat',
+            correct: true,
+          },
+          { text: 'Karena rambu menunjukkan arah menuju pasar', correct: false },
+          {
+            text: 'Karena rambu menunjukkan tempat kendaraan berhenti',
+            correct: false,
+          },
+        ],
+        why: 'Saat gempa, semua orang harus keluar dengan tenang. Rambu ini menunjukkan arah yang aman.',
+      },
+      {
+        ask: 'tindakan',
+        prompt: 'Apa yang sebaiknya dilakukan Rina?',
+        options: [
+          {
+            text: 'Mengikuti arah jalur evakuasi menuju tempat aman',
+            correct: true,
+          },
+          { text: 'Berlari ke arah yang tidak diketahui', correct: false },
+          { text: 'Mengabaikan petunjuk rambu', correct: false },
+        ],
+        why: 'Mengikuti panah jalur evakuasi membawa Rina ke tempat aman.',
       },
     ],
   },
