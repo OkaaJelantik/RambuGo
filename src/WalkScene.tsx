@@ -17,7 +17,7 @@ import {
 } from './art/scenery'
 import { Car, Motorcycle } from './art/vehicles'
 import { Pedestrian } from './art/people'
-import { ART_INK_BOTTOM, ART_SCALE, ArtInk } from './SignArt'
+import { ART_INK_BOTTOM, ART_POLE_SEAT, ART_SCALE, ArtInk } from './SignArt'
 import type { Art, Sign } from './data'
 import { METERS } from './scene/meters'
 import {
@@ -232,9 +232,9 @@ export function pedBox(kind: 'adult' | 'child', viewportH: number): Box {
  */
 function SignFigure({ art, poleId }: { art: Art; poleId: string }) {
   const poleW = SIGN_POLE_ART.w
-  // Tiang mulai di batas bawah tinta pelat, bukan di dasar kotak pelat: belah
-  // ketupat berhenti di 96/100 unit, jadi tiang di 120 meninggalkan celah.
-  // `POLE_SEAM_OVERLAP` menutup satu baris antialias di sambungan; tiang
+  // Tiang masuk ke dalam siluet pelat (`signPoleTop`): pada belah ketupat
+  // sedalam lebar tiang, supaya ujung rata tiang tidak menonjol di samping
+  // titik pelat. `POLE_SEAM_OVERLAP` menutup satu baris antialias; tiang
   // digambar lebih dulu, jadi bagian yang menumpuk pelat tidak terlihat.
   const poleTop = signPoleTop(art)
   return (
@@ -245,8 +245,8 @@ function SignFigure({ art, poleId }: { art: Art; poleId: string }) {
           <stop offset="1" stopColor="color-mix(in srgb, var(--road) 80%, var(--ink))" />
         </linearGradient>
       </defs>
-      {/* Tiang dulu, pelat menimpanya di sambungan. Tiang mulai tepat di bawah
-          tinta pelat (`poleTop`) dan berakhir di tanah: ujung bawahnya tetap di
+      {/* Tiang dulu, pelat menimpanya di sambungan. Tiang mulai di `poleTop`
+          (di dalam tinta pelat) dan berakhir di tanah: ujung bawahnya tetap di
           `SIGN_BOX.h`, jadi tiang tidak ikut memanjang/pendek tergantung art. */}
       <rect
         x={(SIGN_BOX.w - poleW) / 2}
@@ -270,9 +270,13 @@ const POLE_SEAM_OVERLAP = 0.5
  * Titik atas tiang, unit pelat. Diekspor supaya tes bisa menahan bug "pelat
  * melayang": dulu tiang mulai di `SIGN_BOX.w` (120), sementara belah ketupat
  * berhenti di 96/100 unit art = 115,2 unit pelat — 4,9 px celah di HP.
+ *
+ * Pelat datar dan bulat memakai tinta terbawahnya: di sana siluet sudah cukup
+ * lebar untuk ujung tiang. Belah ketupat butuh masuk lebih dalam
+ * (`ART_POLE_SEAT`), karena lebarnya menyempit ke satu titik.
  */
 export function signPoleTop(art: Art): number {
-  return ART_INK_BOTTOM[art] * ART_SCALE - POLE_SEAM_OVERLAP
+  return (ART_POLE_SEAT[art] ?? ART_INK_BOTTOM[art]) * ART_SCALE - POLE_SEAM_OVERLAP
 }
 
 /** Diameter of the sign plate at its stop depth, in px, including `SIGN_EMPHASIS`. */

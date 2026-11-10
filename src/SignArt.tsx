@@ -46,6 +46,24 @@ export const ART_INK_BOTTOM: Record<Art, number> = {
   'jalur-evakuasi': 100,
 }
 
+/**
+ * Ketinggian (unit art) tempat lebar tinta pelat sudah menutupi ujung atas
+ * tiang yang rata. Tiang dicat di belakang pelat, jadi ujungnya harus masuk
+ * sejauh ini ke dalam siluet; kalau tidak, ujung rata 17,1 unit pelat itu
+ * bertemu titik belah ketupat yang lebarnya <1 unit dan sambungannya terbaca
+ * putus.
+ *
+ * Pelat datar (larangan, papan) tidak perlu entri: tepi bawahnya lurus dan
+ * selebar kotak. Belah ketupat menyempit 1:1 ke titiknya; setengah lebar
+ * tiang 7,1 unit art baru tercapai 7,1 unit di atas tinta terbawah:
+ * 96 − 7,14 ≈ 88,8. Sisa tumpang tindih jahitan diatur `signPoleTop`.
+ */
+export const ART_POLE_SEAT: Partial<Record<Art, number>> = {
+  'peringatan-penyeberangan': 88.8,
+  'peringatan-lampu': 88.8,
+  'peringatan-persimpangan': 88.8,
+}
+
 export const ART_BOX: Record<Art, { w: number; h: number }> = {
   'dilarang-berhenti': { w: 100, h: 100 },
   'dilarang-parkir': { w: 100, h: 100 },
@@ -183,7 +201,11 @@ export const ART: Record<Art, ReactNode> = {
   'peringatan-penyeberangan': (
     <>
       {ketupat}
-      {walker}
+      {/* Zebra aslinya 54 unit lebar dan berhenti 15 unit di bawah pusat;
+          pada y=80 belah ketupat hanya 15 unit setengah-lebar, jadi tanpa
+          skala ini zebra menembus tepi pelat. 0,7 menyisakan ±1 unit di dalam
+          garis dalam belah ketupat, dan gambar tetap terbaca. */}
+      <g transform="translate(50 50) scale(0.7) translate(-50 -50)">{walker}</g>
     </>
   ),
 

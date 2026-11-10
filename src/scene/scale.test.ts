@@ -1063,6 +1063,8 @@ describe('sambungan pelat dan tiang', () => {
   // tiang. Sebabnya tiang mulai di dasar kotak pelat (120) sementara tinta
   // belah ketupat berhenti 4 unit art di atasnya.
   const ARTS = ['dilarang-parkir', 'peringatan-lampu', 'belok-kiri'] as const
+  // Pelat dengan tepi bawah datar: ujung tiang cukup menumpuk 0,5 unit pelat.
+  const FLAT_ARTS = ['dilarang-parkir', 'belok-kiri'] as const
 
   it('tinta tiap art berhenti di ketinggian yang berbeda di dalam kotak', () => {
     // Bulat larangan: r45 + garis 10 → tinta sampai dasar kotak.
@@ -1074,7 +1076,7 @@ describe('sambungan pelat dan tiang', () => {
   })
 
   it('tiang mulai di tinta terbawah pelat, bukan di 120', () => {
-    for (const art of ARTS) {
+    for (const art of FLAT_ARTS) {
       const inkBottom = ART_INK_BOTTOM[art] * ART_SCALE
       // Tumpang tindih 0,5 unit pelat untuk menutup baris antialias; yang
       // penting: TIDAK pernah di bawah tinta (= celah).
@@ -1083,10 +1085,27 @@ describe('sambungan pelat dan tiang', () => {
     }
   })
 
+  it('ujung tiang tertutup siluet belah ketupat, bukan menonjol di sisi titiknya', () => {
+    // Bug yang dilaporkan: tiang tampak lepas dari rambu peringatan. Ujung
+    // tiang itu rata selebar 17,1 unit pelat, sedangkan belah ketupat menyempit
+    // ke satu titik; kalau titik atas tiang hanya 0,5 unit di bawah tinta,
+    // sudut-sudutnya menonjol di samping pelat.
+    for (const art of [
+      'peringatan-penyeberangan',
+      'peringatan-lampu',
+      'peringatan-persimpangan',
+    ] as const) {
+      const halfWidthAtPoleTop = ART_INK_BOTTOM[art] * ART_SCALE - signPoleTop(art)
+      expect(halfWidthAtPoleTop).toBeGreaterThanOrEqual(SIGN_POLE_ART.w / 2)
+    }
+  })
+
   it('tiang tetap mencapai tanah dari titik atas mana pun', () => {
     for (const art of ARTS) {
       expect(SIGN_BOX.h - signPoleTop(art)).toBeGreaterThan(SIGN_POLE_ART.h - 6)
-      expect(signPoleTop(art)).toBeGreaterThan(SIGN_BOX.w - 6)
+      // 96 = 20% bawah kotak pelat: ujung tiang tetap di daerah pelat, tidak
+      // naik sampai menembus gambarnya.
+      expect(signPoleTop(art)).toBeGreaterThan(96)
     }
   })
 })
