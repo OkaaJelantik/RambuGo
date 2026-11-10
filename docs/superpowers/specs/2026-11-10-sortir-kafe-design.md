@@ -113,3 +113,13 @@ rambu yang sudah benar), kotak berisi tombol-tombol rambu (kepala kotak tetap
 satu tombol "taruh di sini"), dan slot isi memakai satu baris dengan tumpukan
 negatif di atas empat hiasan supaya tinggi kotak konstan — kalau tidak, 12
 hiasan di satu kotak membuat layar 360×640 bergulir.
+
+## Revisi 3 — satu papan rapi, bukan tiga bidang
+
+| # | Keputusan | Alasan |
+|---|---|---|
+| 13 | Jendela dihapus; latar hanya tiga pita rata (plafon, dinding, meja) + dua garis tipis. `preserveAspectRatio="none"` supaya pita tetap sejajar dengan baris hiasan. | "Langit bersih, meja bersih": dekorasi membuat hiasan terbaca acak. |
+| 14 | Tiga bidang (rak 48 / counter 64 / lantai 56) diganti **satu papan grid 4 × 3**, ukuran seragam 58 px, tanpa kemiringan. | Rapi dan terbaca sebagai satu koleksi; ukuran berbeda-beda dan tilt membuatnya tampak berserak. |
+
+Yang tidak berubah: slot tetap + paku, penilaian lewat "Aku selesai", kotak
+netral tanpa warna jenis, dan seluruh jalur seret/ketuk/papan tombol.

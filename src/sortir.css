@@ -97,56 +97,31 @@
   height: 100%;
 }
 
-/* ---------- tiga bidang ---------- */
+/* ---------- papan pajangan: 4 × 3 rapi di tengah dinding ---------- */
 
-.sr-shelf {
+/* Satu barisan, bukan tiga bidang berserak. Dinding latar polos, jadi hiasan
+   terbaca sebagai koleksi yang dipajang; tidak ada kemiringan, tidak ada
+   ukuran berbeda — "rapi" adalah bagian dari pelajarannya. */
+.sr-board {
   position: absolute;
   left: 4px;
   right: 4px;
-  /* Tinggi = rambu + tebal papan, supaya papan tidak pernah menutupi rambu. */
-  height: calc(var(--sign-size) + 8px);
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-evenly;
-  padding-bottom: 8px;
+  top: 9%;
+  bottom: 15%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
   z-index: 1;
-  /* Wadah transparan: yang menerima ketukan hanya slot rambunya. */
+  /* Wadah transparan: yang menerima ketukan hanya hiasannya. */
   pointer-events: none;
-}
-
-/* Papan bidang = kayu di bawah rambu, digambar CSS supaya selalu menempel
-   pada baris slotnya walau panggung melar. */
-.sr-shelf::before {
-  content: '';
-  position: absolute;
-  left: -2px;
-  right: -2px;
-  bottom: 0;
-  height: 8px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #c08c5a 0%, #96653f 100%);
-  box-shadow: 0 2px 0 rgba(42, 35, 32, 0.28);
-  z-index: 0;
-}
-
-.sr-shelf--rak {
-  --sign-size: 48px;
-  top: 8px;
-}
-
-.sr-shelf--counter {
-  --sign-size: 64px;
-  top: 28%;
-}
-
-.sr-shelf--lantai {
-  --sign-size: 56px;
-  bottom: 6%;
 }
 
 /* Slot tetap: tombol rambu dan paku memakai kotak yang sama persis. */
 .sr-pajang,
 .sr-paku {
+  --sign-size: 58px;
   position: relative;
   z-index: 1;
   flex: 0 0 auto;
@@ -157,15 +132,11 @@
   border-radius: 12px;
 }
 
-/* Rambu yang belum dipindah: hiasan telanjang, bukan kartu putih berbingkai. */
+/* Hiasan telanjang di dinding: tanpa kartu, tanpa bingkai, tanpa kemiringan. */
 .sr-pajang {
   padding: 0;
   background: none;
   border: 0;
-  /* Kemiringan deterministik dari indeks slot; diputar dari bawah supaya
-     terlihat disandarkan, bukan mengambang. */
-  transform: rotate(var(--tilt, 0deg));
-  transform-origin: 50% 90%;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -185,7 +156,7 @@
   box-shadow:
     0 0 0 3px rgba(46, 123, 224, 0.45),
     0 6px 14px rgba(42, 35, 32, 0.25);
-  transform: rotate(var(--tilt, 0deg)) scale(1.06);
+  transform: scale(1.06);
 }
 
 .sr-pajang[data-dragging='true'] {
@@ -203,7 +174,7 @@
   outline-offset: 2px;
 }
 
-/* Rambu yang sudah dipindah meninggalkan paku di slotnya: panggung tetap
+/* Hiasan yang sudah dipindah meninggalkan paku di slotnya: papan tetap
    "berisi" dan tidak ada satu pun kotak yang berubah ukuran. */
 .sr-paku::before {
   content: '';
@@ -457,6 +428,6 @@
   }
 
   .sr-pajang[aria-pressed='true'] {
-    transform: rotate(var(--tilt, 0deg));
+    transform: none;
   }
 }

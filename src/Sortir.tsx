@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent, RefObject } from 'react'
+import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent, RefObject } from 'react'
 import { KINDS, type Kind, type Sign } from './data'
 import { SignArt } from './SignArt'
 import { KIND_ORDER, KIND_ROLE, binAt, sortirCards, type Box } from './sortir'
@@ -7,24 +7,12 @@ import { KafeScene } from './art/kafe'
 import './sortir.css'
 
 /**
- * Tiga bidang tempat dua belas rambu dipajang. Indeks global slot dipecah per
- * bidang: rak dinding `cards[0..4]` (48 px), atas counter `cards[5..8]`
- * (64 px), lantai dekat pintu `cards[9..11]` (56 px). Ukuran mengecil makin
- * jauh dari mata tanpa satu pun hitungan proyeksi.
+ * Satu ukuran untuk dua belas hiasan. Dinding hanya diisi satu barisan rapi
+ * (4 kolom × 3 baris di `.sr-board`), jadi tidak ada ukuran per bidang dan
+ * tidak ada kemiringan: yang dipajang harus terbaca sebagai satu koleksi,
+ * bukan barang yang tersebar acak.
  */
-const SHELVES = [
-  { key: 'rak', label: 'Rak dinding', size: 48, from: 0, to: 5 },
-  { key: 'counter', label: 'Atas counter', size: 64, from: 5, to: 9 },
-  { key: 'lantai', label: 'Dekat pintu', size: 56, from: 9, to: 12 },
-] as const
-
-/**
- * Kemiringan deterministik dari indeks slot global: −6…+6 derajat, berpola
- * lima nilai supaya dua belas hiasan tidak tampak seperti barisan cetakan.
- */
-function tiltFor(index: number): number {
-  return ((index % 5) - 2) * 3
-}
+const SIGN_SIZE = 58
 
 type Props = {
   seed: number
@@ -346,48 +334,39 @@ export default function Sortir({ seed, onDone, headingRef }: Props) {
         {live}
       </p>
 
-      {/* Panggung: latar interior kafe + tiga bidang. Dua belas slot selalu
+      {/* Panggung: dinding kafe polos + satu papan 4 × 3. Dua belas slot selalu
           dipetakan dari `cards` (bukan dari sisa), jadi hiasan yang pindah
           meninggalkan paku di posisinya dan panggung tidak pernah reflow. */}
       <div className="sr-stage">
         <KafeScene className="sr-stage__art" />
-        {SHELVES.map((shelf) => (
-          <div
-            key={shelf.key}
-            className={`sr-shelf sr-shelf--${shelf.key}`}
-            role="group"
-            aria-label={shelf.label}
-          >
-            {cards.slice(shelf.from, shelf.to).map((card, offset) => {
-              const slot = shelf.from + offset
-              if (placedBy[card.id] !== undefined) {
-                return <span key={card.id} className="sr-paku" aria-hidden="true" />
-              }
-              return (
-                <button
-                  key={card.id}
-                  type="button"
-                  className="sr-pajang"
-                  data-sign={card.id}
-                  data-wrong={wrong.has(card.id) || undefined}
-                  data-dragging={dragCard?.id === card.id || undefined}
-                  aria-pressed={selected === card.id}
-                  style={{ '--tilt': `${tiltFor(slot)}deg` } as CSSProperties}
-                  ref={(el) => {
-                    if (el) signRefs.current.set(card.id, el)
-                    else signRefs.current.delete(card.id)
-                  }}
-                  onDragStart={(event) => event.preventDefault()}
-                  onPointerDown={(event) => beginDrag(event, card, null)}
-                  onClick={() => selectSign(card.id)}
-                >
-                  <SignArt art={card.art} size={shelf.size} />
-                  <span className="sr-only">{card.name}</span>
-                </button>
-              )
-            })}
-          </div>
-        ))}
+        <div className="sr-board" role="group" aria-label="Dinding pajangan">
+          {cards.map((card) => {
+            if (placedBy[card.id] !== undefined) {
+              return <span key={card.id} className="sr-paku" aria-hidden="true" />
+            }
+            return (
+              <button
+                key={card.id}
+                type="button"
+                className="sr-pajang"
+                data-sign={card.id}
+                data-wrong={wrong.has(card.id) || undefined}
+                data-dragging={dragCard?.id === card.id || undefined}
+                aria-pressed={selected === card.id}
+                ref={(el) => {
+                  if (el) signRefs.current.set(card.id, el)
+                  else signRefs.current.delete(card.id)
+                }}
+                onDragStart={(event) => event.preventDefault()}
+                onPointerDown={(event) => beginDrag(event, card, null)}
+                onClick={() => selectSign(card.id)}
+              >
+                <SignArt art={card.art} size={SIGN_SIZE} />
+                <span className="sr-only">{card.name}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="sr-bins">
