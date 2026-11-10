@@ -5,6 +5,20 @@ hafalan nama. Satu anak satu layar, tanpa akun, tanpa backend.
 
 **Live:** https://rambugo.vercel.app
 
+## Konteks: media pembelajaran berdiferensiasi
+
+RambuGO! adalah media pembelajaran ICT berbasis web untuk **pembelajaran berdiferensiasi** pada
+Bahasa Indonesia kelas IV SD, materi rambu lalu lintas. Materi ini kontekstual — anak menemuinya di
+jalan, sekolah, dan tempat umum — tetapi pembelajaran yang hanya berupa penjelasan lisan atau gambar
+di buku membuat anak menghafal bentuk tanpa memahami maknanya (Agitha et al., 2021). Media web yang
+interaktif memberi pengalaman belajar yang lebih bervariasi dan bermakna (Indriyani et al., 2022;
+Zulqadri & Nurgiyantoro, 2023).
+
+Diferensiasi hadir lewat **tiga jalur dengan beban kognitif berbeda** — Belajar (materi lalu kuis),
+Pilah (mengelompokkan rambu), dan Studi Kasus (keputusan bertahap) — serta skor bintang yang tidak
+menghukum: hasil 0 tetap pulang dengan Bintang 1. Diharapkan anak lebih mudah menafsirkan pesan
+simbol, lebih terlibat, dan lebih sadar mematuhi rambu sehari-hari.
+
 ## Isi permainan
 
 ```
@@ -91,6 +105,22 @@ pnpm build && vercel deploy   # preview URL
 - [DESIGN.md](DESIGN.md) — token, tipografi, model proyeksi, gerak, aksesibilitas.
 - [AGENTS.md](AGENTS.md) — peta berkas, aturan yang tidak boleh dilanggar, jebakan.
 - `docs/` — naskah cerita, rencana kerja, spesifikasi historis.
+
+## Kredit
+
+- **Penyusun & pemilik proyek:** OkaaJelantik — konsep, konteks pembelajaran, keputusan produk, dan
+  review setiap perubahan.
+- **Pengembangan web:** agen AI **DeepSeek Harness** — satu *lead agent* yang mengelola lane, plus
+  subagent untuk lane Sortir dan lane Materi. Pekerjaan mencakup kode React/TS, tes, verifikasi
+  browser (Playwright), dokumentasi, dan deploy Vercel.
+- **Sumber materi:** `docs/MODUL_AJAR.md` dan bahan acuan di `Assets/`; ringkasan keputusan ada di
+  `PRODUCT.md` dan `AGENTS.md`.
+
+## Rujukan
+
+- Agitha et al. (2021).
+- Indriyani et al. (2022).
+- Zulqadri & Nurgiyantoro (2023).
 
 ## Non-goal
 
