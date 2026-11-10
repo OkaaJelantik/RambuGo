@@ -56,9 +56,10 @@ function kindChipText(kind: Kind) {
 }
 
 /**
- * Katalog materi dikelompokkan per jenis, urutannya milik `KIND_ORDER`
- * (`sortir.ts`) supaya katalog dan permainan mengelompokkan dengan urutan yang
- * sama — satu daftar, bukan dua yang bisa lepas. Kelompok kosong dibuang.
+ * Jenis rambu beserta anggotanya, urutannya milik `KIND_ORDER` (`sortir.ts`)
+ * supaya katalog materi dan permainan sortir memakai urutan yang sama — satu
+ * daftar, bukan dua yang bisa lepas. Level 1 memakai `kind`/jumlahnya, level 2
+ * memakai `signs`. Kelompok kosong dibuang.
  */
 const MATERI_GROUPS = KIND_ORDER.map((kind) => ({
   kind,
@@ -331,9 +332,22 @@ export default function App() {
   /** Narasi Aku yang tampil sebagai balon ucapan sesudah lembar ditutup. */
   const [narration, setNarration] = useState<string | null>(null)
   const [materiOpen, setMateriOpen] = useState<Sign | null>(null)
+  /**
+   * Level katalog materi adalah state lokal adegan — level 1 daftar jenis,
+   * level 2 katalog satu jenis. Bukan stage/posisi rute: `route.ts` tidak
+   * tahu-menahu soal ini, dan keluar-masuk adegan selalu mengembalikan ke
+   * level 1 (lihat reset di onPop/onMateri/restart).
+   */
+  const [materiKind, setMateriKind] = useState<Kind | null>(null)
   const walkSceneRef = useRef<HTMLDivElement | null>(null)
   const classroomHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const materiHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  /** Judul jenis di level 2; fokus mendarat di sini setelah kapsul diketuk. */
+  const materiKindHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  /** Satu ref per kapsul: "Semua jenis" mengembalikan fokus ke kapsul asal. */
+  const kindCapsuleRefs = useRef<Partial<Record<Kind, HTMLButtonElement | null>>>({})
+  /** Sasaran fokus setelah level materi berganti (heading / kapsul). */
+  const materiPendingFocusRef = useRef<'heading' | Kind | null>(null)
   const sortirHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const homeHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const quizCardRef = useRef<HTMLDivElement | null>(null)
@@ -407,6 +421,8 @@ export default function App() {
       setOpen(null)
       setMateriOpen(null)
       setNarration(null)
+      // Katalog materi selalu dibuka di level 1 lewat history.
+      setMateriKind(null)
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -426,6 +442,33 @@ export default function App() {
     setMateriOpen(null)
   }
 
+  /** Level 2 → level 1: fokus kembali ke kapsul jenis yang tadi dibuka. */
+  const closeMateriKind = () => {
+    if (materiKind === null) return
+    materiPendingFocusRef.current = materiKind
+    setMateriKind(null)
+  }
+
+  /** Level 1 → level 2: fokus mendarat di judul jenis sesudah layar berganti. */
+  const openMateriKind = (kind: Kind) => {
+    materiPendingFocusRef.current = 'heading'
+    setMateriOpen(null)
+    setMateriKind(kind)
+  }
+
+  // Escape di level 2 kembali ke daftar jenis. Lembar rambu punya Escape
+  // sendiri; guard `materiOpen` mencegah dua lapis tertutup sekaligus.
+  useEffect(() => {
+    if (stage !== 'materi' || materiKind === null) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || materiOpen) return
+      e.stopPropagation()
+      closeMateriKind()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [stage, materiKind, materiOpen])
+
   const restart = () => {
     // Sesi baru: skor tiap jalur milik sesi lama, jangan dibawa ke kelas.
     clearJalur('kuis')
@@ -439,6 +482,7 @@ export default function App() {
     setBeatId('intro')
     setOpen(null)
     setMateriOpen(null)
+    setMateriKind(null)
     setNarration(null)
     setVia(null)
     setScore(0)
@@ -473,6 +517,16 @@ export default function App() {
     else if (target === 'crossroad') crossroadHeadingRef.current?.focus()
     else quizCardRef.current?.focus()
   }, [stage, beatId])
+
+  // Level materi berganti: fokus mendarat di judul jenis (masuk level 2) atau
+  // di kapsul yang tadi dibuka (kembali ke level 1) — tidak pernah <body>.
+  useLayoutEffect(() => {
+    const target = materiPendingFocusRef.current
+    if (!target) return
+    materiPendingFocusRef.current = null
+    if (target === 'heading') materiKindHeadingRef.current?.focus()
+    else kindCapsuleRefs.current[target]?.focus()
+  }, [materiKind])
 
   const continueWalk = () => {
     // Balon narasi ditutup bersama jalan yang dimulai lagi.
@@ -520,6 +574,16 @@ export default function App() {
         return
     }
   }
+
+  /**
+   * Rambu jenis yang sedang dibuka di level 2; kosong di level 1. Daftar
+   * kelompoknya tetap `MATERI_GROUPS` (urutan `KIND_ORDER`), jadi kapsul dan
+   * katalog membaca sumber yang sama.
+   */
+  const materiSigns =
+    materiKind === null
+      ? []
+      : (MATERI_GROUPS.find((group) => group.kind === materiKind)?.signs ?? [])
 
   return (
     <div className={still ? 'app still' : 'app'}>
@@ -577,7 +641,9 @@ export default function App() {
             onMateri={() => {
               pendingFocusRef.current = 'materi'
               setVia('materi')
-              navigate('materi', 0)
+              // Masuk adegan materi selalu dari level 1 (daftar jenis).
+              setMateriKind(null)
+                      navigate('materi', 0)
               setBeatId('materi')
             }}
             onStudi={() => {
@@ -596,47 +662,70 @@ export default function App() {
             <h2 ref={materiHeadingRef} tabIndex={-1}>
               Jalur Materi
             </h2>
-            <p>Klik rambu untuk tahu artinya.</p>
+            <p>
+              {materiKind === null
+                ? 'Pilih jenis rambu dulu, lalu klik rambunya.'
+                : 'Klik rambu untuk tahu artinya.'}
+            </p>
           </div>
-          {MATERI_GROUPS.map(({ kind, signs }) => {
-            const meta = KINDS[kind]
-            return (
-              <section
-                key={kind}
-                className="materi-group"
-                data-kind={kind}
-                aria-labelledby={`materi-${kind}`}
-                style={{ '--kind-color': meta.color } as CSSProperties}
-              >
-                <header className="materi-group__head">
-                  <h3 className="materi-group__title" id={`materi-${kind}`}>
-                    {meta.label}
-                  </h3>
-                  {/* Blok bentuk: satu jenis satu penjelasan, bukan satu per
-                      kartu. Isinya `KINDS[kind]`, sumber yang sama dengan
-                      lembar di jalur walk. */}
-                  <h4 className="materi-group__label">Tentang Bentuk</h4>
-                  <p className="materi-group__shape">{meta.shape}</p>
-                  <p className="materi-group__rule">{meta.rule}</p>
-                </header>
-                <div className="grid">
-                  {signs.map((s) => (
-                    <button
-                      key={s.id}
-                      className="sign-card"
-                      onClick={() => setMateriOpen(s)}
-                    >
-                      <div className="art">
-                        <SignArt art={s.art} size={80} />
-                      </div>
-                      {/* Tanpa chip jenis: header kelompok sudah memegangnya. */}
-                      <h4>{s.name}</h4>
-                    </button>
-                  ))}
-                </div>
+          {materiKind === null ? (
+            /* Level 1: daftar jenis. Katalog belum dipasang — anak memilih
+               bentuk dulu, baru melihat rambu jenis itu. */
+            <div className="kind-capsules">
+              {MATERI_GROUPS.map(({ kind }) => {
+                const meta = KINDS[kind]
+                return (
+                  <button
+                    key={kind}
+                    type="button"
+                    className="kind-capsule"
+                    data-kind={kind}
+                    ref={(el) => {
+                      kindCapsuleRefs.current[kind] = el
+                    }}
+                    onClick={() => openMateriKind(kind)}
+                  >
+                    <span className="kind-capsule__label">{meta.label}</span>
+                    <span className="kind-capsule__shape">{meta.shape}</span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            /* Level 2: katalog satu jenis. Jenisnya dipegang header, jadi
+               kartu tidak lagi membawa chip. */
+            <div
+              className="materi-kind"
+              style={{ '--kind-color': KINDS[materiKind].color } as CSSProperties}
+            >
+              <button type="button" className="materi-back" onClick={closeMateriKind}>
+                <span className="materi-back__arrow" aria-hidden="true">
+                  ←
+                </span>
+                Kembali
+              </button>
+              <h3 className="materi-kind__title" ref={materiKindHeadingRef} tabIndex={-1}>
+                {KINDS[materiKind].label}
+              </h3>
+              {/* Bentuk jenis langsung tampil tanpa label: satu penjelasan per
+                  jenis, isinya `KINDS[kind]`, sumber yang sama dengan lembar
+                  jalur walk. */}
+              <section className="materi-shape">
+                <p className="materi-shape__form">{KINDS[materiKind].shape}</p>
+                <p className="materi-shape__rule">{KINDS[materiKind].rule}</p>
               </section>
-            )
-          })}
+              <div className="grid">
+                {materiSigns.map((s) => (
+                  <button key={s.id} className="sign-card" onClick={() => setMateriOpen(s)}>
+                    <div className="art">
+                      <SignArt art={s.art} size={80} />
+                    </div>
+                    <h4>{s.name}</h4>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {materiOpen && (
             <SignSheet sign={materiOpen} onClose={closeMateriSheet} cta="Tutup" lean />
           )}

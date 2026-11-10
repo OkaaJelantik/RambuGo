@@ -114,11 +114,11 @@ const WALK_SHAPES: Record<string, string> = {
 }
 
 /**
- * Katalog materi: empat kelompok, urutan dan kalimatnya literal (bukan turunan
+ * Katalog materi: empat jenis, urutan dan kalimatnya literal (bukan turunan
  * `KIND_ORDER`/`KINDS`). Kalau data atau urutan tertukar, tes harus merah —
  * assertion yang membaca sumbernya sendiri tidak bisa gagal.
  */
-const MATERI_GROUPS = [
+const MATERI_KINDS = [
   {
     kind: 'larangan',
     label: 'Larangan',
@@ -387,12 +387,18 @@ async function reachCrossroad() {
 }
 
 /**
- * Sampai di layar materi lewat papan "Belajar" di persimpangan.
+ * Sampai di layar materi lewat papan "Belajar" di persimpangan. Layar dibuka
+ * di level 1 (daftar jenis), belum ada kartu rambu.
  */
 async function reachMateri() {
   await reachCrossroad()
   fireEvent.click(screen.getByRole('button', { name: /^Belajar —/ }))
   expect(screen.getByRole('heading', { name: 'Jalur Materi' })).toBeTruthy()
+}
+
+/** Kapsul jenis di level 1, dicari lewat `data-kind` yang dipasang layar. */
+function kindCapsule(kind: string) {
+  return document.querySelector<HTMLButtonElement>(`.kind-capsule[data-kind="${kind}"]`)
 }
 
 /**
@@ -636,41 +642,92 @@ describe('alur aplikasi', () => {
     expectNoPanel()
   })
 
-  it('materi: katalog dikelompokkan per jenis, tiap kelompok punya Tentang Bentuk', async () => {
+  it('materi level 1: hanya empat kapsul jenis, belum ada kartu rambu', async () => {
     await reachMateri()
 
-    // Empat kelompok dengan urutan KIND_ORDER; urutannya literal di
-    // MATERI_GROUPS, bukan dibaca dari data produksi.
-    const groups = Array.from(document.querySelectorAll<HTMLElement>('.materi-group'))
-    expect(groups.map((group) => group.dataset.kind)).toEqual(
-      MATERI_GROUPS.map((group) => group.kind),
+    // Level 1 adalah daftar jenis, bukan katalog: kartu rambu belum dipasang.
+    expect(document.querySelectorAll('.sign-card')).toHaveLength(0)
+
+    const capsules = Array.from(document.querySelectorAll<HTMLElement>('.kind-capsule'))
+    expect(capsules.map((capsule) => capsule.dataset.kind)).toEqual(
+      MATERI_KINDS.map((expected) => expected.kind),
     )
 
-    // Satu katalog utuh: dua belas kartu, tiga per kelompok.
-    expect(document.querySelectorAll('.sign-card')).toHaveLength(SIGNS.length)
-
-    for (const [index, expected] of MATERI_GROUPS.entries()) {
-      const group = groups[index]
-      expect(group, `kelompok ${expected.kind} tidak ada`).toBeTruthy()
-      // Jenis dipegang header: judul + blok "Tentang Bentuk" berisi bentuk
-      // dan aturan jenisnya (satu sumber: KINDS[kind].shape/.rule).
-      expect(within(group).getByRole('heading', { name: expected.label })).toBeTruthy()
-      expect(within(group).getByText('Tentang Bentuk')).toBeTruthy()
-      expect(within(group).getByText(expected.shape)).toBeTruthy()
-      expect(within(group).getByText(expected.rule)).toBeTruthy()
-
-      const cards = Array.from(group.querySelectorAll<HTMLElement>('.sign-card'))
-      expect(cards, `kartu kelompok ${expected.kind}`).toHaveLength(expected.names.length)
-      for (const card of cards) {
-        // Jenis sudah terbaca dari header kelompok, chip di kartu hanya
-        // mengulang informasi yang sama.
-        expect(card.querySelector('.kind-chip')).toBeNull()
-        expect(expected.names).toContain(card.querySelector('h4')?.textContent)
-      }
+    for (const [index, expected] of MATERI_KINDS.entries()) {
+      const capsule = capsules[index]
+      // Kapsul = tombol berisi jenis + bentuknya. Jumlah rambu tidak dicetak:
+      // angka itu mengundang anak menghitung, bukan mengenali bentuk.
+      expect(capsule.tagName).toBe('BUTTON')
+      expect(capsule.textContent).toContain(expected.label)
+      expect(capsule.textContent).toContain(expected.shape)
+      expect(capsule.textContent).not.toMatch(/\d+\s*rambu/)
+      // Jenis sudah terbaca dari kapsul; tidak ada chip berulang di sini.
+      expect(capsule.querySelector('.kind-chip')).toBeNull()
     }
+  })
 
-    // Di katalog tidak ada chip jenis tersisa (dulu satu per kartu).
-    expect(document.querySelectorAll('.kind-chip')).toHaveLength(0)
+  it('materi: kapsul jenis membuka katalognya, deskripsi bentuk langsung tampil', async () => {
+    await reachMateri()
+
+    const capsule = kindCapsule('peringatan')
+    expect(capsule, 'kapsul Peringatan').toBeTruthy()
+    fireEvent.click(capsule as HTMLButtonElement)
+
+    // Level 2: heading jenis difokus, bukan jatuh ke <body>.
+    const heading = screen.getByRole('heading', { name: 'Peringatan' })
+    expect(document.activeElement).toBe(heading)
+
+    // Navigasi: satu tombol kembali, bukan breadcrumb.
+    expect(screen.getByRole('button', { name: /Kembali/ })).toBeTruthy()
+    expect(document.querySelector('[aria-current="page"]')).toBeNull()
+
+    // Katalog satu jenis: tepat tiga kartu rambu peringatan, tanpa chip.
+    const cards = Array.from(document.querySelectorAll<HTMLElement>('.sign-card'))
+    expect(cards).toHaveLength(3)
+    for (const card of cards) {
+      expect(card.querySelector('.kind-chip')).toBeNull()
+      expect(MATERI_KINDS[1].names).toContain(card.querySelector('h4')?.textContent)
+    }
+    // Kartu jenis lain tidak ikut terbawa.
+    expect(screen.queryByRole('button', { name: /Dilarang Berhenti/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Wajib Belok Kiri/ })).toBeNull()
+
+    // Deskripsi bentuk langsung tampil tanpa label dan tanpa tombol; isinya
+    // datang dari KINDS (satu sumber).
+    expect(screen.queryByRole('button', { name: /Tentang Bentuk/ })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Tentang Bentuk' })).toBeNull()
+    const shapePanel = document.querySelector('.materi-shape')
+    expect(shapePanel, 'panel bentuk selalu ada').not.toBeNull()
+    expect(shapePanel?.textContent).toContain(MATERI_KINDS[1].shape)
+    expect(shapePanel?.textContent).toContain(MATERI_KINDS[1].rule)
+
+    // Jumlah rambu juga tidak dicetak di katalog jenis.
+    expect(document.querySelector('.materi-kind__count')).toBeNull()
+    expect(document.querySelector('.materi-kind')?.textContent).not.toMatch(/\d+\s*rambu/)
+  })
+
+  it('materi: tombol Kembali dan Escape kembali ke level 1 dengan fokus ke kapsul asal', async () => {
+    await reachMateri()
+
+    fireEvent.click(kindCapsule('perintah') as HTMLButtonElement)
+    expect(screen.getByRole('heading', { name: 'Perintah' })).toBeTruthy()
+
+    // Tombol kembali di level 2 mengembalikan ke daftar jenis.
+    fireEvent.click(screen.getByRole('button', { name: /Kembali/ }))
+    expect(document.querySelectorAll('.kind-capsule')).toHaveLength(4)
+    expect(document.querySelectorAll('.sign-card')).toHaveLength(0)
+    // Fokus kembali ke kapsul jenis yang tadi dibuka, bukan <body>.
+    expect(document.activeElement).toBe(kindCapsule('perintah'))
+    expect(document.activeElement).not.toBe(document.body)
+
+    // Escape di level 2 (tanpa lembar terbuka) juga kembali ke level 1.
+    fireEvent.click(kindCapsule('petunjuk') as HTMLButtonElement)
+    expect(screen.getByRole('heading', { name: 'Petunjuk' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(document.querySelectorAll('.kind-capsule')).toHaveLength(4)
+    expect(document.querySelectorAll('.sign-card')).toHaveLength(0)
+    expect(document.activeElement).toBe(kindCapsule('petunjuk'))
+    expect(document.activeElement).not.toBe(document.body)
   })
 
   it('jalur materi: 3 rambu, papan rambu, lalu 5/5 dengan teks jalur materi', async () => {
@@ -679,6 +736,10 @@ describe('alur aplikasi', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Belajar —/ }))
     expect(screen.getByRole('heading', { name: 'Jalur Materi' })).toBeTruthy()
     expectPanelLine(MATERI_LINE)
+
+    // Level 1 hanya daftar jenis; katalog dibuka lewat kapsul jenisnya.
+    fireEvent.click(kindCapsule('peringatan') as HTMLButtonElement)
+    expect(screen.getByRole('heading', { name: 'Peringatan' })).toBeTruthy()
 
     // Kartu membuka lembar ramping — tanpa narasi Aku, karena di jalur materi
     // anak memang sedang membaca, bukan bercerita.
